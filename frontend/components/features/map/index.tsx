@@ -15,6 +15,7 @@ import {
 } from "./handlers";
 import { draftIcon as makeDraftIcon } from "./icons";
 import { ReportMarker } from "./ReportMarker";
+import { EarthquakeLayer } from "./EarthquakeLayer";
 import type { MapViewProps } from "./types";
 import WeatherLayer from "./WeatherLayer";
 
@@ -23,6 +24,7 @@ export type { MapBounds, MapViewProps } from "./types";
 function MapViewInner({
 	reports,
 	missingMarkers = [],
+	earthquakes = [],
 	showMissingOnMap = true,
 	onBoundsChange,
 	draft,
@@ -64,6 +66,7 @@ function MapViewInner({
 			{(showRain || showClouds) && (
 				<WeatherLayer showRain={showRain} showClouds={showClouds} />
 			)}
+			<EarthquakeLayer earthquakes={earthquakes} />
 			<BoundsHandler onBoundsChange={onBoundsChange} />
 			<ClickHandler onPick={onPick} />
 

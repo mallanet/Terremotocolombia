@@ -8,7 +8,7 @@ import AddressSearch, {
 import type { MapBounds } from "@/components/features/map";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import type { MissingMapMarker } from "@/hooks/missing";
-import type { EmergencyReport, ReportType } from "@/lib/types";
+import type { EmergencyReport, ReportType, Earthquake } from "@/lib/types";
 import { deploymentConfig } from "@/lib/deployment-config";
 import FilterChips from "./FilterChips";
 
@@ -25,6 +25,8 @@ const MapView = dynamic(() => import("@/components/features/map"), {
 
 export interface MapPanelProps {
 	mapReports: EmergencyReport[];
+	/** Catalogo USGS para pintar sismos y epicentro en el mapa. */
+	earthquakes?: Earthquake[];
 	missingMapMarkers: MissingMapMarker[];
 	showMissingOnMap: boolean;
 	draft: { lat: number; lng: number } | null;
@@ -52,6 +54,7 @@ export interface MapPanelProps {
 export default function MapPanel({
 	mapReports,
 	missingMapMarkers,
+	earthquakes,
 	showMissingOnMap,
 	draft,
 	confirmed,
@@ -96,6 +99,7 @@ export default function MapPanel({
 				<MapView
 					reports={mapReports}
 					missingMarkers={missingMapMarkers}
+					earthquakes={earthquakes}
 					showMissingOnMap={showMissingOnMap}
 					onBoundsChange={onBoundsChange}
 					draft={draft}
