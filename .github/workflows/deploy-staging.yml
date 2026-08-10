@@ -93,7 +93,7 @@ jobs:
           doppler run --command '
             CLOUDFLARE_API_TOKEN="$CLOUDFLARE_ACCOUNT_API_TOKEN" \
             CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID" \
-            npx wrangler deploy --env staging'
+            npx wrangler deploy --env staging --old-asset-ttl 86400'
 
       - name: Smoke check
         run: |
