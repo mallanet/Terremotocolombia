@@ -5,17 +5,23 @@ import SiteFooter from "@/components/layout/SiteFooter";
 import HeroSection from "@/components/layout/HeroSection";
 import HelpSection from "@/components/layout/HelpSection";
 import TutorialSteps from "@/components/layout/TutorialSteps";
+import MissingPersonsCarousel from "@/components/features/missing-carousel";
 import { LazySection } from "@/components/ui/LazySection";
 import { SectionLoading } from "@/components/ui/SectionLoading";
 
-const MissingPersonsCarousel = dynamic(
-  () => import("@/components/features/missing-carousel"),
-  {
-    loading: () => (
-      <SectionLoading label="Cargando directorio de personas…" rows={3} />
-    ),
-  },
-);
+// El directorio de personas se importa ESTÁTICO, no con next/dynamic. Es el
+// contenido primario de la home y ahora llega con datos prefetcheados desde el
+// servidor; meterlo en un chunk aparte solo añadía latencia (un round-trip más
+// antes de poder hidratar y disparar la primera query).
+//
+// Además evita un fallo real: next/dynamic lo envolvía en un boundary de
+// Suspense, y React 19 programa el "reveal" de un boundary con
+// requestAnimationFrame — que NO se ejecuta en una pestaña en segundo plano. En
+// una pestaña abierta con ⌘-clic o restaurada al arrancar el navegador, la
+// sección se quedaba clavada en el esqueleto de carga indefinidamente (el
+// contenido quedaba en el <div hidden> de staging de React, sin insertarse).
+// El form de reporte y el modal de detalle SIGUEN siendo dynamic: esos sí son
+// pesados y solo hacen falta tras una interacción.
 
 const EarthquakesPanel = dynamic(
   () => import("@/components/features/earthquakes"),
