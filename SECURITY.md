@@ -15,11 +15,11 @@ crisis— es explotable en cuanto se publica.
 
 - Repórtalo por el canal privado de seguridad del repositorio (GitHub
   Security Advisories: pestaña "Security" → "Report a vulnerability").
-- Si tu fork tiene su propio contacto de seguridad, debería vivir en
-  `contactEmail` de `config/deployment.config.json` (en esta plantilla,
-  ese valor es el placeholder `contacto@example.org`). Cualquiera que
-  despliegue este template debería reemplazarlo por un contacto real y
-  monitoreado antes de operar en producción — no un correo personal.
+- El contacto de seguridad de este despliegue vive en `contactEmail` de
+  `config/deployment.config.json` — hoy **`info@mallanet.org`**. Ya no es un
+  placeholder: es una dirección real y monitoreada. Si haces fork para otro
+  despliegue, reemplázala por la tuya (una de organización, nunca personal)
+  antes de operar en producción.
 - Incluye: qué endpoint/archivo/flujo está afectado, el impacto concreto
   (¿expone PII? ¿permite escritura no autenticada? ¿es un bypass de
   rate-limit?), y pasos para reproducir. No necesitas un exploit completo,
@@ -41,6 +41,12 @@ tenga que construir desde cero:
   corre en `npm run lint` + CI): no hay forma de saltarla con un comentario.
   Respaldado por Valkey cuando está configurado; sin él, cae a rate-limit en
   memoria por proceso (degradado pero no ausente).
+
+  > **Estado en terremotocolombia.co: modo degradado.** El Worker
+  > `terremotocolombia-api` no tiene Valkey, así que el contador vive en memoria
+  > y **por isolate**. Con muchos isolates eso es bastante más permisivo que el
+  > número declarado. El rate limit que sí es real y compartido es el del borde
+  > (regla de Cloudflare sobre la zona).
 - **Verificación humana en escrituras públicas (Cloudflare Turnstile).**
   Toda mutación de cara al público (`backend/src/routes/*`) exige `requireHuman`
   (token de Turnstile de un solo uso) o un gate equivalente

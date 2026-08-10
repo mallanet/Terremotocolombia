@@ -1,14 +1,26 @@
 # AGENTS.md
 
 Guía operativa para agentes de código (y humanos) que trabajen en este
-repositorio. Es una **plantilla** para sitios de respuesta a desastres:
-mapa/lista de reportes, directorio de hospitales/refugios, centros de acopio,
-panel de administración con RBAC y un worker para sincronización/backfills.
-No asume ningún evento, país ni organización en particular — toda esa
-identidad vive en `config/deployment.config.json` y en variables de entorno.
+repositorio: **el despliegue en producción de terremotocolombia.co** (Terremoto
+Colombia 2026, Mallanet.org). Mapa/lista de reportes, directorio de
+hospitales/refugios, centros de acopio, panel de administración con RBAC y un
+worker de sincronización.
 
-Si este repo también tiene un `CLAUDE.md`, mantenlo como symlink a este
-archivo (no una copia): así un solo documento sirve a ambas herramientas.
+Nació como plantilla genérica y el código sigue siéndolo en su mayoría: la
+identidad vive en `config/deployment.config.json` y en Doppler, nunca
+hardcodeada. Pero el standup ya ocurrió y esto sirve tráfico real.
+
+> **`CLAUDE.md` y `AGENTS.md` son dos ficheros distintos, a propósito. No los
+> fusiones ni conviertas uno en symlink del otro.**
+>
+> Una versión anterior de este archivo pedía justo eso. Ya no aplica y seguirlo
+> sería destructivo: `CLAUDE.md` contiene lo que un agente necesita saber
+> **antes** de tocar nada (que empujar a `main` despliega, qué no se toca sin un
+> humano, dónde corre cada pieza), y convertirlo en un enlace a este fichero
+> borraría todo eso.
+>
+> Reparto: **`CLAUDE.md` manda en despliegue y seguridad operativa**; este
+> fichero manda en **convenciones de código**.
 
 ## Antes de tocar código
 
@@ -49,13 +61,26 @@ Este tipo de proyecto maneja datos de personas en crisis. GitHub es público y
 **no** debe usarse como canal de emergencia ni como base de datos de personas
 afectadas.
 
-- **No hardcodees identidad real.** Ningún dominio, IP, email, teléfono,
-  nombre de organización/evento, coordenada sensible o handle de red social
-  real va en código, config, fixtures, tests o docs. Usa `example.org`,
-  `admin@example.org`, variables de entorno, o valores leídos de
-  `config/deployment.config.json`. Este repo es una plantilla pública: cada
-  despliegue real pone su propia identidad en su `.env` y su
-  `deployment.config.json`, nunca en el código.
+- **No hardcodees identidad real en el código de la aplicación.** Ningún
+  dominio, IP, email, teléfono, nombre de organización/evento, coordenada
+  sensible o handle real va en `frontend/`, `backend/`, `admin/`, fixtures o
+  tests. Usa `example.org`, variables de entorno, o valores leídos de
+  `config/deployment.config.json`.
+
+  **Excepción esperada — no la "arregles":** los ficheros de despliegue **sí**
+  llevan los nombres reales a propósito, porque describen *esta* instalación y
+  no una plantilla:
+
+  ```text
+  config/deployment.config.json      terremotocolombia.co, Mallanet.org
+  frontend/wrangler.jsonc            terremotocolombia-web + dominios propios
+  backend/wrangler.jsonc             terremotocolombia-api
+  .github/workflows/deploy-*.yml     nombres de Worker y URLs de smoke check
+  .neon                              org y proyecto de Neon
+  ```
+
+  Sustituirlos por placeholders rompe el despliegue. La regla protege el
+  **código**, no la configuración de infraestructura.
 - **No inventes ni cargues datos reales de personas.** Para ejemplos, tests y
   fixtures usa datos sintéticos, claramente marcados como demo. Nunca
   publiques en código, issues, PRs o capturas: teléfonos, correos personales,

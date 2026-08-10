@@ -108,6 +108,17 @@ scp .prod.env deploy@<ip-del-vps>:~/app/.prod.env
 
 ## 4. DNS — antes de levantar Caddy
 
+> **PARA (NO) para terremotocolombia.co.** Los dominios reales
+> (`terremotocolombia.co`, `api.`, `admin.`) ya apuntan a los Workers de
+> Cloudflare, y sus registros los gestiona un módulo de OpenTofu **fuera de
+> este repo** (`~/Colombia/infra/cloudflare`). Crear a mano los registros A de
+> abajo **desviaría el tráfico del sitio en vivo** a un VPS a medio levantar, y
+> además el siguiente `tofu apply` revertiría el cambio sin avisar.
+>
+> Si estás probando esta ruta, usa dominios distintos a los de producción. Si
+> la migración es de verdad, coordínala con quien administra la zona antes de
+> tocar nada.
+
 En el proveedor DNS que gestione tus dominios (puede ser un proveedor
 distinto al del VPS), crea un registro A por dominio, apuntando a la IP
 pública del VPS:
@@ -215,6 +226,10 @@ Prueba tu restore al menos una vez antes de necesitarlo de verdad —un backup
 nunca probado es una suposición, no una garantía.
 
 ## Actualizar un despliegue existente
+
+> Aplica **solo si ya existe** un stack VPS/compose corriendo. Para Terremoto
+> Colombia no hay ninguno: actualizar producción es `git push` a `main` (el
+> frontend se despliega solo) o disparar `deploy-backend.yml` a mano.
 
 ```bash
 cd app

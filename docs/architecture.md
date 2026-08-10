@@ -18,13 +18,17 @@ infraestructura compartida:
   worker y el job de migraciones.
 - `backend/worker/`: BullMQ sobre Valkey para sync de fuentes externas,
   geocode, deduplicación, federación de hub y backfills/migraciones.
+  **No desplegado hoy** — ver [Workers y colas](#workers-y-colas).
 - `admin/`: panel de administración como microservicio Next.js standalone
   (3er tier, RBAC con JWT en cookie httpOnly). Su BFF (`app/api/*`) reenvía al
   backend por la red interna del despliegue.
+  **No desplegado hoy**: CI lo compila (`build-admin` en `ci.yml`), pero
+  `admin.terremotocolombia.co` no sirve tráfico.
 - `infra/db/`: esquema Drizzle y migraciones SQL.
-- `docker-compose.prod.yml` + `Caddyfile.example`: despliegue de producción
-  en un **único VPS** (docker compose + Caddy como reverse proxy/TLS). Ver
-  [Despliegue](#despliegue).
+- **Producción hoy: Cloudflare Workers + Neon Postgres.**
+  `docker-compose.prod.yml` + `Caddyfile.example` (VPS único con Caddy) es el
+  camino **alternativo**, y el único donde funcionan colas, transacciones
+  interactivas y `admin/`. Ver [Despliegue](#despliegue).
 
 ## Flujo de requests
 
@@ -89,6 +93,13 @@ backend con `mediaUrl()`.
 - Las mutaciones públicas combinan Zod, rate-limit y `requireHuman`
   (Cloudflare Turnstile, opcional). Las rutas admin legadas usan
   `ADMIN_PASSWORD`/headers existentes.
+
+  > **Turnstile está DESACTIVADO en producción.** Se retiró
+  > `TURNSTILE_SECRET_KEY` del Worker de la API porque el bundle del frontend
+  > no llevaba la site key pública: el widget no se montaba, no había token, y
+  > `requireHuman` rechazaba **todos** los reportes con 403. Hoy las escrituras
+  > públicas solo dependen del WAF y el rate limit de Cloudflare. Ver
+  > `SECURITY.md` para el orden exacto de reactivación.
 - Lecturas polleadas usan cache en proceso y ETag cuando el contrato lo
   permite.
 - `GET /api/reports` pagina el conjunto completo para que mapa y
@@ -169,6 +180,12 @@ Turnstile + rate-limit).
 
 - Postgres es la base de datos de producción, co-ubicada en el mismo VPS por
   defecto (servicio `db` de `docker-compose.prod.yml`) o externa si prefieres.
+  **Hoy es externa: Neon**, y el Worker se conecta por su endpoint `-pooler`.
+- **Las migraciones en producción son un paso MANUAL.** No hay gate automático
+  como el del contenedor `migrate`: CI no las corre, y ningún despliegue las
+  dispara. Se ejecutan a mano con `backend/worker/migrate.ts` y `DATABASE_URL`
+  apuntando a Neon **directo** (no al `-pooler`). Un agente no las corre por
+  iniciativa propia.
 - Drizzle vive en `infra/db/schema.ts`; las migraciones versionadas viven en
   `infra/db/migrations/`.
 - Las bajas de personas importadas crean una supresión por `legacy_id` y,
@@ -193,6 +210,22 @@ Turnstile + rate-limit).
   fuera de esta plantilla (ver "Fuera de esta plantilla" más abajo).
 
 ## Workers y colas
+
+> **ESTADO EN PRODUCCIÓN: este worker NO está desplegado en ningún sitio.**
+>
+> Todo lo de esta sección describe el camino docker-compose. En Cloudflare
+> Workers no hay Valkey ni proceso de colas, así que **encolar un job no lo
+> ejecuta nadie**. Lo que queda degradado hoy:
+>
+> | Superficie | Efecto |
+> | --- | --- |
+> | `GET /api/earthquakes` | sin sync: devuelve lo que haya en base (hoy, vacío) |
+> | `POST /api/needs` | la publicación en ResponseGrid no se procesa |
+> | Importación de pacientes | **manual y OCR por igual** — las dos pasan por `enqueuePatientImport` |
+> | Federación de hub | no corre |
+>
+> El rate-limit distribuido también cae a su modo degradado (en memoria, por
+> isolate) porque no hay `VALKEY_URL`.
 
 - Valkey respalda BullMQ y el rate-limit distribuido.
 - El servicio `migrate` de `docker-compose.prod.yml` usa la misma imagen

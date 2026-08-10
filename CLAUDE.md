@@ -13,9 +13,10 @@ integraciones, Drizzle, reglas ESLint), lee **`AGENTS.md`**.
 ## Lo primero: empujar a `main` DESPLIEGA
 
 `.github/workflows/deploy-frontend.yml` se dispara **solo** en cada push a `main`
-que toque `frontend/**` o `config/deployment.config.json`. No hay paso de
-aprobación. Un commit al frontend es un despliegue a un sitio que usa gente
-buscando a familiares.
+que toque `frontend/**`, `config/deployment.config.json`, o el propio workflow.
+No hay paso de aprobación ni entorno de staging: `main` **es** producción. Un
+commit al frontend es un despliegue a un sitio que usa gente buscando a
+familiares.
 
 El **backend NO** se despliega solo: `deploy-backend.yml` es manual
 (`workflow_dispatch`) y exige escribir `desplegar`. Es deliberado — la API
@@ -92,7 +93,23 @@ el runner.
   el fallo aborta el deploy **después** de subir el código y **antes** de promover
   la versión: el Worker se queda sirviendo la build anterior y el comando parece
   casi correcto.
-- **`admin/` y el worker de colas no están desplegados.**
+- **`admin/` y el worker de colas no están desplegados.** El worker no es
+  cosmético: sin él no corren el sync de sismos, la publicación de necesidades,
+  la importación de pacientes (manual **y** OCR: las dos pasan por
+  `enqueuePatientImport`) ni la federación de hub. Ver `docs/architecture.md` →
+  "Workers y colas".
+- **Hay bindings de Hyperdrive y una base D1 creados pero SIN USAR.**
+  `backend/wrangler.jsonc` declara un binding de Hyperdrive que hoy no se lee.
+  Se intentó y fue contraproducente: el driver de Workers es el HTTP de Neon,
+  que necesita una URL de Neon de verdad, y al inyectar la cadena local de
+  Hyperdrive **fallaban casi todas las consultas**. La D1 se creó al evaluar
+  "todo en Cloudflare" y no tiene ni una línea de código detrás.
+  **No los actives suponiendo que están a medio cablear** — están apagados a
+  propósito. Quitarlos o hacerlos funcionar es decisión del mantenedor.
+- **El rate limit corre degradado.** Sin `VALKEY_URL`, el limitador del backend
+  cae a memoria por isolate en vez de compartido. En Workers, con muchos
+  isolates, eso es bastante más permisivo de lo que sugiere el número. El rate
+  limit del borde (Cloudflare) sí es real.
 
 ## Reglas de seguridad (sin excepción)
 
