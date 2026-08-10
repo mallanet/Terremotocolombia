@@ -1,19 +1,29 @@
-# Disaster Response Template
+# Terremoto Colombia — terremotocolombia.co
 
 *[Léelo en español](README.es.md)*
 
-A real-time citizen emergency map: georeferenced incident reports, a
-missing-persons + hospital/shelter directory, an optional collection-center
-directory, and an admin panel with role-based access. It's built for
-organizations that need to stand up a disaster-response site — earthquake,
-flood, hurricane, wildfire — in hours, not weeks, and hand day-to-day
-operation to a small team afterward.
+Live disaster-response site for the **2026 Colombia earthquake**, run by
+[Mallanet.org](https://mallanet.org): a real-time citizen emergency map with
+georeferenced incident reports, a missing-persons + hospital/shelter directory,
+a collection-center directory, and an admin panel with role-based access.
 
-This is a **GitHub Template repository**. It has no history of its own event:
-every identity (organization name, disaster name, region, domains, contact,
-map center) lives in `config/deployment.config.json` and `.env`, never in
-code. Click **Use this template**, and you get a clean, working, generic
-instance ready to be configured for your situation.
+**→ https://terremotocolombia.co**
+
+> This is **not** the generic template any more — it is a live deployment
+> serving real traffic. It began as a fork of a disaster-response template, and
+> most of the code is still generic: every identity value (organization,
+> disaster name, region, domains, contact, map center) still lives in
+> `config/deployment.config.json`, never hardcoded. But the standup already
+> happened, the identity is filled in, and **pushing to `main` deploys the
+> frontend automatically**.
+>
+> If you are here to stand up your own deployment for a different disaster,
+> start from the upstream template rather than forking this repo — this one
+> carries Mallanet's identity and branding.
+
+Agents and contributors: read [`CLAUDE.md`](CLAUDE.md) first — it covers where
+this actually runs, what deploys automatically, and what must never be done
+without a human.
 
 ## Who this is for
 

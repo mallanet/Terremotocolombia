@@ -1,12 +1,20 @@
 # Guía para contribuir
 
-Gracias por ayudar a mejorar este proyecto. Es una plantilla de sitio de
-respuesta a desastres (mapa de reportes, directorio de hospitales/refugios,
-centros de acopio, panel de administración). Recibe aportes de código,
-documentación, pruebas, accesibilidad, rendimiento, datos públicos
-verificables y operaciones. Como este tipo de app se usa en contextos
-humanitarios, la prioridad es proteger a las personas afectadas y mantener la
-plataforma confiable.
+Gracias por ayudar a mejorar este proyecto. Es el sitio de respuesta al
+terremoto de Colombia de 2026 —**terremotocolombia.co**, operado por
+Mallanet.org— con mapa de reportes, directorio de hospitales/refugios, centros
+de acopio y panel de administración. Recibe aportes de código, documentación,
+pruebas, accesibilidad, rendimiento, datos públicos verificables y operaciones.
+
+Es un despliegue **en producción sirviendo tráfico real**, no una plantilla de
+demostración: la prioridad es proteger a las personas afectadas y mantener la
+plataforma en pie. Dos consecuencias prácticas:
+
+- **Un merge a `main` que toque `frontend/**` despliega solo**, sin aprobación.
+- El backend se despliega **a mano** y con confirmación explícita.
+
+Lee [`CLAUDE.md`](CLAUDE.md) antes de tu primer cambio: cubre dónde corre esto,
+qué sale a producción solo, y qué no se toca sin un humano.
 
 ## Antes de empezar
 
@@ -39,21 +47,21 @@ plataforma confiable.
 ## Flujo fork-first
 
 Usa este flujo si no eres maintainer con permiso de escritura en el repo
-principal. Ajusta `[YOUR-ORG]`/`[YOUR-REPO]` por el org/repo real de tu
+principal. Ajusta `mallanet`/`Terremotocolombia` por el org/repo real de tu
 despliegue.
 
-1. Haz fork de `[YOUR-ORG]/[YOUR-REPO]` en GitHub.
+1. Haz fork de `mallanet/Terremotocolombia` en GitHub.
 2. Clona tu fork:
 
    ```bash
-   git clone https://github.com/TU_USUARIO/[YOUR-REPO].git
-   cd [YOUR-REPO]
+   git clone https://github.com/TU_USUARIO/Terremotocolombia.git
+   cd Terremotocolombia
    ```
 
 3. Agrega el repo original como `upstream`:
 
    ```bash
-   git remote add upstream https://github.com/[YOUR-ORG]/[YOUR-REPO].git
+   git remote add upstream https://github.com/mallanet/Terremotocolombia.git
    git fetch upstream
    ```
 

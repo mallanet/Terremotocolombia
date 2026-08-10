@@ -51,6 +51,22 @@ tenga que construir desde cero:
   desarrollo local, pero significa que en producción esa variable **debe**
   estar presente o las escrituras públicas quedan sin verificación
   anti-bot.
+
+  > **ESTADO EN terremotocolombia.co (2026-08-10): DESACTIVADO.**
+  > `TURNSTILE_SECRET_KEY` está **retirada** del Worker de la API, así que las
+  > escrituras públicas **no tienen prueba de humanidad** ahora mismo. No fue
+  > una decisión de diseño: el bundle del frontend no estaba enviando la site
+  > key pública, el widget no se montaba, no se generaba token, y **todos** los
+  > reportes de personas desaparecidas fallaban con 403. Se prefirió aceptar
+  > spam a impedir que alguien reporte a un familiar.
+  >
+  > Mitigaciones que siguen activas: WAF gestionado y rate limiting de
+  > Cloudflare en el borde, más el rate-limit del propio backend.
+  >
+  > Para reactivarlo, **en este orden**: (1) verificar que
+  > `NEXT_PUBLIC_TURNSTILE_SITE_KEY` llega al bundle desplegado, (2) recién
+  > entonces reponer `TURNSTILE_SECRET_KEY` en el Worker. Al revés se vuelven a
+  > romper los reportes.
 - **RBAC en el panel de administración.** El panel (`admin/`, microservicio
   Next.js separado) y la superficie autenticada del backend
   (`backend/src/public-api/*`) usan JWT en cookie httpOnly + un motor de

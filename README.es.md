@@ -1,21 +1,30 @@
-# Plantilla de Respuesta a Desastres
+# Terremoto Colombia — terremotocolombia.co
 
 *[Read it in English](README.md)*
 
-Un mapa de emergencia ciudadano en tiempo real: reportes georreferenciados,
-un directorio de personas desaparecidas + hospitales/refugios, un directorio
-opcional de centros de acopio, y un panel de administración con control de
-acceso por roles. Está pensado para organizaciones que necesitan levantar un
-sitio de respuesta a desastres —sismo, inundación, huracán, incendio
-forestal— en horas, no semanas, y luego dejar la operación diaria en manos de
-un equipo pequeño.
+Sitio de respuesta al **terremoto de Colombia de 2026**, operado por
+[Mallanet.org](https://mallanet.org): mapa de emergencia ciudadano en tiempo
+real con reportes georreferenciados, directorio de personas desaparecidas +
+hospitales/refugios, directorio de centros de acopio, y panel de administración
+con control de acceso por roles.
 
-Este repositorio es una **plantilla de GitHub** (Template repository). No
-tiene historia de ningún evento propio: toda la identidad (nombre de la
-organización, nombre del desastre, región, dominios, contacto, centro del
-mapa) vive en `config/deployment.config.json` y en `.env`, nunca en el
-código. Usa **Use this template**, y obtienes una instancia limpia,
-funcional y genérica, lista para configurar según tu situación.
+**→ https://terremotocolombia.co**
+
+> Este repositorio **ya no es la plantilla genérica**: es un despliegue en
+> producción sirviendo tráfico real. Nació como fork de una plantilla de
+> respuesta a desastres y casi todo el código sigue siendo genérico —la
+> identidad (organización, nombre del desastre, región, dominios, contacto,
+> centro del mapa) sigue viviendo en `config/deployment.config.json`, nunca en
+> el código—, pero el standup ya ocurrió y **empujar a `main` despliega el
+> frontend automáticamente**.
+>
+> Si llegas buscando levantar tu propio despliegue para otro desastre, parte de
+> la plantilla original y no de este repo: este lleva la identidad y la marca de
+> Mallanet.
+
+Agentes y colaboradores: lee [`CLAUDE.md`](CLAUDE.md) primero — cubre dónde
+corre esto de verdad, qué se despliega solo, y qué no se toca nunca sin un
+humano.
 
 ## Para quién es
 

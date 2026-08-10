@@ -1,5 +1,16 @@
 # Guía de standup
 
+> **En este repo el standup YA OCURRIÓ.** terremotocolombia.co está en
+> producción. Esta guía se conserva como referencia —y para el próximo
+> despliegue de Mallanet—, pero **no la ejecutes sobre este repo**: reconfigurar
+> la identidad o regenerar secretos aquí rompe el sitio que está sirviendo.
+>
+> Ojo además: el paso de despliegue de esta guía asume un VPS con docker
+> compose. terremotocolombia.co corre en **Cloudflare Workers**. Ver
+> [`../CLAUDE.md`](../CLAUDE.md) → "Dónde corre esto de verdad".
+>
+> Estado por skill: [`../CLAUDE.md`](../CLAUDE.md) → "Estado del standup".
+
 Cómo pasar de "hice fork de este template" a "tengo un sitio de respuesta a
 desastres real corriendo en mi propio dominio", paso a paso. Si estás usando
 un agente de código (Claude Code u otro compatible con `.claude/skills/`),

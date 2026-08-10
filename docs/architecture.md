@@ -231,9 +231,39 @@ Turnstile + rate-limit).
 
 ## Despliegue
 
-**Producción: un único VPS con docker compose + Caddy.** Runbook paso a paso
-(provisión, hardening, DNS, TLS, smoke checks, backups, actualización y
-rollback): [`docs/deploy-vps.md`](deploy-vps.md).
+> **Hay dos topologías soportadas y hoy corre la B.** No asumas la A al leer el
+> resto de este documento: varias secciones (colas, transacciones, Caddy) solo
+> aplican a la A.
+
+### B. Cloudflare Workers — *lo que sirve terremotocolombia.co ahora*
+
+| Pieza | Worker | Config |
+| --- | --- | --- |
+| Frontend | `terremotocolombia-web` | `frontend/wrangler.jsonc`, `frontend/open-next.config.ts` |
+| API | `terremotocolombia-api` | `backend/wrangler.jsonc`, `backend/src/worker.ts` |
+
+- El frontend se adapta con `@opennextjs/cloudflare`.
+- La API **no se reescribió**: `backend/src/worker.ts` envuelve la misma app de
+  Express con `httpServerHandler` de `cloudflare:node`.
+- Base de datos: **Neon Postgres** (externo), por su endpoint `-pooler`. En
+  Workers el driver es el HTTP de Neon, porque un socket TCP pertenece a la
+  petición que lo abrió y un pool con estado no sobrevive entre peticiones.
+- **Consecuencia:** sin transacciones interactivas (los 8 `db.transaction` de
+  `services/roles.ts` y `services/patient-imports/*` fallan aquí), sin colas
+  BullMQ/Valkey y sin `admin/` desplegado.
+- Despliegue: `.github/workflows/deploy-frontend.yml` (automático en push a
+  `main`, filtrado por rutas) y `.github/workflows/deploy-backend.yml` (manual,
+  con confirmación). Las migraciones **no** las corre CI.
+- La zona de Cloudflare (DNS, anti-suplantación, TLS, WAF, cache, rate limit) se
+  gestiona con un módulo de OpenTofu **fuera de este repo**.
+
+### A. Un único VPS con docker compose + Caddy
+
+Camino alternativo y **más completo**: es el único donde funcionan las colas, las
+transacciones interactivas y el panel `admin/`. Runbook paso a paso (provisión,
+hardening, DNS, TLS, smoke checks, backups, actualización y rollback):
+[`docs/deploy-vps.md`](deploy-vps.md). Sigue siendo la vía cómoda en local,
+porque levanta Postgres y Valkey por ti.
 
 - El stack lo define `docker-compose.prod.yml` detrás de `Caddyfile.example`
   (un único Caddy que reverse-proxea a `frontend:3000`, `backend:8080`,

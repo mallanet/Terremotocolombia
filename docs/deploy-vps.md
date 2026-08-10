@@ -1,5 +1,18 @@
 # Desplegar en un VPS
 
+> **Este NO es el despliegue que sirve terremotocolombia.co hoy.** El sitio
+> corre en **Cloudflare Workers** (frontend `terremotocolombia-web` + API
+> `terremotocolombia-api`) contra **Neon Postgres**, desplegado por
+> `.github/workflows/deploy-frontend.yml` y `deploy-backend.yml`.
+>
+> Este runbook sigue siendo válido y vale la pena mantenerlo: es la topología
+> **más completa** de las dos —la única donde funcionan las colas
+> BullMQ/Valkey, las transacciones interactivas de Postgres y el panel
+> `admin/`— y es la salida natural si Workers se queda corto.
+>
+> Ver [`../CLAUDE.md`](../CLAUDE.md) → "Dónde corre esto de verdad" y
+> [`architecture.md`](architecture.md) → "Despliegue".
+
 Runbook humano para el mismo camino que automatiza la skill
 `.claude/skills/disaster-deploy-vps/SKILL.md`. Si tienes un agente
 disponible, pídele que corra esa skill directamente — este documento es para

@@ -25,6 +25,11 @@ archivo (no una copia): así un solo documento sirve a ambas herramientas.
   que una refactorización amplia.
 - No reescribas historial, no borres ramas ajenas y no reviertas cambios que
   no hiciste.
+- **Un merge a `main` que toque `frontend/**` o `config/deployment.config.json`
+  despliega el frontend automáticamente, sin aprobación.** Trata "empujar a
+  main" como "desplegar a un sitio que está usando gente ahora". El backend NO
+  se despliega solo (workflow manual con confirmación). Detalles y lo que
+  nunca se hace sin un humano: `CLAUDE.md`.
 
 ## Regla de arquitectura
 
@@ -101,10 +106,27 @@ y una capa de infraestructura compartida:
 - `config/deployment.config.json`: identidad del despliegue (nombre,
   dominios, centro del mapa, idioma, contacto) — lee de ahí antes de
   hardcodear cualquier dato de branding.
-- Despliegue: un único VPS con `docker-compose.prod.yml` + Caddy
-  (`Caddyfile.example`) delante. Ver `docs/architecture.md`.
 
-Para correr el sistema completo, `docker compose` es la vía preferida.
+### Despliegue: dos caminos, y hoy corre el segundo
+
+1. **VPS con `docker-compose.prod.yml` + Caddy** (`Caddyfile.example`).
+   Es el camino que describe `docs/deploy-vps.md`, y el único donde funciona
+   **todo** el sistema: colas BullMQ/Valkey, transacciones interactivas de
+   Postgres y el panel `admin/`.
+2. **Cloudflare Workers** — *lo que sirve terremotocolombia.co ahora mismo*.
+   Frontend (`terremotocolombia-web`) con `@opennextjs/cloudflare` y API
+   (`terremotocolombia-api`) envolviendo la misma app de Express con
+   `httpServerHandler`, contra **Neon Postgres** externo.
+   En este camino **no** hay colas ni transacciones interactivas, y `admin/`
+   no está desplegado.
+
+Antes de asumir dónde corre algo, mira `CLAUDE.md` → "Dónde corre esto de
+verdad". Para desarrollo local, `docker compose` sigue siendo la vía cómoda
+porque levanta Postgres y Valkey por ti.
+
+**Los secretos de producción viven en Doppler** (`terremotocolombia-web` /
+`prd`), no en `.env`. Cualquier comando que necesite credenciales reales se
+ejecuta con `doppler run -- …`.
 
 ## Comandos útiles
 
