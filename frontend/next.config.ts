@@ -134,6 +134,8 @@ const nextConfig: NextConfig = {
   // propio `frontend/` bloquea la resolución de `../../config/deployment.
   // config.json` (fuera de este paquete, a propósito: un solo archivo de
   // config compartido por frontend/backend/admin).
+  // No anunciar el stack en cada respuesta.
+  poweredByHeader: false,
   turbopack: {
     root: path.join(import.meta.dirname, ".."),
   },

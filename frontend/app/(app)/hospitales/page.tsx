@@ -7,14 +7,13 @@ import { qk } from "@/lib/query-keys";
 import { serverApiGetCached } from "@/lib/server-api";
 import { pageMetadata } from "@/lib/metadata";
 import type { HospitalsResponse } from "@/hooks/hospitals";
+import { SectionLoading } from "@/components/ui/SectionLoading";
 
 export const revalidate = 300;
 
 const Hospitals = dynamic(() => import("@/components/features/hospitals"), {
   loading: () => (
-    <section className="mx-auto w-full max-w-7xl px-4 py-10 text-sm text-slate-500">
-      Cargando hospitales…
-    </section>
+    <SectionLoading label="Cargando hospitales…" rows={5} />
   ),
 });
 

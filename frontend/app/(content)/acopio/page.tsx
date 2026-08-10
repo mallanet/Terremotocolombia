@@ -6,6 +6,7 @@ import SubPageShell from "@/components/layout/SubPageShell";
 import { getQueryClient } from "@/lib/get-query-client";
 import { qk } from "@/lib/query-keys";
 import { serverApiGetCached } from "@/lib/server-api";
+import { SectionLoading } from "@/components/ui/SectionLoading";
 import {
   ACOPIO_DEFAULT_FILTERS,
   buildAcopioUrl,
@@ -19,9 +20,7 @@ const CollectionCenters = dynamic(
   () => import("@/components/features/collection/CollectionCenters"),
   {
     loading: () => (
-      <section className="mx-auto w-full max-w-7xl px-4 py-10 text-sm text-slate-500">
-        Cargando centros de acopio…
-      </section>
+      <SectionLoading label="Cargando centros de acopio…" rows={4} />
     ),
   },
 );

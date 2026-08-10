@@ -18,6 +18,7 @@ import { ReportMarker } from "./ReportMarker";
 import { EarthquakeLayer } from "./EarthquakeLayer";
 import type { MapViewProps } from "./types";
 import WeatherLayer from "./WeatherLayer";
+import { MapLoading } from "@/components/ui/SectionLoading";
 
 export type { MapBounds, MapViewProps } from "./types";
 
@@ -97,12 +98,7 @@ export default function MapView(props: MapViewProps) {
 
 	if (!mounted) {
 		return (
-			<div
-				className="flex h-full w-full items-center justify-center bg-slate-100 text-slate-500"
-				aria-hidden
-			>
-				Cargando mapa…
-			</div>
+			<MapLoading />
 		);
 	}
 

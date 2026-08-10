@@ -63,7 +63,7 @@ export default function MissingFoundForm({
         setSubmitting(false);
       }
     },
-    [note, photo, onSubmit, turnstileGetToken],
+    [note, photo, onSubmit, turnstileGetToken, ensureConsent],
   );
 
   useEffect(() => {
