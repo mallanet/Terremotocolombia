@@ -1,7 +1,6 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { ImageResponse } from "next/og";
 import { deploymentConfig } from "@/lib/deployment-config";
+import { BRAND_LOGO_DATA_URI } from "@/lib/generated/brand-logo";
 
 export const SOCIAL_IMAGE_SIZE = { width: 1200, height: 630 } as const;
 export const SOCIAL_IMAGE_TYPE = "image/png";
@@ -11,14 +10,11 @@ export const SOCIAL_IMAGE_TYPE = "image/png";
  * product promise only (no magnitudes, death tolls, or event dates).
  */
 export async function createSocialPreviewImage(): Promise<ImageResponse> {
-  const logoPath = path.join(
-    process.cwd(),
-    "public",
-    "brand",
-    "logo-claro.png",
-  );
-  const logoData = await readFile(logoPath);
-  const logoSrc = `data:image/png;base64,${logoData.toString("base64")}`;
+  // El logo va incrustado como data URI (generado en prebuild desde
+  // public/brand/logo-claro.svg). NO leer aqui de public/ con node:fs: en el
+  // Worker de Cloudflare no existe ese directorio en tiempo de peticion y la
+  // ruta devuelve 500. Ver scripts/generate-brand-logo.mjs.
+  const logoSrc = BRAND_LOGO_DATA_URI;
   const domain = deploymentConfig.domains.web;
 
   return new ImageResponse(

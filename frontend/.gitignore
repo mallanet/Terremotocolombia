@@ -5,3 +5,7 @@
 # Copia de build de config/deployment.config.json
 # (la generan scripts/sync-deployment-config.mjs desde la raiz del repo)
 config/
+
+# Modulos generados en prebuild desde assets de marca
+# (los genera scripts/generate-brand-logo.mjs)
+lib/generated/
