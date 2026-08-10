@@ -1,4 +1,10 @@
-import { SITE_URL, SITE_NAME, SITE_LOGO, CONTACT_EMAIL } from "@/lib/site";
+import {
+  SITE_URL,
+  SITE_NAME,
+  SITE_LOGO,
+  CONTACT_EMAIL,
+  DISCORD_INVITE_URL,
+} from "@/lib/site";
 import { deploymentConfig } from "@/lib/deployment-config";
 
 // Constructores de JSON-LD (schema.org) compartidos. Centralizan el marcado
@@ -38,7 +44,7 @@ export function organizationSchema(): JsonLdNode {
     areaServed: { "@type": "Place", name: deploymentConfig.regionLabel },
     sameAs: [
       "https://mallanet.org",
-      "https://discord.gg/mallanet",
+      DISCORD_INVITE_URL,
       "https://github.com/mallanet/Terremotocolombia",
     ],
     knowsAbout: [

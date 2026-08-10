@@ -1,8 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Mail } from "lucide-react";
+import { Mail, MessagesSquare } from "lucide-react";
 import {
   CONTACT_EMAIL,
+  DISCORD_INVITE_URL,
   SITE_BRAND_NAME,
   SITE_NAV_LOGO,
   SITE_PRODUCT_NAME,
@@ -50,6 +51,15 @@ export default function SiteFooter() {
             <a href={contactMailto()} className="e-footer__email">
               <Mail size={15} strokeWidth={2} aria-hidden />
               {CONTACT_EMAIL}
+            </a>
+            <a
+              href={DISCORD_INVITE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="e-footer__cta"
+            >
+              <MessagesSquare size={16} strokeWidth={2} aria-hidden />
+              ¿Quieres ser voluntario? Únete a nuestra comunidad de Discord
             </a>
           </div>
         </section>

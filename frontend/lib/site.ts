@@ -14,6 +14,9 @@ export const SITE_PRODUCT_NAME = deploymentConfig.productName;
 
 export const CONTACT_EMAIL = deploymentConfig.contactEmail;
 
+/** Comunidad Discord de Mallanet (voluntariado / coordinación). */
+export const DISCORD_INVITE_URL = "https://discord.gg/mallanet";
+
 export function contactMailto(subject?: string): string {
   if (!subject) return `mailto:${CONTACT_EMAIL}`;
   return `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}`;
