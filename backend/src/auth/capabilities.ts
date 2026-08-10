@@ -25,6 +25,10 @@ export type CrudVerb = (typeof CRUD_VERBS)[number];
 export const MODELS: { key: string; category: string; label: string }[] = [
   { key: "report", category: "reports", label: "Reportes de emergencia" },
   { key: "missing", category: "missing", label: "Personas desaparecidas" },
+  // Modelo aparte de `missing`: son tablas distintas a propósito (ver
+  // services/pets.ts), así que también son permisos distintos — se puede dar
+  // acceso a mascotas sin darlo a los datos de personas, que son más sensibles.
+  { key: "pet", category: "missing", label: "Mascotas desaparecidas" },
   { key: "hospital", category: "hospitals", label: "Hospitales" },
   { key: "patient", category: "hospitals", label: "Pacientes de hospital" },
   { key: "donation", category: "donations", label: "Donaciones / acopio" },

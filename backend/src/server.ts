@@ -11,6 +11,7 @@ import { isR2Configured } from "@/lib/r2";
 import { mountPublicApi } from "@/public-api";
 import { buildOpenApiSpec } from "@/lib/swagger";
 import { missingRouter } from "@/routes/missing";
+import { petsRouter } from "@/routes/pets";
 import { reportsRouter } from "@/routes/reports";
 import { chatRouter } from "@/routes/chat";
 import { hospitalsRouter } from "@/routes/hospitals";
@@ -166,6 +167,9 @@ mountPublicApi(app);
 
 // Rutas. (Reference endpoint ahora; el resto las añade el workflow de port.)
 app.use("/api/missing", missingRouter);
+// Mascotas. Tabla y consultas PROPIAS (missing_pets): montar esto no puede
+// alterar el conteo ni el listado de personas desaparecidas. Ver services/pets.ts.
+app.use("/api/pets", petsRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/hospitals", hospitalsRouter);

@@ -5,6 +5,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { MapContainer, Marker, TileLayer, ZoomControl } from "react-leaflet";
 import { useClientMount } from "@/hooks/useClientMount";
 import { MissingClusterLayer } from "./ClusterLayer";
+import { PetClusterLayer } from "./PetClusterLayer";
 import {
 	BoundsHandler,
 	ClickHandler,
@@ -25,8 +26,10 @@ export type { MapBounds, MapViewProps } from "./types";
 function MapViewInner({
 	reports,
 	missingMarkers = [],
+	petMarkers = [],
 	earthquakes = [],
 	showMissingOnMap = true,
+	showPetsOnMap = true,
 	onBoundsChange,
 	draft,
 	onPick,
@@ -73,6 +76,10 @@ function MapViewInner({
 
 			{showMissingOnMap && (
 				<MissingClusterLayer markers={missingMarkers} markerRefs={markerRefs} />
+			)}
+
+			{showPetsOnMap && petMarkers.length > 0 && (
+				<PetClusterLayer markers={petMarkers} markerRefs={markerRefs} />
 			)}
 
 			{reports.map((report) => (
