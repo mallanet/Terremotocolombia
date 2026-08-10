@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans, Sora } from "next/font/google";
+import localFont from "next/font/local";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 import PwaRegister from "@/components/layout/PwaRegister";
@@ -18,25 +18,60 @@ import { SITE_URL, SITE_NAME, SITE_PRODUCT_NAME, SITE_BRAND_NAME } from "@/lib/s
 import { deploymentConfig } from "@/lib/deployment-config";
 import { ogImageMeta } from "@/lib/og-image";
 
-const sora = Sora({
-  subsets: ["latin"],
-  weight: ["600", "700"],
+// Tipografías AUTO-ALOJADAS (ver app/fonts/README.md).
+//
+// Antes esto era `next/font/google`, que descarga los .woff2 desde Google en
+// tiempo de BUILD. Un fallo de red transitorio rompía el build entero — pasó de
+// verdad (CI 31429921516 en `main`, 2026-08-10) y el mismo commit re-ejecutado
+// sin tocar una línea pasó. Como `deploy-frontend.yml` despliega a producción en
+// cada push a `main`, ese parpadeo tumba un despliegue de un sitio de emergencia
+// con una traza que parece un error de código. Con los ficheros versionados en
+// app/fonts/, `next build` no habla con la red.
+//
+// Los nombres de las variables CSS (--font-display/--font-body/--font-mono) NO
+// cambian: globals.css los consume y no se tocó nada allí.
+//
+// `adjustFontFallback: "Arial"` es la capa anti-CLS: Next lee las métricas del
+// fichero y genera un @font-face de fallback con ascent/descent/size-adjust
+// ajustados, igual que hacía la versión de Google.
+const sora = localFont({
+  // Variable (tiene tabla `fvar`): UN fichero cubre todo el rango de pesos, por
+  // eso `weight` es un rango y no una lista.
+  src: "./fonts/sora-latin-variable.woff2",
+  weight: "600 700",
+  style: "normal",
   variable: "--font-display",
   display: "swap",
+  adjustFontFallback: "Arial",
 });
 
-const ibmPlexSans = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+const ibmPlexSans = localFont({
+  // Variable, igual que Sora: 400–700 en un solo fichero.
+  src: "./fonts/ibm-plex-sans-latin-variable.woff2",
+  weight: "400 700",
+  style: "normal",
   variable: "--font-body",
   display: "swap",
+  adjustFontFallback: "Arial",
 });
 
-const ibmPlexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
+const ibmPlexMono = localFont({
+  // Estática (sin `fvar`): un fichero por peso.
+  src: [
+    {
+      path: "./fonts/ibm-plex-mono-latin-400.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "./fonts/ibm-plex-mono-latin-500.woff2",
+      weight: "500",
+      style: "normal",
+    },
+  ],
   variable: "--font-mono",
   display: "swap",
+  adjustFontFallback: "Arial",
 });
 
 const SITE_TITLE = `${SITE_PRODUCT_NAME} · ${SITE_BRAND_NAME}`;
