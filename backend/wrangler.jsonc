@@ -1,0 +1,50 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "terremotocolombia-api",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-08-01",
+  // nodejs_compat da los builtins de Node (http, crypto, buffer, stream) que
+  // necesitan Express, helmet, pg y jsonwebtoken.
+  "compatibility_flags": ["nodejs_compat"],
+  // El dominio propio (api.terremotocolombia.co) se adjunta por la API de
+  // cuenta (/accounts/{id}/workers/domains), NO aqui.
+  //
+  // Motivo: al declarar `routes`, wrangler llama tambien a
+  // /zones/{id}/workers/routes, y el token de cuenta no tiene permiso de zona
+  // (403). El token con permiso de zona, a su vez, no puede desplegar Workers.
+  // Ninguno de los dos puede hacer el deploy completo, asi que el dominio se
+  // adjunta aparte. Ver docs/cloudflare-cutover.md.
+  // Config NO secreta (versionada a proposito). Los secretos van por
+  // `wrangler secret bulk` desde Doppler, nunca aqui.
+  "vars": {
+    "NODE_ENV": "production",
+    "COOKIE_SECURE": "true",
+    "APP_BASE_URL": "https://terremotocolombia.co",
+    "CORS_ORIGINS": "https://terremotocolombia.co,https://www.terremotocolombia.co",
+    // Detras de Cloudflare la unica cabecera de IP no falsificable es esta.
+    // X-Forwarded-For la puede poner el cliente.
+    "TRUSTED_IP_HEADER": "cf-connecting-ip"
+  },
+  // Hyperdrive: pooling + TCP hacia el Postgres externo (Neon). El id se
+  // rellena tras crear la config con `wrangler hyperdrive create`.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "68a76b53cd5249288c7ad7d4b7af03df"
+    }
+  ],
+  // El esquema compartido (../infra/db/schema.ts) vive FUERA de backend/, asi
+  // que esbuild busca sus imports en infra/node_modules y no los encuentra.
+  // Es el mismo motivo por el que tsconfig.json ya tiene "paths" para tsc.
+  "alias": {
+    "drizzle-orm": "./node_modules/drizzle-orm",
+    "drizzle-orm/pg-core": "./node_modules/drizzle-orm/pg-core",
+    // swagger-ui-express usa __dirname para servir sus assets desde disco, y en
+    // Workers no existe: el import tumbaba el arranque entero (toda la API a
+    // 1101, no solo /api/docs). Ver src/shims/swagger-ui-express.ts.
+    "swagger-ui-express": "./src/shims/swagger-ui-express.ts"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
