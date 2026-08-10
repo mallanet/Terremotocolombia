@@ -160,6 +160,25 @@ describe("HospitalSuppliesAdmin", () => {
     expect(screen.getByRole("button", { name: "Registrar necesidad" })).toBeInTheDocument();
   });
 
+  it("conserva lo escrito cuando el server rechaza la escritura (regresión)", async () => {
+    server.use(
+      http.post("/api/admin/hospital-supplies/hosp-demo-1/status", () =>
+        HttpResponse.json({ error: "Texto rechazado por seguridad." }, { status: 400 }),
+      ),
+    );
+    renderWithSession(["hospital:read", "hospital:edit"]);
+    fireEvent.click(await screen.findByText("DEMO Hospital Central"));
+
+    // findAll* lanza si no hay ninguno, así que el primer elemento existe.
+    const notaInterna = (await screen.findAllByLabelText("Nota interna (opcional)"))[0]!;
+    fireEvent.change(notaInterna, { target: { value: "contacto interno importante" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar semáforo" }));
+
+    expect(await screen.findByText("Texto rechazado por seguridad.")).toBeInTheDocument();
+    // El texto NO se pierde: la persona puede corregir sin reescribir todo.
+    expect(notaInterna).toHaveValue("contacto interno importante");
+  });
+
   it("oculta los forms de escritura sin hospital:edit", async () => {
     renderWithSession(["hospital:read"]);
 
