@@ -111,6 +111,105 @@ jobs:
         run: npm run build
 
   # ---------------------------------------------------------------------
+  # offline-build-frontend: guardia contra dependencias de RED en tiempo de
+  # build del frontend.
+  #
+  # Por que existe: `next/font/google` descargaba los .woff2 durante
+  # `next build`. Un parpadeo de red hablando con Google tumbaba el build
+  # entero — paso de verdad (CI 31429921516 en `main`, 2026-08-10) con una
+  # cascada de `module-not-found` que PARECE un error de codigo. Y como
+  # `deploy-frontend.yml` despliega a produccion en cada push a `main`, el
+  # mismo parpadeo tumba un despliegue de un sitio de emergencia.
+  #
+  # Las fuentes ya estan auto-alojadas (frontend/app/fonts/), asi que hoy el
+  # build no necesita red. Este job CONGELA esa propiedad: si alguien vuelve a
+  # meter `next/font/google` — o cualquier otra descarga en tiempo de build —
+  # se cae AQUI, en un job cuyo nombre dice exactamente que paso, en vez de
+  # caerse dentro de un despliegue a produccion.
+  #
+  # `npm ci` corre CON red (bajar dependencias es legitimo); solo el `build`
+  # se ejecuta aislado, dentro de un namespace de red sin interfaces externas.
+  # ---------------------------------------------------------------------
+  offline-build-frontend:
+    name: frontend (build sin red)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # Mismos NEXT_PUBLIC_* que `build-frontend` (ver arriba): el build los
+      # inlinea, y con valores distintos no estariamos probando el mismo build.
+      # GitHub Actions no soporta anclas YAML, de ahi la duplicacion.
+      NEXT_PUBLIC_API_URL: "https://api.example.org"
+      NEXT_PUBLIC_ASSET_PREFIX: ""
+      NEXT_PUBLIC_R2_PUBLIC_BASE: "https://cdn.example.org"
+      NEXT_PUBLIC_SITE_APEX_DOMAIN: "example.org"
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: "G-XXXXXXXXXX"
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA"
+      NEXT_PUBLIC_STRIPE_DONATION_URL: "https://donate.example.org"
+      NEXT_PUBLIC_RESPONSEGRID_SLUG: "example-slug"
+      NEXT_PUBLIC_RESPONSEGRID_WHATSAPP_URL: "https://example.org/chat"
+      NEXT_PUBLIC_ACOPIO_DEFAULT_COUNTRY: "XX"
+      NEXT_PUBLIC_EXPENSES_URL: "https://expenses.example.org"
+      NEXT_PUBLIC_OPENPANEL_CLIENT_ID: "00000000-0000-0000-0000-000000000000"
+      NEXT_PUBLIC_OPENPANEL_DASHBOARD_URL: "https://analytics.example.org"
+      NEXT_PUBLIC_OPENPANEL_PRODUCTION_HOST: "https://analytics.example.org"
+      NEXT_PUBLIC_PROPOSAL_VARIANT: "default"
+      # Next hace ping a telemetry.nextjs.org. Sin apagarlo, este job podria
+      # fallar por telemetria y no por una dependencia real — justo el tipo de
+      # falso positivo que esta guardia existe para eliminar.
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "${{ env.NODE_VERSION }}"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Con red: bajar dependencias es una dependencia de red legitima y
+      # esperada. Lo que no puede depender de la red es el `build`.
+      - name: Install dependencies (con red)
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build sin acceso a la red
+        working-directory: frontend
+        run: |
+          # `unshare --net` crea un namespace de red sin ninguna interfaz
+          # externa: dentro no hay salida a Internet ni DNS. `lo` se levanta
+          # porque alguna herramienta puede querer loopback.
+          #
+          # `sudo -E env "PATH=$PATH"`: sudo resetea PATH por `secure_path`,
+          # y sin esto no se encuentra el node que instalo setup-node.
+          sudo -E env "PATH=$PATH" unshare --net -- \
+            bash -euo pipefail -c '
+              ip link set lo up
+
+              # CONTROL POSITIVO. Una guardia que no puede fallar es
+              # decorativa: si el aislamiento dejara de funcionar (cambio de
+              # runner, de kernel, de permisos), el build pasaria con red y
+              # este job daria un visto bueno falso PARA SIEMPRE. Asi que
+              # primero se comprueba que de verdad NO hay red.
+              if curl -sS --max-time 10 -o /dev/null https://fonts.gstatic.com; then
+                echo "::error::El aislamiento de red no funciona: se alcanzo fonts.gstatic.com desde dentro del namespace. Esta guardia no esta probando nada."
+                exit 1
+              fi
+              echo "Aislamiento verificado: sin salida a Internet dentro del namespace."
+
+              npm run build
+            '
+
+      - name: Que significa si este job falla
+        if: failure()
+        run: |
+          echo "::error::El build del frontend necesito RED. Casi siempre es un \`next/font/google\` (u otra descarga en tiempo de build) que volvio a colarse. Auto-aloja el recurso — mira frontend/app/fonts/README.md — en vez de relajar esta guardia: main despliega a produccion sin aprobacion."
+
+  # ---------------------------------------------------------------------
   # admin: internal Next.js panel. Verified locally that `next build`
   # succeeds with zero env vars set (every server-only var it reads has a
   # safe fallback), so nothing extra is injected here.

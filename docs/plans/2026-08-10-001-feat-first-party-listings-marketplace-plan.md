@@ -52,7 +52,7 @@ Two things make this harder here than it was there. First, the write path is gat
 **Privacy and safety**
 
 - R6. The public API never exposes a listing's true coordinates. Only the geomasked coordinates are served.
-- R7. A listing's masked coordinates are a deterministic function of its true coordinates. The same true point always yields the same masked point, so no sequence of writes, edits, or reads emits an averageable sample set.
+- R7. A listing's offset vector is generated once at creation and stored. Every masked coordinate the listing ever serves derives from that one vector, so no sequence of writes, edits, or reads emits more than one sample.
 - R8. A listing author's contact details are never published. Contact is brokered server-side.
 - R9. Any visitor can report a listing or an author for abuse.
 - R10. A reported listing stays visible but is flagged and deprioritized until a moderator acts.
@@ -69,6 +69,11 @@ Two things make this harder here than it was there. First, the write path is gat
 - R14. Categories that may carry health information collect an explicit acknowledgement that the data is sensitive and optional, distinct from general terms acceptance.
 - R27. A deletion request resolves to specific rows. `dataDeletionRequests` links to the listing it concerns rather than describing it in free text.
 - R28. Closed and rejected listings have a documented retention period after which their true coordinates and contact details are erased.
+
+**Operating commitments**
+
+- R29. A stated moderation turnaround target applies while the module is enabled, with named coverage hours — not just provisioned accounts.
+- R30. The marketplace reaches a minimum of live approved listings, on both the offering and needing sides, before the outbound CTAs are replaced.
 
 **Map and geo**
 
@@ -108,6 +113,9 @@ Two things make this harder here than it was there. First, the write path is gat
 - OQ3. **Deferred.** Do Mallanet.org's total assets exceed 100,000 UVT? Below that threshold, RNBD registration does not attach (Decreto 1074 de 2015). Research indicates this is very unlikely to bind, so it does not gate launch.
 - OQ4. **Deferred.** Should listing categories eventually be reconciled with `NEED_CATEGORIES`? KTD10 accepts the drift for now and documents the mapping.
 - OQ5. **Blocking for Phase 3.** How does a Doppler config edit actually reach the running Cloudflare Worker? No workflow in this repo runs `wrangler secret bulk` or `wrangler secret put`, and `backend/wrangler.jsonc` points at a `docs/cloudflare-cutover.md` that does not exist here. R21 and U14 both assume flipping a flag is a solved, repeatable step. Confirm the real procedure with the maintainer who manages Worker secrets, exercise it on staging, and document it before treating the cutover as low-risk.
+- OQ7. **Deferred, worth resolving before Phase 2.** What evidence exists that the ResponseGrid handoff actually costs users something — outbound-click-to-completion drop-off, or staff and user friction reports? The Problem Frame currently argues from architecture ("they are handed to a third party") and from the sibling deployment having worked, neither of which measures harm. If no evidence exists, that is an acceptable answer: say plainly that this rests on the org's judgment about owning its own crisis infrastructure, rather than on measured user harm.
+- OQ8. **Blocking for Phase 2 scoping.** What is the expected remaining duration of the acute response phase, and what gets descoped if Phase 2 will not ship inside it? The critical path runs through two org-level blockers with no stated timeline (OQ1 legal content, OQ2 vendor terms) plus nine engineering units, and U14 alone budgets a full week of staging soak. Every gate in this plan can pass in full while the window the Problem Frame describes has closed. The marketplace still has recovery-phase value — but that is a different product with different urgency, and the plan should say which one it is building.
+- OQ9. **Deferred.** Who owns moderation-queue staffing and habeas-data statutory deadlines month over month, after the acute phase ends and volunteer engagement declines? R29 covers the launch commitment; this is the steady state.
 - OQ6. **Deferred, decide before U6 lands.** What is the retention period for closed and rejected listings (R28), and does a deletion request anonymize the row in place or remove it? Anonymizing keeps moderation counts and the lifecycle coherent; removing is simpler. The schema differs between the two, so this is cheaper to settle now than to retrofit.
 
 ---
@@ -116,15 +124,19 @@ Two things make this harder here than it was there. First, the write path is gat
 
 ### Key Technical Decisions
 
-- KTD1. **Own the marketplace behind the existing ports; ResponseGrid becomes one provider of two.** (session-settled: user-directed — chosen over a hard cutover: the user's framing is "stop depending on it", and dual-source keeps the site whole mid-migration.) `CollectionCenterProvider` in `backend/src/modules/acopio/domain/collection-center-provider.ts` and `NeedPublisher` in `backend/src/modules/needs/domain/need-publisher.ts` are already interfaces with one implementation each. A second implementation drops in at the composition root with no domain change. Governs R19, R21.
+- KTD1. **Own the marketplace behind the existing ports; ResponseGrid becomes one provider of two.** (session-settled: user-directed — chosen over a hard cutover: the user's framing is "stop depending on it", and dual-source keeps the site whole mid-migration.) `CollectionCenterProvider` in `backend/src/modules/acopio/domain/collection-center-provider.ts` is already an interface with one implementation; U7 adds a second at the composition root with no domain change. `NeedPublisher` in `backend/src/modules/needs/domain/need-publisher.ts` is cited as precedent for the same port shape — this plan does not add a second implementation of it, and R19/R21 are scoped to collection centers only. Governs R19, R21.
 
 - KTD2. **No public accounts. Each listing carries a hashed edit token.** (session-settled: user-directed — chosen over full accounts with in-app chat, and over publishing the author's contact: it collects the least PII, sidesteps the staff-table collision, and keeps the habeas-data surface small.) `users`, `roles`, and `capabilities` are a small invited staff table wired to a capability model; public self-registration does not extend it without blurring the staff/citizen authorization boundary. `hospitalPocAssignments.accessTokenHash` with `backend/src/middleware/supply-auth.ts` is the existing precedent for scoped non-staff writes. Governs R3, R8.
 
-- KTD3. **Geomask with donut displacement, seeded deterministically from the true point.** The reference implementation draws a translucent circle centered on the real coordinates. That is the naive pattern the geomasking literature exists to correct — the centroid of the rendered shape recovers the center. Displace each listing by an offset with both a minimum and a maximum bound, so the true point is never at the visual center.
+- KTD3. **Geomask with donut displacement from a per-listing offset generated once and stored.** (session-settled: user-directed — chosen over a deterministic grid-plus-secret seed, a hybrid of the two, and municipality-centroid snapping: it closes the oracle without introducing a secret whose compromise would invert every listing at once.) The reference implementation draws a translucent circle centered on the real coordinates. That is the naive pattern the geomasking literature exists to correct — the centroid of the rendered shape recovers the center. Displace each listing by an offset with both a minimum and a maximum bound, so the true point is never at the visual center.
 
-  Derive that offset **deterministically**: hash the true point snapped to a coarse grid together with a server-side secret, and use the digest as the seed. Do not draw fresh randomness per write. Determinism is what closes the averaging attack, and it closes three variants of it at once — repeated location edits re-derive the identical mask instead of emitting a new sample; the mutation response stops being an oracle; and several listings at one real address converge on one masked point rather than accumulating independent samples around it. Random-per-write masking defeats only the read-path variant and leaves the other two open.
+  Generate that offset **randomly, once, at listing creation, and persist the offset vector on the row.** Two properties follow, and both are load-bearing. Because the vector is stored rather than recomputed, a listing emits exactly one masked sample no matter how many times it is edited — re-applying the same stored vector to a corrected true point closes the edit-churn averaging attack without making location immutable. And because no algorithm maps a true point to a masked point, there is nothing to reverse: an attacker who submits their own listing at a coordinate they choose learns only their own offset, not anyone else's.
 
-  Two further consequences. The mask secret is a real secret: it lives in Doppler, never in the repo, and rotating it re-masks every listing. And the displayed service radius (R4) is author-declared and must not be derived from the mask offset, or the annulus becomes inferable. Governs R6, R7, R23.
+  A deterministic seed was considered and rejected. Hashing the true point against a server secret would make co-located listings converge on one masked point, but it also turns any self-submitted listing into a known-plaintext oracle for its whole grid cell, and makes one secret the single point of failure for every listing's location, retroactively.
+
+  Two further constraints. The offset vector is as sensitive as the true coordinates — it is never served, and reversing it recovers the true point exactly. And the displayed service radius (R4) is author-declared and must not be derived from the offset magnitude, or the annulus becomes inferable. Governs R6, R7, R23.
+
+  **Residual risk, accepted:** several listings filed at one real address each carry an independent offset, so an attacker who knows they are co-located can average them toward the true point. This needs the attacker to establish co-location first, and the sample count is the number of listings at that address — a far narrower exposure than an area-wide lookup table. Recorded in Risks & Dependencies.
 
 - KTD4. **Defer PostGIS. Ship on `double precision` lat/lng with `earthdistance` + `cube`.** PostGIS is supported on Neon, but Drizzle 0.45 has no first-class `geography` type — the upstream PR has been open since 2023 — so it needs `customType`, and drizzle-kit has generated false "data loss" warnings on geometry columns from case-sensitivity bugs. `earthdistance` over a GiST-indexed `ll_to_earth(lat,lng)` expression carries a listings marketplace well into the tens of thousands of rows. The upgrade path stays open: a generated `geography` column can be added later beside the existing floats without rewriting reads.
 
@@ -210,7 +222,7 @@ Editing a free-text description does not revert status. Editing location, catego
 
 ```mermaid
 flowchart TB
-  P0["Phase 0 — Prerequisites<br/>U1 basemap · U2 Turnstile · U3 admin deploy · U4 privacy notice"]
+  P0["Phase 0 — Prerequisites<br/>U16 CI gates · U2 Turnstile · U3 admin deploy · U4 privacy notice<br/>(U1 basemap runs in parallel — gates nothing)"]
   P1["Phase 1 — Read path<br/>U5 DIVIPOLA · U6 schema+module · U7 dual-source · U8 read API · U9 map"]
   P2["Phase 2 — Write path<br/>U10 create+token · U11 moderation · U12 relay+reports"]
   P3["Phase 3 — Cutover<br/>U13 internal CTAs · U15 admin to prod · U14 disable ResponseGrid"]
@@ -225,7 +237,7 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 ### System-Wide Impact
 
 - **Authorization boundary.** New `listing:*` capabilities enter `backend/src/auth/capabilities.ts`. The staff/citizen line holds because citizens never get a `users` row — KTD2.
-- **Data lifecycle.** This is the first feature that stores personal data whose deletion we are legally obliged to action. It is also the first to store a coordinate we must never serve.
+- **Data lifecycle.** This is the first feature that stores personal data whose deletion we are legally obliged to action. It is also the first to store both a coordinate and a displacement vector that must never be served — the vector is as sensitive as the coordinate, because applying its inverse to the public point recovers the true one exactly.
 - **Test invariants — the existing helper cannot cover this feature.** `expectNoSensitiveFields()` in `backend/test/helpers.ts` is a **key-name** denylist. U8 deliberately serves masked coordinates under the wire keys `lat`/`lng` so the client never learns a second coordinate exists, which means a key-based scanner cannot distinguish a masked value from a leaked true one — both arrive under the same key. Adding `lat`/`lng` to the denylist would break the feature. The coordinate guarantee therefore needs a **value-based** assertion: a helper that takes a fixture's known true coordinates and asserts they appear nowhere in the response, exactly or within the mask minimum. The key-based list still grows, but only for `editTokenHash`, `contactEmail`, and `contactPhone`. U6 owns both changes.
 - **Audit log readership.** `audit:read` is a broader grant than `listing:moderate`, and `audit_log.metadata` is unstructured `jsonb`. Serializing a whole listing into it — the natural thing to do for "what did the moderator see" — would retain coordinates and contact details indefinitely in a table with a wider audience than the listing itself, outside any presenter allowlist. R26 constrains this.
 - **Map composition.** `MapView` gains a layer and a legend. Its props widen; `MapPanel` and `frontend/components/features/emergency/index.tsx` pass through.
@@ -241,7 +253,9 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 | Rate limiting is degraded | Per-isolate memory without `VALKEY_URL`, far more permissive than configured | Size limits defensively. The edge rate limit is the real control — but it lives in OpenTofu outside this repo, so U14 verifies rules actually cover `/api/listings*` rather than assuming they do |
 | Contact relay abused against one author | A bot that finds a single approved listing can email-bomb a disaster victim and burn the sending domain's reputation | R25's per-listing daily cap is counted in Postgres, so it survives the Valkey degradation that weakens the request limiter |
 | Contact details listed without the subject's consent | The platform delivers unsolicited contact to an uninvolved person, from our trusted domain | R24's token-free removal path; moderation checks contact plausibility |
-| Several listings at one real address | Independent masks around a shared true point average out faster than samples from one listing | KTD3's deterministic seed makes them converge on one masked point instead |
+| Several listings at one real address | Their independent offsets average toward the shared true point | Accepted residual under KTD3 — the attacker must first establish co-location, and the sample count is the number of listings at that address. Revisit if co-located filing turns out to be common |
+| Default municipality-centroid pins stack | Authors who never move the pin all land on one point, degrading R16's near-me for exactly the low-end-device users least able to adjust it | Measure the share of unadjusted pins on staging before Phase 3; if it is high, prompt for pin adjustment rather than silently defaulting |
+| ResponseGrid access lapses mid-migration | The dual-source safety net KTD1 depends on assumes the vendor keeps serving this emergency for the whole migration — they may retire the instance, rotate the slug, or revoke access on their own timeline | Confirm the arrangement's term with the maintainer before Phase 1; U7's composed provider already degrades to Postgres-only, so the failure is graceful, not fatal |
 | drizzle-kit false "data loss" on geo columns | A destructive migration gets generated | KTD4 avoids PostGIS types entirely at launch |
 | Dual-source duplicate pins | The same physical collection point appears twice | R20 distinguishes source visually; automatic dedup is out of scope |
 | A degraded dual-source result is cached as complete | One provider fails, its absence is cached for the full 120s TTL, and the map presents a partial list as whole | U7 does not cache a degraded result at full TTL and carries a degraded flag to the client |
@@ -285,6 +299,7 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 | U13 | Replace outbound CTAs with internal routes | `frontend/components/features/responsegrid/ResponseGridHub.tsx` | U9, U10 |
 | U14 | Disable ResponseGrid | Doppler `stg` then `prd`, `docs/architecture.md` | U13, U15 |
 | U15 | Deploy the admin panel to production | `.github/workflows/deploy-admin.yml`, `admin/wrangler.jsonc` | U3, U11 |
+| U16 | Run lint and tests in CI | `.github/workflows/ci.yml` | — |
 
 ### U1. Move basemap off OSM tile servers
 
@@ -293,6 +308,8 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 **Requirements.** R17.
 
 **Dependencies.** OQ2 must be resolved — the provider and its terms are an org decision.
+
+**Sequencing.** Grouped under Phase 0 for convenience, but nothing depends on it: no unit lists U1, and the phase gate covers U2, U3, and U4 only. Treat it as a parallel track. It must not block Phase 1, whose work never touches tile providers — and it should not, because OQ2 is a vendor negotiation outside engineering's control. It is also independently shippable today on its own merits: the OSM tile-policy exposure exists regardless of whether this marketplace is ever built.
 
 **Files.** `frontend/components/features/map/index.tsx`, `frontend/components/features/responsegrid/AcopioMap.tsx`, `frontend/components/features/seismic/SeismicRiskLeafletMap.tsx`, `frontend/lib/deployment-config.ts`, `config/deployment.config.json`.
 
@@ -313,6 +330,8 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 ### U2. Restore Turnstile on the build path
 
 **Goal.** Restore a working bot check so the public write path in Phase 2 has proof-of-humanity, fixing the build-time-versus-runtime env var defect that broke it before.
+
+**Sequencing.** This is a live site-wide defect, not marketplace setup. Every public write today — including the missing-persons reports this site is known for — has no proof-of-humanity. It is grouped in Phase 0 because Phase 2 depends on it, but it is worth shipping on its own expedited timeline and should not be paced by this project.
 
 **Requirements.** R11.
 
@@ -414,31 +433,34 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 
 **Requirements.** R1, R2, R4, R5, R6, R7, R27.
 
-**Dependencies.** U5.
+**Dependencies.** U5. Also OQ1 — not merely for U4's publication, but at the **field-requirements** level. If legal review later demands a consent-category or retention column, capturing it after this migration has run against real rows is far more expensive than capturing it now; the rollback table is explicit that U6 is cheap to undo only before U10 ships rows.
 
 **Files.** `infra/db/schema.ts`, `infra/db/migrations/` (generated plus one hand-authored), `backend/src/modules/listings/domain/listing.ts`, `.../domain/listing-repository.ts`, `.../domain/geomask.ts`, `backend/test/listings-domain.test.ts`, `backend/test/helpers.ts`.
 
 **Approach.**
 1. Add `help_listings` to `infra/db/schema.ts` following repo conventions exactly: `text("id").primaryKey()` populated with `crypto.randomUUID()`; epoch-millisecond `bigint` timestamps via the local `epochMs` helper; `text` columns with app-level allowlists for `type`, `category`, `modality`, and `status` rather than native pg enums.
-2. Columns: type, category, title, description, quantity, quantity unit, modality, department code, municipality code, `lat`/`lng` (true, never served), `publicLat`/`publicLng` (masked, served), `serviceRadiusKm`, `status`, `editTokenHash`, `contactEmail`/`contactPhone` (never served), `lastConfirmedAt`, `staleAfterHours`, `createdAt`, `updatedAt`. All four coordinate columns are `NOT NULL` — a listing without a location is not a valid listing, and the constraint is what stops a masked coordinate from silently going missing.
+2. Columns: type, category, title, description, quantity, quantity unit, modality, department code, municipality code, `lat`/`lng` (true, never served), `offsetLat`/`offsetLng` (the stored displacement vector — as sensitive as the true point, never served), `publicLat`/`publicLng` (masked, served), `serviceRadiusKm`, `status`, `editTokenHash`, `contactEmail`/`contactPhone` (never served), `contactConfirmedAt`, `relaySendCount`/`relayWindowStartedAt` (R25's cap counter), `lastConfirmedAt`, `staleAfterHours`, `erasedAt`, `createdAt`, `updatedAt`. All six coordinate columns are `NOT NULL` — a listing without a location is not a valid listing, and the constraint is what stops a masked coordinate from silently going missing.
 3. Also add the abuse-reports table here, not in U12. Its personal-data footprint — whether it captures the reporter's contact for follow-up — is a schema decision that belongs beside `help_listings`, reviewed once, rather than invented later inside a feature unit.
 4. Add the deletion-request linkage for R27: `dataDeletionRequests` currently carries only free-text details, so a staff member cannot resolve a request to a row. Add target type and target id.
 5. **Put `CREATE EXTENSION IF NOT EXISTS cube` and `earthdistance` at the head of the same hand-authored migration file that carries the table and index DDL.** Splitting them across two files leaves the ordering implicit, and if the extension file sorts later, `CREATE INDEX ... USING GIST (ll_to_earth(lat, lng))` fails on a missing function and takes the whole migration down. One file removes the question. Use `IF NOT EXISTS` so a retried deploy does not collide with a half-applied extension.
 6. Indexes: a partial index on `status = 'approved'` for the public read path, a composite on `(department_code, category)` for filters, and a GiST index on `ll_to_earth(public_lat, public_lng)` for proximity — masked coordinates, since that is what U8 queries against.
-7. Implement the geomask in `domain/geomask.ts` as a pure function of the true point, a coarse grid size, and a server-side secret — deterministic, per KTD3. Same input, same output, every time. There is no "compute once and remember" branch to get wrong, because recomputation is free and idempotent.
-8. Extend `backend/test/helpers.ts`: add `editTokenHash`, `contactEmail`, and `contactPhone` to the key denylist, and add a new **value-based** helper that asserts a fixture's known true coordinates appear nowhere in a response. The key-based check cannot cover coordinates — see System-Wide Impact.
-9. Declare the `ListingRepository` port in `domain/`, paired with its error class, matching the shape of `CollectionCenterProvider`.
-10. Generate the migration with `cd backend && npm run db:generate` and commit the SQL plus the journal. Do not run it against any real database — that requires a human.
+7. Implement the geomask in `domain/geomask.ts` as two pure functions, per KTD3: one that draws a random offset vector within the min/max annulus, called once at creation; and one that applies a stored vector to a true point, called on every write. The apply function is total and deterministic given the stored vector, so a location edit re-applies rather than re-draws.
+8. Implement R28's erasure as **lazy erasure-on-read**: when any read or moderation action touches a closed or rejected listing past its retention window, null its true coordinates, offset vector, and contact fields and stamp `erasedAt`. This deployment has no cron and no deployed queue worker (KTD11, KTD13), so a scheduled job would be a mechanism that never runs — the same defect this plan already caught twice.
+9. Extend `backend/test/helpers.ts`: add `editTokenHash`, `contactEmail`, `contactPhone`, `offsetLat`, and `offsetLng` to the key denylist, and add a new **value-based** helper that asserts a fixture's known true coordinates appear nowhere in a response. The key-based check cannot cover the masked coordinates — see System-Wide Impact.
+10. Declare the `ListingRepository` port in `domain/`, paired with its error class, matching the shape of `CollectionCenterProvider`.
+11. Generate the migration with `cd backend && npm run db:generate` and commit the SQL plus the journal. Do not run it against any real database — that requires a human.
 
 **Execution note.** Write the geomask tests first. This is the one function where a silent bug is a privacy breach rather than a visible failure.
 
 **Test scenarios.**
 - The masked point is never equal to the true point.
 - The displacement distance is always at least the configured minimum and at most the maximum.
-- The same true coordinates always produce the same masked coordinates, across process restarts.
-- Two true points in the same coarse grid cell produce the same masked point.
-- Changing the server secret changes every masked output.
-- Over a large sample of distinct true points, masked offsets are distributed through the annulus rather than clustered at one bearing.
+- Two listings created at the identical true point receive different offset vectors.
+- Re-applying a stored vector to an unchanged true point reproduces the identical masked point.
+- Editing a listing's location re-applies the stored vector rather than drawing a new one — the offset vector on the row is unchanged after the edit.
+- Over a large sample of created listings, offsets are distributed through the annulus rather than clustered at one bearing.
+- A closed listing past its retention window has its true coordinates, offset vector, and contact fields nulled and `erasedAt` stamped on the next read (R28).
+- An erased listing is excluded from public reads and does not error.
 - The service radius is independent of the mask offset, with no correlation across a sample.
 - Status transitions follow the lifecycle: editing a description holds status; editing location, category, or quantity reverts an approved listing to pending.
 - A listing past `staleAfterHours` since `lastConfirmedAt` reports as stale and remains visible.
@@ -486,14 +508,15 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 
 **Dependencies.** U6.
 
-**Files.** `backend/src/modules/listings/interface/http/listings-router.ts`, `.../listings-controller.ts`, `.../listings-presenter.ts`, `backend/src/modules/listings/application/list-listings.ts`, `backend/src/modules/listings/index.ts`, `backend/src/modules/listings/listings-module.ts`, `frontend/lib/listings.ts`, `frontend/hooks/listings.ts`, `frontend/lib/query-keys.ts`, `backend/test/listings-http.test.ts`.
+**Files.** `backend/src/modules/listings/interface/http/listings-router.ts`, `.../listings-controller.ts`, `.../listings-presenter.ts`, `backend/src/modules/listings/application/list-listings.ts`, `backend/src/modules/listings/index.ts`, `backend/src/modules/listings/listings-module.ts`, `backend/src/config/env.ts`, `.env.example`, `frontend/lib/listings.ts`, `frontend/hooks/listings.ts`, `frontend/lib/query-keys.ts`, `backend/test/listings-http.test.ts`.
 
 **Approach.**
 1. Build the module following the acopio layout precisely: `domain/` → `application/` → `infrastructure/` → `interface/http/`, with `listings-module.ts` as the only env-reading composition root, and `index.ts` gating on `ENABLE_LISTINGS` by exporting an empty `Router()` when off (KTD12).
 2. `GET /api/listings` accepts type, category, department, free text, and pagination; it returns items plus facet counts in one response, matching the acopio contract so the filter chips have counts without a second request.
 3. The presenter is an explicit allowlist. `lat`, `lng`, `editTokenHash`, `contactEmail`, and `contactPhone` must never enter a DTO. Serve `publicLat`/`publicLng` as `lat`/`lng` so the client never learns a second coordinate exists.
 4. Proximity filtering uses `earth_box` for the index-accelerated prefilter, then `earth_distance` for the exact circle — computed against the **masked** coordinates, so precision is inherently bounded.
-5. Add `rateLimit` to the router. The `require-rate-limit` ESLint rule fails CI without it.
+5. Add `rateLimit` to the router. The `require-rate-limit` ESLint rule enforces this — but note it is **not** enforced by CI: `.github/workflows/ci.yml` runs only typecheck and build, and no workflow runs `npm run lint` or `npm test` for any package. A green CI run is not evidence the guard is wired. Until U16 closes that gap, treat lint and tests as pre-merge gates a human runs.
+6. Reuse the existing accent-insensitive search machinery rather than inventing folding. `backend/src/services/missing.ts` already solves this with a custom `f_unaccent` plus `pg_trgm`, gated by a cached `accentSearchReady()` capability check that degrades to plain `ILIKE` when the index is absent, and a `MIN_SEARCH_LEN` guard because trigram indexes cannot serve short terms. Create `unaccent` in the same hand-authored migration as `cube` and `earthdistance` (U6 step 5) and follow that pattern, including the degradation path.
 6. On the frontend, split pure helpers into `frontend/lib/listings.ts` (importable from SSR) and the TanStack Query hook into `frontend/hooks/listings.ts`. Add a `qk.listings` namespace — never an inline array key.
 
 **Test scenarios.**
@@ -503,6 +526,7 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 - Facet counts match the filtered result set.
 - A proximity query returns only listings within the radius of the supplied point.
 - Free-text search matches title, description, and municipality, case- and accent-insensitively.
+- With the `unaccent` extension absent, search degrades to accent-sensitive matching rather than erroring.
 - Pagination is stable across pages with no duplicates or omissions.
 - With `ENABLE_LISTINGS` unset, the route returns 404 and no adapter is constructed.
 - The frontend hook treats a 404 as module-disabled rather than an error.
@@ -517,14 +541,18 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 
 **Dependencies.** U8.
 
-**Files.** `frontend/components/features/map/ListingsLayer.tsx`, `frontend/components/features/map/index.tsx`, `frontend/components/features/map/types.ts`, `frontend/components/features/map/icons.ts`, `frontend/components/features/map/MapLegend.tsx`, `frontend/hooks/useUserLocation.ts`, `frontend/styles/shell-layout.css`.
+**Files.** `frontend/components/features/map/ListingsLayer.tsx`, `frontend/components/features/map/index.tsx`, `frontend/components/features/map/types.ts`, `frontend/components/features/map/icons.ts`, `frontend/components/features/map/MapLegend.tsx`, `frontend/components/features/listings/ListingsFilters.tsx`, `frontend/hooks/useUserLocation.ts`, `frontend/components/features/emergency/ReportForm.tsx`, `frontend/components/features/emergency/AddressSearch.tsx`, `frontend/styles/shell-layout.css`, `frontend/tests/unit/listings-filters.test.ts`.
 
 **Approach.**
 1. Add a `ListingsLayer` that draws, per listing, a translucent `Circle` at the service radius plus a marker, colored by type — offering and needing distinguished, with a third treatment for online-only.
 2. Register the layer in `MapView` behind a `showListings` prop, following how `MissingClusterLayer` and `WeatherLayer` are already conditionally mounted. Reuse the existing supercluster clustering rather than adding a second mechanism.
 3. Add a map legend explaining the color coding and stating plainly that locations are approximate. Users must not read the circle as a precise service boundary.
-4. Implement `useUserLocation` for near-me. This is net-new — there is no `navigator.geolocation` usage anywhere in the frontend today. Handle permission denied, unsupported, and timeout distinctly; never block map render on it. Given the low-end-device and poor-connectivity audience, request location only on explicit user action, never on mount.
-5. Style with `e-m-` prefixed classes in `frontend/styles/shell-layout.css`. Consult `docs/DESIGN.md` before adding tokens.
+4. Build the filter UI. `GET /api/listings` already returns facet counts specifically so the chips can show them without a second request (U8), and the architecture diagram's "Listings hub + filters" node is this component — without it R16's filters have no home and the facets go unused. Build on the existing `frontend/components/ui/ChipFilter.tsx` primitive rather than a new one.
+5. **Do not write `useUserLocation` from scratch.** `frontend/components/features/emergency/ReportForm.tsx` already implements `useMyLocation` with the exact permission-denied / unsupported / timeout branching this needs, and `AddressSearch.tsx` carries a near-duplicate. Extract the shared hook from `ReportForm.tsx` and converge all three call sites on it, or the app ships two geolocation flows with different Spanish error copy. Add the one state the existing implementation lacks: an in-flight "Buscando tu ubicación…" state with a visible cancel — on the target devices a fix can take many seconds, and without it the control reads as broken. Request location only on explicit user action, never on mount.
+6. Fix the marker palette across the whole map before adding to it. With listings, this map carries incident reports (already colored per `REPORT_TYPES`), missing persons, earthquakes, three listing treatments, and two collection-center sources — up to eight marker families, and `frontend/components/features/map/icons.ts` already spends red/amber/blue on cluster-size tiers. Assign listings a family that does not collide, and record the full palette in `docs/DESIGN.md` so the next layer added has something to check against.
+7. State the approximate-location warning twice, not once. A corner legend is exactly what a hurried user on a small screen skips, and misreading the circle as "the person is somewhere in here" has safety consequences in both directions. Keep the legend entry and add a one-time first-view callout the first time a listing circle renders.
+8. Meet the accessibility bar the repo already sets. `frontend/components/ui/ChipFilter.tsx` uses `aria-pressed` and `aria-label`; the near-me control, the legend, and the filter chips match it, with touch targets sized for the low-end-device audience.
+9. Style with `e-m-` prefixed classes in `frontend/styles/shell-layout.css`. Consult `docs/DESIGN.md` before adding tokens.
 
 **Test scenarios.**
 - A listing renders both a marker and a circle at the declared service radius.
@@ -533,8 +561,13 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 - Denied geolocation permission shows an explanatory state and leaves the map usable.
 - Unsupported geolocation hides the near-me control rather than offering a broken one.
 - A geolocation timeout resolves to the denied-or-unavailable state without hanging.
+- The in-flight locating state renders and is cancelable.
+- `ReportForm` and the near-me control resolve to the same hook — no second geolocation implementation survives.
+- Filter chips render facet counts from the same response that returned the listings.
+- Each filter narrows the rendered markers, and filters compose.
 - Toggling the listings layer off removes both markers and circles.
-- The legend states that locations are approximate.
+- The legend states that locations are approximate, and a first-view callout says so once on first render.
+- Interactive controls expose an accessible name and a pressed state where they toggle.
 
 **Verification.** On staging, listings render on the citizen map with reports and missing persons, and near-me filters correctly after granting permission.
 
@@ -546,19 +579,22 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 
 **Dependencies.** U2, U6.
 
-**Files.** `backend/src/modules/listings/application/create-listing.ts`, `.../application/manage-listing.ts`, `backend/src/modules/listings/interface/http/listings-router.ts`, `backend/src/middleware/listing-auth.ts`, `frontend/components/features/listings/CreateListingForm.tsx`, `backend/test/listings-create.test.ts`.
+**Files.** `backend/src/modules/listings/application/create-listing.ts`, `.../application/manage-listing.ts`, `backend/src/modules/listings/interface/http/listings-router.ts`, `backend/src/middleware/listing-auth.ts`, `frontend/components/features/listings/CreateListingForm.tsx`, `frontend/components/features/listings/TokenIssuedPanel.tsx`, `frontend/components/features/listings/ManageListingForm.tsx`, `frontend/app/(content)/ayuda/nueva/page.tsx`, `frontend/app/(content)/ayuda/mi-publicacion/page.tsx`, `backend/test/listings-create.test.ts`.
 
 **Approach.**
 1. `POST /api/listings` chains `rateLimit` → `requireHuman` → `validate({ body })` → `asyncHandler`, matching `backend/src/routes/reports.ts`. Both ESLint invariants depend on that shape.
 2. Generate the edit token with `randomBytes(32)`, matching `backend/src/services/auth.ts` rather than leaving entropy unspecified. This token is the author's only authentication factor — there is no account and no password reset behind it. Return it to the author exactly once in the create response and persist only its SHA-256 hash.
 3. Authenticate the token with a lookup conditioned on **both** the listing id from the URL and the token hash, and compare with `timingSafeEqual` as `requireAdmin` does for its single-row secret. A global hash-to-listing reverse lookup that then trusts the URL id separately is not per-listing scoping.
-4. Mask coordinates via U6's deterministic function (R7). Because the mask is a pure function of the true point, the create and edit paths call it identically and no "already masked?" branch is needed.
+4. On create, draw the offset vector once via U6's generator and persist it alongside the true point (R7). On edit, re-apply the **stored** vector — never draw a new one. That single rule is what keeps a listing to one masked sample for its whole life; getting it wrong reintroduces the edit-churn averaging attack KTD3 exists to close.
 5. **The mutation response must not contain `publicLat`/`publicLng`** (R23). Returning the updated resource is the REST convention and every other mutation here follows it, but a token holder could otherwise call edit repeatedly and read a fresh masked sample from each response. Determinism already removes the sample variation; excluding the field removes the endpoint from the attack surface entirely. Reuse the read-path presenter allowlist rather than writing a second one.
 6. New listings are created `pending`. Nothing reaches the public read path until U11 approves it.
 7. Implement field-sensitive status reversion as a **single `UPDATE ... RETURNING` with in-SQL change detection** — an `IS DISTINCT FROM` comparison feeding a `CASE` on `status`. Reading the row, deciding in JavaScript, then writing is two round trips with a race between them: concurrent edits both read "not yet reverted" and neither reverts. It is also the branching-on-intermediate-result that `db.batch()` cannot express (KTD6).
 8. Create-plus-audit atomicity uses a writeable CTE inside `db.batch()`. Read KTD6's warning about which precedent to copy.
-9. Verify `contactEmail` ownership with a confirmation link before the listing leaves `pending` (R24). Without it, anyone can name an uninvolved person's address and have every subsequent well-intentioned relay message arrive at that person from our domain.
-10. Add `.env.example` entries with obviously fake placeholders, per `AGENTS.md`.
+9. Verify `contactEmail` ownership with a confirmation link before the listing leaves `pending`. Without it, anyone can name an uninvolved person's address and have every subsequent well-intentioned relay message arrive at that person from our domain. Give the confirmation token the same discipline as the edit token — `randomBytes(32)`, hashed at rest, single-use, short expiry — and confirm via a state-changing POST, not a bare GET, so an email security scanner pre-fetching the link cannot silently auto-confirm the exact thing this step exists to check.
+10. **Build the author's self-service surface.** R3 promises edit and close without an account, and `manage-listing.ts` is the backend for it, but the author needs somewhere to use their token: a route where they enter listing id plus token and see current status, edit editable fields, reconfirm a stale listing, or close it. Without this the entire no-accounts model is write-only after submission.
+11. **Specify the token issuance screen.** This is the highest-risk interaction in the plan — one string, shown once, and it is the author's only credential. Show it in a selectable monospace field with a copy control (reuse `frontend/hooks/useCopyLink.ts`), state plainly that it cannot be retrieved again, and gate the continue action behind an explicit acknowledgement. Also **email the manage link to the confirmed contact address** once step 9 succeeds — the infrastructure is already there, and without a durable copy, token loss funnels every affected author into U11's staff-assisted path, quietly recreating the staff burden KTD2 was chosen to avoid.
+12. Surface a "¿Perdiste tu código?" link on both the issuance screen and the manage route, pointing at the same staff channel U4 builds, so the recovery path in U11 step 8 is discoverable rather than folklore.
+13. Add `.env.example` entries with obviously fake placeholders, per `AGENTS.md`.
 
 **Execution note.** Write the token-handling tests first. A token stored in plaintext, or one leaked into a read DTO, is the highest-severity defect this unit can produce.
 
@@ -581,6 +617,11 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 - No mutation response body contains `publicLat`, `publicLng`, or the true coordinates.
 - Closing via token sets `closed` and removes the listing from public reads.
 - A listing whose `contactEmail` is unconfirmed does not leave `pending`.
+- The confirmation token is single-use, expires, and is not consumed by a GET request.
+- The issuance screen's continue action stays disabled until the author acknowledges saving the token.
+- The token is never re-displayed after leaving the issuance screen.
+- The manage route accepts a valid id-plus-token pair and rejects a mismatched one.
+- The manage route surfaces current status, including rejected and stale.
 
 **Verification.** `cd backend && npm test` passes; a listing submitted on staging appears in the moderation queue and not on the public map.
 
@@ -603,6 +644,8 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 6. Order the queue oldest-pending first, and surface queue depth, oldest-pending age, and stale-listing count.
 7. Expose those counts as an authenticated stats endpoint behind `listing:read` for the admin panel to poll, plus structured log lines. Not `prom-client` — see KTD13 for why that registry is unreachable in production.
 8. Staff-assisted changes on behalf of an author who lost their token require confirming the requester controls the listing's stated contact, and that verification is recorded in the audit metadata. Without that check, "I lost my token, please close listing X for me" is a trivial takeover of any listing by anyone who knows which one to name.
+9. This capability-gated close/reject path is also what satisfies R24 — a person whose contact was used without consent has no edit token by definition, so staff removal is their only route. It is a distinct control from U10's pre-publication contact confirmation.
+10. Implement R10's "deprioritized" concretely: flagged listings sort last in the read API's default ordering and render beneath unflagged markers. Without a definition, an implementer satisfies "visible and marked" and the deprioritization half silently never gets built, because no test would catch its absence.
 
 **Test scenarios.**
 - Approving moves a listing to approved and it becomes publicly readable.
@@ -616,6 +659,8 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 - A flagged listing remains publicly visible but is marked flagged (R10).
 - Stale listings appear in the queue without being hidden from the map.
 - The stats endpoint reports pending count, oldest-pending age, and flagged count, and requires `listing:read`.
+- A flagged listing sorts after unflagged listings in the default read ordering.
+- A staff close on an unconsented-contact report succeeds without an edit token and writes an audit row.
 
 **Verification.** A moderator approves a staging listing through the admin panel; it appears on the public map and the audit row names them.
 
@@ -633,14 +678,15 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 1. `POST /api/listings/:id/contact` accepts a message and the sender's reply-to contact, then sends to the author's stored contact via `nodemailer` **synchronously** on the request path. The BullMQ worker is undeployed, so an enqueued job would silently never run — KTD11.
 2. Neither party's contact ever appears in a response body. The relay is the only place the stored contact is read.
 3. Surface send failures to the sender. A relay that fails silently is worse than no relay: the sender believes they made contact.
-4. Rate-limit the relay per listing and per client, require a Turnstile token, and enforce a **hard per-listing daily cap counted in Postgres** (R25). The request limiter degrades to per-isolate memory without Valkey; a database-counted cap does not, and this endpoint is the one place where the degraded limiter's failure mode is a specific disaster victim's inbox being flooded.
+4. Rate-limit the relay per listing and per client, require a Turnstile token, and enforce a **hard daily cap counted in Postgres** (R25) against the `relaySendCount`/`relayWindowStartedAt` columns U6 defines — the cap is per listing *and* per sender. A per-listing-only cap is itself a denial vector: anyone can burn a listing's daily allowance in a few requests and cut that author off from every genuine helper for the rest of the day. The request limiter degrades to per-isolate memory without Valkey; a database-counted cap does not, and this endpoint is the one place where the degraded limiter's failure mode is a specific disaster victim's inbox being flooded.
 5. Bound the `nodemailer` send with a timeout, mirroring the `AbortSignal.timeout` pattern in `backend/src/lib/turnstile.ts`. A slow SMTP provider must not hold Worker requests open.
 6. Treat a missing `SMTP_HOST` as a hard failure. `backend/src/auth/mailer.ts` returns `{sent: false}` silently in that case — a sensible dev fallback for invitations, and the wrong default to copy here, where a silent no-op means the sender believes they made contact.
 7. Surface send failures generically. No SMTP response detail reaches the sender, or delivery status becomes an oracle for whether a listing's stored address is valid.
 8. Sanitize everything that becomes a mail header, not just the body — the sender's reply-to and any listing title used to build the subject. Do not rely on library defaults for this; it should be verifiable in a test.
-9. Abuse reports write to the table U6 defined and set the listing's flagged marker. Reports do not auto-hide — that would let anyone silence a legitimate offer (R10). The two writes go in one `db.batch()`; neither needs the other's result.
+9. Abuse reports write to the table U6 defined and set the listing's flagged marker. Reports do not auto-hide — that would let anyone silence a legitimate offer (R10). The two writes go in one `db.batch()`; neither needs the other's result. The report route carries the same `rateLimit` → `requireHuman` chain as the create and relay routes (R11): without it, a script can mass-file reports to push competing listings down the ordering U11 step 10 defines.
+10. Keep abuse reports **anonymous** — no reporter contact field. U6 flagged this as a schema decision and this is the resolution: a stored reporter address would be a second, independent personal-data collection point with its own retention and deletion obligations, for a follow-up channel the plan does not otherwise need. It is the same minimization posture as KTD2.
 10. Cap relayed message length and strip HTML. The relay must not become an open mail gateway.
-11. Do not add a relay log table. Nothing about a relayed message persists server-side beyond the send, which keeps the erasure surface small. This is a deliberate choice, not an omission — adding one later creates a new obligation under R13.
+11. Do not add a relay log table. No message *content* persists server-side beyond the send, which keeps the erasure surface small. This is a deliberate choice, not an omission — adding one later creates a new obligation under R13. The R25 cap counter is not a log: it stores a count and a window start, never a recipient, sender, or body.
 
 **Test scenarios.**
 - A relayed message reaches the author's stored contact.
@@ -650,7 +696,11 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 - The error surfaced to the sender carries no SMTP response detail.
 - A slow SMTP provider trips the send timeout rather than holding the request open.
 - Relay requests past the rate limit are rejected.
-- Relay requests past the per-listing daily cap are rejected even when the rate limiter is degraded.
+- Relay requests past the daily cap are rejected even when the rate limiter is degraded.
+- One sender cannot exhaust a listing's daily cap for other senders.
+- A report without a Turnstile token is rejected when the secret is set.
+- Report requests past the rate limit are rejected.
+- The reports table stores no reporter contact field.
 - A relay request without a Turnstile token is rejected when the secret is set.
 - A message exceeding the length cap is rejected.
 - HTML in a message body is stripped before sending.
@@ -727,6 +777,7 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 1. Model the workflow on `deploy-backend.yml`, not `deploy-frontend.yml`: `workflow_dispatch` with a typed confirmation, never auto-deploy on push. The admin panel authenticates staff and reaches production data; it belongs in the same risk class as the API.
 2. Provision production staff accounts through the invitation flow. Staging accounts do not carry over — the Neon branches are separate databases.
 3. Confirm the production admin host resolves, TLS is issued, and the BFF reaches the production API.
+4. Confirm Cloudflare WAF and rate-limit rules cover the admin host, the same way the go/no-go requires for `/api/listings*`. This surface authenticates staff and exposes true coordinates, contact details, and moderation actions — a higher-value target than the public API — and it is reaching the public internet for the first time. The rules live in OpenTofu outside this repo, so confirm rather than assume.
 
 **Execution note.** Deployment configuration — verify by a moderator signing in, not by unit tests. A human runs the dispatch.
 
@@ -735,8 +786,34 @@ U1 and Phase 1 do not depend on the legal work. Only Phase 2 does.
 - The workflow does not trigger on push to any branch.
 - A provisioned production staff user can sign in; a user without the capability is refused.
 - A production moderation action writes an `audit_log` row with a non-null actor.
+- Cloudflare WAF and rate-limit rules are confirmed present for the admin host before the panel is announced to moderators.
 
 **Verification.** Two moderators sign in to the production admin host and load the listings queue before `ENABLE_LISTINGS` is enabled in `prd`.
+
+### U16. Run lint and tests in CI
+
+**Goal.** Make the Verification Contract real. Every gate in it, and the Definition of Done's "every unit's verification passed," currently rests on commands no automation runs.
+
+**Requirements.** Supports R11 and R22 indirectly; no product requirement of its own.
+
+**Dependencies.** None. Ship it first — it is cheap and it makes every later unit's gates trustworthy.
+
+**Files.** `.github/workflows/ci.yml`.
+
+**Approach.**
+1. Add `npm run lint` and `npm test` steps to the `build-backend` and `build-frontend` jobs. Today those jobs run only `npm run typecheck` and `npm run build`, and no workflow anywhere invokes lint or the test suite.
+2. This matters beyond tidiness: `require-rate-limit` and `user-facing-mutation-needs-guard` are the repo's structural guards against shipping an unguarded public write endpoint, they are configured as errors in `backend/eslint.config.js`, and nothing enforces them. That gap already covers every existing route; this plan is about to add several more.
+3. Expect existing failures on first run. Fix or explicitly baseline them in this unit rather than letting a red CI become normal — a permanently failing gate is worse than no gate.
+
+**Execution note.** Land this before U6. Every subsequent unit's verification claim depends on it, and discovering the backlog of pre-existing lint failures early is much cheaper than discovering it mid-migration.
+
+**Test scenarios.**
+- A pull request introducing an ESLint error fails CI.
+- A pull request introducing a failing backend test fails CI.
+- A route added without `rateLimit` fails CI via `require-rate-limit`.
+- CI passes on the current tree, or every pre-existing failure is explicitly baselined with a recorded reason.
+
+**Verification.** A deliberately broken branch fails CI for the expected reason, and the current tree passes.
 
 ---
 
@@ -752,6 +829,7 @@ Rollback is not uniform here, and knowing which lever is instant matters most du
 | U2 Turnstile | Delete the Worker secret — `verifyTurnstile` returns to its disabled state immediately, no redeploy needed | Sub-minute |
 | U3, U15 admin | `wrangler delete`, or drop the workflow job. No shared state touched | Fast |
 | U4 privacy notice | Content revert. `dataDeletionRequests` writes are additive and harmless to leave | Not a deploy revert |
+| U16 CI gates | Revert the workflow change, push | Minutes, no state |
 | U5 DIVIPOLA module | Revert the generated module and script, push | Minutes, no state |
 | U6 migration | No down-migration exists — `backend/worker/migrate.ts` only runs forward. But `help_listings` is a new table and nothing existing is altered, so before U10 ships any rows, dropping it is a complete rollback | Fast before U10, harder after |
 | U7–U9 read path | Additive and flag-gated | Fast |
@@ -802,6 +880,7 @@ Alerting on any of these requires a Logpush destination and a rule that does not
 - `SELECT to_regclass('help_listings')` is non-null in that environment.
 
 **Before public writes are enabled anywhere**
+- The moderation queue is **actively staffed with a stated turnaround target and coverage hours** (R29), not merely provisioned with accounts. This is the point where public risk begins — pre-publication moderation is the primary control against the fake-shelter and trafficking-bait threats KTD8 names, and an unstaffed queue during the acute window fails exactly the people the feature exists for.
 - `TURNSTILE_SECRET_KEY` is present for that environment.
 - SMTP credentials are present in Doppler for that environment.
 - Cloudflare edge rate-limit and WAF rules demonstrably cover `/api/listings*` — these live in OpenTofu outside this repo, so confirm rather than assume.
@@ -810,9 +889,14 @@ Alerting on any of these requires a Logpush destination and a rule that does not
 - OQ5 resolved: the Doppler-to-Worker propagation procedure is known and was exercised on staging.
 - Staging has run a full week with the flag off, serving only Postgres-sourced centers, with coverage comparable to the dual-source baseline.
 - The moderation queue is actively staffed, not merely deployed. Pre-publication moderation means an unstaffed queue makes the Postgres source look empty exactly when ResponseGrid is switched off.
+- The marketplace carries a minimum of live approved listings on both sides (R30). ResponseGrid's records are deliberately never imported, so the first-party side starts empty — replacing working outbound CTAs with internal routes that lead to an empty marketplace is worse for a person in crisis than the handoff being replaced. Seed by inviting known partner organizations to post before the switch.
 - A maintainer executes the flip.
 
 **Blast radius of a wrong flip.** The collection-centers section degrades from ResponseGrid-populated to sparse or empty, because ResponseGrid's existing records are deliberately never imported. That is a real degradation for people looking for help, not just a technical regression. Recovery is flipping back; there is no data to reconcile in either direction.
+
+### Steady-state ownership
+
+This feature hands the org two standing obligations it does not have today: a moderation queue that must be worked for as long as the module is enabled, and a statutory deadline for habeas-data requests. Both outlast the acute response phase, when volunteer engagement is highest. Name the owning role — not an individual — for each, and state what happens to the queue if that role goes unstaffed. Disabling `ENABLE_LISTINGS` is a legitimate answer, and a much better one than a queue nobody works. See OQ9.
 
 ### Human-only actions
 
@@ -834,7 +918,8 @@ Per `CLAUDE.md`, with no environment qualifier — these apply to staging exactl
 | Backend tests | `cd backend && npm test` | U6, U7, U8, U10, U11, U12 |
 | Frontend lint | `cd frontend && npm run lint` | U1, U5, U8, U9, U13 |
 | Frontend typecheck | `cd frontend && npm run typecheck` | U1, U5, U8, U9, U13 |
-| Frontend tests | `cd frontend && npm test` | U5, U8, U9 |
+| Frontend tests | `cd frontend && npm test` | U5, U8, U9, U10 |
+| CI enforces the above | A branch with a deliberate lint error fails CI | U16 |
 | Migration generation | `cd backend && npm run db:generate` | U6 |
 | Authz catalog integrity | `cd backend && npx vitest run test/catalog-integrity.test.ts test/authz-matrix.test.ts` | U11 |
 | Table exists before U7 deploys | `SELECT to_regclass('help_listings')` is non-null in the target environment | U7 |
@@ -864,7 +949,8 @@ Migrations are never run by CI and never by an agent. `backend/worker/migrate.ts
 **Launch gates (in addition to the above, before public writes are enabled in production)**
 
 - U2 complete: Turnstile verified active, with the site key confirmed present in the deployed bundle.
-- U3 and U15 complete: the admin panel is deployed **to production**, and at least two moderators hold working production accounts.
+- U3 and U15 complete: the admin panel is deployed **to production**, at least two moderators hold working production accounts, and the queue has a stated turnaround target and coverage hours (R29).
+- U16 complete: CI actually runs lint and tests, so the Verification Contract's gates mean something.
 - U4 complete: the privacy notice is published and a test habeas data request has been actioned end to end.
 - Cloudflare edge rate-limit and WAF rules confirmed to cover `/api/listings*` specifically.
 - SMTP credentials confirmed present in Doppler for the target environment.
