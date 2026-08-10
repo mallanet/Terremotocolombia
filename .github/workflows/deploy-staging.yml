@@ -1,0 +1,109 @@
+name: Deploy staging
+
+# Despliega el entorno de STAGING completo:
+#   frontend -> terremotocolombia-web-staging  (staging.terremotocolombia.co)
+#   API      -> terremotocolombia-api-staging  (api-staging.terremotocolombia.co)
+#   base     -> rama `staging` de Neon (datos aparte de produccion)
+#
+# A DIFERENCIA DE PRODUCCION, AQUI EL BACKEND TAMBIEN SE DESPLIEGA SOLO.
+# Es justo el motivo de existir de staging: si probar un cambio de API exigiera
+# un paso manual, nadie lo probaria y volveriamos a estrenar en produccion.
+# En `main` el backend sigue siendo manual y con confirmacion.
+#
+# Se despliegan SIEMPRE los dos tiers, sin filtro de rutas, para que staging no
+# quede con un frontend nuevo hablandole a una API vieja.
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    name: API de staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - uses: dopplerhq/cli-action@v3
+
+      - name: Instalar dependencias
+        working-directory: backend
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: backend
+        run: npm run typecheck
+
+      # DOPPLER_TOKEN_STAGING apunta al config `stg`, cuyo DATABASE_URL es la
+      # rama `staging` de Neon. Nunca la base de produccion.
+      - name: Deploy
+        working-directory: backend
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN_STAGING }}
+        run: |
+          doppler run --command '
+            CLOUDFLARE_API_TOKEN="$CLOUDFLARE_ACCOUNT_API_TOKEN" \
+            CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID" \
+            npx wrangler deploy --env staging'
+
+  frontend:
+    name: Frontend de staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Detras del backend: el frontend se construye con NEXT_PUBLIC_API_URL
+    # apuntando a la API de staging, asi que conviene que esa API ya sea la
+    # nueva cuando el frontend salga.
+    needs: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: dopplerhq/cli-action@v3
+
+      - name: Instalar dependencias
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build (OpenNext -> Workers)
+        working-directory: frontend
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN_STAGING }}
+        run: doppler run -- npx opennextjs-cloudflare build
+
+      - name: Deploy
+        working-directory: frontend
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN_STAGING }}
+        run: |
+          doppler run --command '
+            CLOUDFLARE_API_TOKEN="$CLOUDFLARE_ACCOUNT_API_TOKEN" \
+            CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID" \
+            npx wrangler deploy --env staging'
+
+      - name: Smoke check
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 10); do
+            web=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://staging.terremotocolombia.co/ || echo 000)
+            api=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://api-staging.terremotocolombia.co/api/readyz || echo 000)
+            echo "intento $i -> web:$web api:$api"
+            [ "$web" = "200" ] && [ "$api" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "Staging no respondio 200 en web y api"
+          exit 1

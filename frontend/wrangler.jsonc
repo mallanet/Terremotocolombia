@@ -19,5 +19,25 @@
   // site key de Turnstile siguio viva y el formulario no podia enviarse.
   "observability": {
     "enabled": true
+  },
+  // Entorno de staging: Worker aparte, dominio aparte, base de datos aparte
+  // (rama de Neon). Se despliega con `wrangler deploy --env staging`.
+  //
+  // Comparte este mismo fichero a proposito: si staging y produccion se
+  // configuran en sitios distintos, dejan de parecerse, y un entorno de pruebas
+  // que no se parece a produccion no prueba nada.
+  "env": {
+    "staging": {
+      "name": "terremotocolombia-web-staging",
+      "compatibility_date": "2026-08-01",
+      "compatibility_flags": ["nodejs_compat"],
+      "assets": {
+        "directory": ".open-next/assets",
+        "binding": "ASSETS"
+      },
+      "observability": {
+        "enabled": true
+      }
+    }
   }
 }

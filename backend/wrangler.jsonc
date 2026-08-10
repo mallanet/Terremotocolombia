@@ -44,6 +44,33 @@
     // 1101, no solo /api/docs). Ver src/shims/swagger-ui-express.ts.
     "swagger-ui-express": "./src/shims/swagger-ui-express.ts"
   },
+  // Entorno de staging: Worker aparte, dominio aparte, y sobre todo BASE DE
+  // DATOS aparte (rama `staging` de Neon, via DATABASE_URL del config `stg` de
+  // Doppler). Es lo que permite crear reportes de prueba sin tocar el registro
+  // real de personas desaparecidas.
+  //
+  // Sin binding de Hyperdrive a proposito: en Workers el driver es el HTTP de
+  // Neon y el binding no se usa (ver src/worker.ts).
+  "env": {
+    "staging": {
+      "name": "terremotocolombia-api-staging",
+      "vars": {
+        "NODE_ENV": "production",
+        "COOKIE_SECURE": "true",
+        "APP_BASE_URL": "https://staging.terremotocolombia.co",
+        "CORS_ORIGINS": "https://staging.terremotocolombia.co",
+        "TRUSTED_IP_HEADER": "cf-connecting-ip"
+      },
+      "alias": {
+        "drizzle-orm": "./node_modules/drizzle-orm",
+        "drizzle-orm/pg-core": "./node_modules/drizzle-orm/pg-core",
+        "swagger-ui-express": "./src/shims/swagger-ui-express.ts"
+      },
+      "observability": {
+        "enabled": true
+      }
+    }
+  },
   "observability": {
     "enabled": true
   }

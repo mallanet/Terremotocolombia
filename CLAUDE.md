@@ -32,13 +32,27 @@ comparte base de datos con lo que ya está sirviendo.
 
 ## Dónde corre esto de verdad
 
-| Pieza | Dónde | Nombre |
+**Dos entornos.** Lo que pruebes va a staging primero.
+
+| | Producción (`main`) | Staging (`staging`) |
 | --- | --- | --- |
-| Frontend | Cloudflare Workers (`@opennextjs/cloudflare`) | `terremotocolombia-web` |
-| Backend API | Cloudflare Workers (Express envuelto, sin reescribir) | `terremotocolombia-api` |
-| Base de datos | **Neon Postgres** (externo), endpoint `-pooler` | proyecto `cool-sea-70146941` |
-| Admin | construido en CI, **sin desplegar** | — |
-| Worker de colas (BullMQ/Valkey) | **sin desplegar** | — |
+| Web | terremotocolombia.co | staging.terremotocolombia.co |
+| API | api.terremotocolombia.co | api-staging.terremotocolombia.co |
+| Worker web | `terremotocolombia-web` | `terremotocolombia-web-staging` |
+| Worker API | `terremotocolombia-api` | `terremotocolombia-api-staging` |
+| Base de datos | rama Neon `production` | rama Neon `staging` |
+| Secretos | Doppler config `prd` | Doppler config `stg` |
+| Despliegue frontend | automático al pushear | automático al pushear |
+| Despliegue backend | **manual + confirmación** | automático |
+
+Ambos entornos comparten `wrangler.jsonc` (bloque `env.staging`) a propósito: si
+se configuran en sitios distintos dejan de parecerse, y un staging que no se
+parece a producción no prueba nada.
+
+| Pieza | Estado |
+| --- | --- |
+| Admin | construido en CI, **sin desplegar** en ningún entorno |
+| Worker de colas (BullMQ/Valkey) | **sin desplegar** en ningún entorno |
 
 `backend/src/worker.ts` envuelve la app de Express con `httpServerHandler` de
 `cloudflare:node`; la app **no se reescribió**. Ver `backend/wrangler.jsonc` y

@@ -8,13 +8,37 @@ pruebas, accesibilidad, rendimiento, datos públicos verificables y operaciones.
 
 Es un despliegue **en producción sirviendo tráfico real**, no una plantilla de
 demostración: la prioridad es proteger a las personas afectadas y mantener la
-plataforma en pie. Dos consecuencias prácticas:
-
-- **Un merge a `main` que toque `frontend/**` despliega solo**, sin aprobación.
-- El backend se despliega **a mano** y con confirmación explícita.
+plataforma en pie.
 
 Lee [`CLAUDE.md`](CLAUDE.md) antes de tu primer cambio: cubre dónde corre esto,
 qué sale a producción solo, y qué no se toca sin un humano.
+
+## Ramas y entornos
+
+Dos ramas, dos entornos, y **cada merge despliega**:
+
+| Rama | Entorno | Se despliega |
+| --- | --- | --- |
+| `staging` | https://staging.terremotocolombia.co<br>`api-staging.terremotocolombia.co` | automático al mergear |
+| `main` | **https://terremotocolombia.co**<br>`api.terremotocolombia.co` | automático al mergear (frontend) |
+
+El camino de un cambio es siempre el mismo:
+
+```text
+rama de trabajo  ──PR──▶  staging  ──(probar de verdad)──▶  PR  ──▶  main
+```
+
+- **Nunca abras un PR directo a `main`.** La única entrada a `main` es un PR
+  desde `staging` que ya se probó en el entorno de staging.
+- Staging tiene su **propia base de datos** (una rama de Neon), así que puedes
+  crear reportes de prueba sin ensuciar el registro real de personas
+  desaparecidas. En producción eso no se hace nunca.
+- En **staging se despliegan los dos tiers automáticamente** (frontend y API).
+  Es el motivo de existir del entorno: si probar un cambio de API exigiera un
+  paso manual, nadie lo probaría. En **`main` el backend sigue siendo manual**
+  y con confirmación explícita.
+- Excepción justificable: un hotfix de producción puede ir directo a `main`,
+  pero se porta a `staging` inmediatamente después para que no diverjan.
 
 ## Antes de empezar
 
@@ -65,20 +89,11 @@ despliegue.
    git fetch upstream
    ```
 
-4. Crea tu rama desde `upstream/main`:
+4. Crea tu rama desde `upstream/staging` (**no** desde `main`):
 
    ```bash
-   git switch -c fix/descripcion-corta upstream/main
+   git switch -c fix/descripcion-corta upstream/staging
    ```
-
-   > **No hay rama `staging`.** Este repo tiene `main` y ramas de trabajo, nada
-   > más. `main` **es** producción: al mergear un cambio en `frontend/**` o en
-   > `config/deployment.config.json` se despliega solo a terremotocolombia.co,
-   > sin aprobación intermedia. No existe un entorno donde probarlo antes.
-   >
-   > *(Pendiente de decidir por el mantenedor: si los colaboradores externos
-   > siguen el flujo fork-first descrito aquí o se les da acceso directo a
-   > ramas. Hoy el equipo empuja ramas directamente a `origin`.)*
 
 5. Corre la app. Docker Compose es la vía preferida y levanta el stack completo
    (frontend + admin + backend + Postgres + Valkey) sin instalar dependencias a
@@ -98,8 +113,8 @@ despliegue.
    cd admin    && npm run lint && npm run typecheck && npm run build
    ```
 
-8. Sube tu rama y abre un PR contra la rama de integración del repo principal
-   (`main` — no hay rama de integración separada).
+8. Sube tu rama y abre un PR contra **`staging`** del repo principal. Nunca
+   contra `main`: a `main` solo se llega promoviendo `staging` una vez probado.
 
 Si eres maintainer, puedes crear una rama en el repo principal, pero conserva
 la misma disciplina: rama descriptiva, PR pequeño, issue enlazada y
@@ -144,7 +159,7 @@ Manten el PR revisable:
 - Prefiere cambios pequeños a un PR grande con muchas responsabilidades.
 - No mezcles refactors estéticos con fixes funcionales.
 - No subas credenciales, `.env.local`, dumps o datos reales.
-- Rebasea o actualiza tu rama si `main` avanzó mucho antes de mergear.
+- Rebasea o actualiza tu rama si `staging` avanzó mucho antes de mergear.
 - Responde comentarios con commits nuevos; evita resolver conversaciones sin
   explicar el cambio.
 
