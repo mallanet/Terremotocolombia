@@ -10,26 +10,49 @@
  */
 
 import { eq, sql } from "drizzle-orm";
-import { getDb, hasDbEnv, schema } from "../db";
+import { getDb, hasDbEnv, schema } from "@/db";
 
 const { geocodeCache } = schema;
 
-/**
- * Centro aproximado de la zona de cobertura, para sesgar los resultados de
- * Nominatim. SIN default real: configura GEOCODE_BIAS_LAT/LNG para tu zona (o
- * déjalo así — sin sesgo — si tu despliegue cubre una región amplia).
- */
-const BIAS = {
-  lat: Number(process.env.GEOCODE_BIAS_LAT || 0),
-  lng: Number(process.env.GEOCODE_BIAS_LNG || 0),
-};
 const DEFAULT_DELAY_MS = 1100; // Nominatim: máx ~1 req/s
 const DEFAULT_MAX_LOCATIONS = 20;
 const DEFAULT_TIME_BUDGET_MS = 200_000;
 const USER_AGENT = "DisasterResponseTemplate/1.0 (geocode)";
-// País a acotar la búsqueda (ISO 3166-1 alpha-2, ej. "ve"). OPCIONAL: sin
-// GEOCODE_COUNTRY_CODE busca sin restricción de país.
-const COUNTRY_CODE = (process.env.GEOCODE_COUNTRY_CODE || "").trim();
+/** Igual que el geocode de una sola direccion en services/geocode.ts. */
+const NOMINATIM_TIMEOUT_MS = 8_000;
+
+/**
+ * Configuracion de sesgo geografico, LEIDA EN CADA LLAMADA y no en ámbito de
+ * módulo.
+ *
+ * Importa desde que este fichero se importa en `src/worker.ts`: en Workers el
+ * módulo se evalúa al inicializar el isolate, ANTES de que `bridgeEnv(env)`
+ * copie las vars a `process.env` dentro del handler. Leerlas arriba las dejaba
+ * vacías para siempre, y el sintoma no es un error sino un geocode sin sesgo ni
+ * restriccion de pais — es decir, pines en el municipio equivocado.
+ *
+ * Mismo motivo por el que `getDb()` lee DATABASE_URL dentro de la funcion y
+ * `valkeyUrl()` hace lo propio con VALKEY_URL.
+ */
+function biasConfig(): {
+  bias: { lat: number; lng: number };
+  hasBias: boolean;
+  countryCode: string;
+  countryNameSuffix: string;
+} {
+  return {
+    bias: {
+      lat: Number(process.env.GEOCODE_BIAS_LAT || 0),
+      lng: Number(process.env.GEOCODE_BIAS_LNG || 0),
+    },
+    hasBias: Boolean(process.env.GEOCODE_BIAS_LAT && process.env.GEOCODE_BIAS_LNG),
+    // País para acotar la búsqueda (ISO 3166-1 alpha-2, ej. "co"). OPCIONAL.
+    countryCode: (process.env.GEOCODE_COUNTRY_CODE || "").trim(),
+    // Sufijo de país en el texto de búsqueda, para desambiguar direcciones
+    // cortas. OPCIONAL.
+    countryNameSuffix: (process.env.GEOCODE_COUNTRY_NAME || "").trim(),
+  };
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -52,32 +75,42 @@ interface Coords {
   label: string;
 }
 
-// Sufijo opcional de país en el texto de búsqueda (ej. "Ruritania"), para
-// desambiguar direcciones cortas. SIN default real.
-const COUNTRY_NAME_SUFFIX = (process.env.GEOCODE_COUNTRY_NAME || "").trim();
-const HAS_BIAS = Boolean(process.env.GEOCODE_BIAS_LAT && process.env.GEOCODE_BIAS_LNG);
-
 async function geocodeLocation(query: string): Promise<Coords | null> {
+  const { bias, hasBias, countryCode, countryNameSuffix } = biasConfig();
   const url = new URL("https://nominatim.openstreetmap.org/search");
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set(
     "q",
-    COUNTRY_NAME_SUFFIX ? `${query}, ${COUNTRY_NAME_SUFFIX}` : query,
+    countryNameSuffix ? `${query}, ${countryNameSuffix}` : query,
   );
-  if (COUNTRY_CODE) url.searchParams.set("countrycodes", COUNTRY_CODE);
+  if (countryCode) url.searchParams.set("countrycodes", countryCode);
   url.searchParams.set("limit", "1");
   url.searchParams.set("accept-language", "es");
-  if (HAS_BIAS) {
+  if (hasBias) {
     url.searchParams.set(
       "viewbox",
-      `${BIAS.lng - 1},${BIAS.lat + 0.8},${BIAS.lng + 1},${BIAS.lat - 0.8}`,
+      `${bias.lng - 1},${bias.lat + 0.8},${bias.lng + 1},${bias.lat - 0.8}`,
     );
     url.searchParams.set("bounded", "0");
   }
 
-  const res = await fetch(url, {
-    headers: { "User-Agent": USER_AGENT, "Accept-Language": "es" },
-  });
+  // Timeout explicito: sin el, una peticion colgada a Nominatim no la corta
+  // nadie. El presupuesto de tiempo del bucle solo se comprueba ENTRE
+  // iteraciones, asi que una sola llamada colgada se lo salta entero y se come
+  // la invocacion programada. services/geocode.ts ya lo hace asi.
+  // Se devuelve null en vez de propagar: el bucle de runGeocode ya trata null
+  // como "esta ubicacion fallo" (result.failed++) y sigue con la siguiente. Si
+  // el timeout se propagara, una sola ubicacion lenta abortaria el lote entero
+  // y perderia el trabajo ya hecho — justo lo contrario de lo que se busca.
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { "User-Agent": USER_AGENT, "Accept-Language": "es" },
+      signal: AbortSignal.timeout(NOMINATIM_TIMEOUT_MS),
+    });
+  } catch {
+    return null;
+  }
   if (!res.ok) return null;
   const data = (await res.json()) as Array<{
     lat?: string;

@@ -10,7 +10,13 @@
  * `src/`, así que entraba en el bundle de Workers aunque allí no pueda correr.
  */
 import { createHash, randomUUID } from "crypto";
-import { dispatchJob, resolveTransport, type JobRoute } from "@/lib/job-dispatch";
+import {
+  dispatchJob,
+  resolveTransport,
+  valkeyUrl,
+  type JobRoute,
+} from "@/lib/job-dispatch";
+import { serviceUnavailable } from "@/lib/errors";
 import type { NewNeed, ResolvedLocation } from "../domain/need";
 
 export const NEEDS_PUBLICATION_QUEUE = "needs-publication";
@@ -59,15 +65,31 @@ export async function enqueueNeedPublication(
 /**
  * Estado de una publicación.
  *
- * Solo existe en el camino BullMQ: Cloudflare Queues no lleva un registro de
- * jobs consultable, así que allí devuelve `null` en vez de fingir un estado.
- * El consumidor de Queues y su superficie de estado son U2/U3 del plan.
+ * Tres casos distintos, que a proposito NO se colapsan en uno:
+ *
+ * - BullMQ: se consulta el registro de jobs y se devuelve el estado real.
+ * - Cloudflare Queues: `null`. Queues no lleva un registro consultable, asi que
+ *   fingir un estado seria peor que admitir que no hay. La superficie de estado
+ *   del consumidor es U2/U3 del plan.
+ * - SIN transporte: lanza 503. Antes de este seam, `queue()` lanzaba al faltar
+ *   VALKEY_URL y el controlador lo convertia en 503. Devolver `null` aqui lo
+ *   volveria un 404 "no encontrado", indistinguible de un jobId inexistente, y
+ *   ocultaria un despliegue mal configurado detras de un error de usuario.
  */
 export async function getNeedPublicationState(
   id: string,
 ): Promise<NeedPublicationState | null> {
-  if (resolveTransport(needsPublicationRoute) !== "bullmq") return null;
-  const url = process.env.VALKEY_URL;
+  const transport = resolveTransport(needsPublicationRoute);
+  if (transport === "none") {
+    throw serviceUnavailable(
+      "La cola de publicación no está configurada en este despliegue.",
+    );
+  }
+  if (transport !== "bullmq") return null;
+  // valkeyUrl() y no process.env directo: resolveTransport decide con
+  // `process.env.VALKEY_URL || env.VALKEY_URL`, y leer solo la primera aqui
+  // podria decir "bullmq" arriba y `null` una linea despues.
+  const url = valkeyUrl();
   if (!url) return null;
   const { getBullmqJobState } = await import("@/lib/job-dispatch.bullmq");
   return getBullmqJobState(needsPublicationRoute, id, url);
