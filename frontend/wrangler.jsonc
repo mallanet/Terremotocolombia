@@ -8,12 +8,15 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
-  // Dominios propios. `custom_domain: true` hace que Cloudflare cree el
-  // registro DNS y el certificado de borde por si mismo.
-  "routes": [
-    { "pattern": "terremotocolombia.co", "custom_domain": true },
-    { "pattern": "www.terremotocolombia.co", "custom_domain": true }
-  ],
+  // Los dominios propios (apex + www) YA estan adjuntados al Worker; se
+  // gestionan por la API de cuenta (/accounts/{id}/workers/domains).
+  //
+  // NO declararlos aqui: con `routes`, wrangler llama ademas a
+  // /zones/{id}/workers/routes, para lo que el token de cuenta no tiene
+  // permiso. Ese fallo aborta el deploy DESPUES de subir el codigo pero ANTES
+  // de promover la version — el Worker se queda sirviendo la anterior y parece
+  // que el despliegue "no hizo nada". Paso de verdad: la primera build sin la
+  // site key de Turnstile siguio viva y el formulario no podia enviarse.
   "observability": {
     "enabled": true
   }
