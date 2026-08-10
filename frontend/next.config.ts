@@ -62,9 +62,9 @@ const SITE_APEX_SRC = SITE_APEX_DOMAIN ? ` https://*.${SITE_APEX_DOMAIN}` : "";
 
 // CSP en modo ENFORCING (bloquea, no solo reporta). La política ya lista los
 // orígenes de terceros que la app usa de verdad: Google Analytics/Tag Manager,
-// Google Translate, Cloudflare Turnstile, Google Fonts, y la API propia
-// (derivada de NEXT_PUBLIC_API_URL / NEXT_PUBLIC_SITE_APEX_DOMAIN) por
-// connect-src. `img-src https:` se mantiene amplio a propósito por los tiles
+// Google Translate, Cloudflare Turnstile, y la API propia (derivada de
+// NEXT_PUBLIC_API_URL / NEXT_PUBLIC_SITE_APEX_DOMAIN) por connect-src.
+// Google Fonts YA NO aparece: las tipografías se auto-alojan (app/fonts/). `img-src https:` se mantiene amplio a propósito por los tiles
 // de OpenStreetMap y los redirects de foto a orígenes externos de las
 // fuentes de sync.
 //
@@ -91,12 +91,20 @@ const contentSecurityPolicy = [
   // connect-src para el XHR de traducción). Si falta CUALQUIERA de esos
   // orígenes el widget no inicializa y la página no se traduce.
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://translate.google.com https://translate.googleapis.com https://translate-pa.googleapis.com https://www.gstatic.com https://challenges.cloudflare.com",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://translate.googleapis.com https://www.gstatic.com",
+  // fonts.googleapis.com se quitó al auto-alojar las tipografías: era la hoja de
+  // estilo de Google Fonts y ya no se pide. Google Translate NO la usa — su CSS
+  // viene de translate.googleapis.com y www.gstatic.com, que siguen aquí. Si el
+  // widget apareciera sin estilos en staging, este es el origen a reponer.
+  "style-src 'self' 'unsafe-inline' https://translate.googleapis.com https://www.gstatic.com",
   // MEDIA_SRC = API + CDN R2. API_ORIGIN cubre el backend en http (dev:
   // http://localhost:8080), que `https:` no matchea. En prod son https y ya
   // estarían cubiertos por `https:`; añadirlos es inocuo y explícito.
   `img-src 'self' data: blob: https:${MEDIA_SRC}`,
-  "font-src 'self' data: https://fonts.gstatic.com",
+  // Las tipografías se sirven desde el propio origen (app/fonts/ vía
+  // next/font/local → /_next/static). Ya NO se carga nada de fonts.gstatic.com,
+  // así que el origen se quitó: si algún día reaparece una petición ahí, es un
+  // `next/font/google` que se coló y debe verse como violación de CSP.
+  "font-src 'self' data:",
   // connect-src: GA, y la API propia — el navegador habla con el backend por
   // NEXT_PUBLIC_API_URL (no same-origin tras el split web/api), incluido el
   // proxy de OpenPanel /api/op. NEXT_PUBLIC_SITE_APEX_DOMAIN (opcional) cubre
