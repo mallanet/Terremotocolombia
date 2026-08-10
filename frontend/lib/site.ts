@@ -2,9 +2,13 @@ import { deploymentConfig } from "@/lib/deployment-config";
 
 /** Dominio público del sitio (config/deployment.config.json → domains.web). */
 export const SITE_URL = `https://${deploymentConfig.domains.web}`;
-export const SITE_NAME = `${deploymentConfig.disasterName} · ${deploymentConfig.orgName}`;
-/** Schema.org / primary brand mark — PNG for crawler and iOS compatibility. */
+export const SITE_NAME = `${deploymentConfig.productName} · ${deploymentConfig.orgName}`;
+/** Schema.org / PWA mark — Mallanet isotipo on ink (never Epicentro). */
 export const SITE_LOGO = "/icon-512.png";
+/** Nav / light chrome — official Mallanet isotipo for light surfaces. */
+export const SITE_NAV_LOGO = "/brand/isotipo-oscuro.svg";
+/** Dark chrome / OG wordmark. */
+export const SITE_WORDMARK_ON_DARK = "/brand/logo-claro.svg";
 export const SITE_BRAND_NAME = deploymentConfig.orgName;
 export const SITE_PRODUCT_NAME = deploymentConfig.productName;
 

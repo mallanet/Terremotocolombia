@@ -2,14 +2,14 @@
   "_note": "Static PWA manifest. Icons are PNG (not SVG) for iOS/Android/crawler compatibility. name/short_name/description/lang follow config/deployment.config.json.",
   "name": "Terremoto Colombia · Mallanet.org",
   "short_name": "Terremoto Colombia",
-  "description": "Reporte ciudadano en tiempo real para coordinar rescates, identificar daños y organizar ayuda humanitaria durante una emergencia en Colombia.",
+  "description": "Infraestructura ciudadana de emergencia — Mallanet.org",
   "lang": "es",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#f8fafc",
-  "theme_color": "#003893",
+  "background_color": "#0f2154",
+  "theme_color": "#0f2154",
   "categories": ["utilities", "social", "news"],
   "icons": [
     {

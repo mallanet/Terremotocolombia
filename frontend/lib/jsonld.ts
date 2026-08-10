@@ -14,7 +14,7 @@ export const WEBSITE_ID = `${SITE_URL}/#website`;
 
 const ORG_DESCRIPTION =
   "Iniciativa ciudadana, independiente y no gubernamental que centraliza " +
-  `información útil durante la emergencia (${deploymentConfig.disasterName}): rescates, hospitales, ` +
+  `información útil durante la emergencia (${deploymentConfig.productName}): rescates, hospitales, ` +
   "refugios, centros de acopio y ayuda humanitaria.";
 
 /** Organización (ONG) detrás del sitio: permite a buscadores y agentes de IA

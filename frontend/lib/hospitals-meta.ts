@@ -337,7 +337,7 @@ export const HOSPITAL_SUPPLY_CATEGORY_META: Record<
     shortLabel: "Sueros",
     description: "Solución fisiológica, Ringer lactato, dextrosa u otros.",
     staleAfterHours: 6,
-    color: "#003893",
+    color: "#4080f2",
   },
   medical_supplies: {
     label: "Insumos médicos",

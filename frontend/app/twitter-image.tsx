@@ -7,7 +7,7 @@ import {
 export const size = SOCIAL_IMAGE_SIZE;
 export const contentType = SOCIAL_IMAGE_TYPE;
 export const alt =
-  "Terremoto Colombia · Mallanet.org — reportes, mapa y fuentes oficiales";
+  "Terremoto Colombia · Mallanet.org — mapa y reportes ciudadanos";
 
 export default async function TwitterImage() {
   return createSocialPreviewImage();

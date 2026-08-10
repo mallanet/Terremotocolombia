@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es-ES">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Favicon preview — Mallanet</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <style>
+    :root {
+      --ink: #0f2154;
+      --blue: #4080f2;
+      --mist: #e1eaff;
+      --bg: #f4f6fb;
+      --font: "IBM Plex Sans", system-ui, sans-serif;
+      --display: "Sora", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--ink);
+      padding: 40px 24px 64px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-family: var(--display);
+      font-size: 28px;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .sub { color: #5a6b88; margin-bottom: 32px; font-size: 15px; line-height: 1.5; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #d9e0ef;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .card img, .card .tile {
+      image-rendering: auto;
+      border-radius: 12px;
+    }
+    .card .chrome {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      background: #dee3ea;
+      border-radius: 8px 8px 0 0;
+      padding: 8px 10px;
+    }
+    .card .chrome img { border-radius: 4px; }
+    .label { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #5a6b88; }
+    .note {
+      margin-top: 36px;
+      padding: 16px 18px;
+      background: var(--mist);
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <h1 data-od-id="favicon-preview-title">Favicon — isotipo Mallanet</h1>
+  <p class="sub" data-od-id="favicon-preview-sub">Tile ink <code>#0f2154</code> · punto <code>#4080f2</code> · mist <code>#e1eaff</code>. No usar Epicentro como favicon.</p>
+
+  <div class="grid" data-od-id="favicon-grid">
+    <div class="card" data-od-id="fav-svg">
+      <img src="favicon.svg" width="64" height="64" alt="favicon.svg" />
+      <span class="label">SVG 64</span>
+    </div>
+    <div class="card" data-od-id="fav-16">
+      <img src="assets/favicon/favicon-16.png" width="16" height="16" alt="16" style="image-rendering:pixelated" />
+      <span class="label">16×16</span>
+    </div>
+    <div class="card" data-od-id="fav-32">
+      <img src="assets/favicon/favicon-32.png" width="32" height="32" alt="32" />
+      <span class="label">32×32</span>
+    </div>
+    <div class="card" data-od-id="fav-64">
+      <img src="assets/favicon/favicon-64.png" width="64" height="64" alt="64" />
+      <span class="label">64×64</span>
+    </div>
+    <div class="card" data-od-id="fav-180">
+      <img src="apple-touch-icon.png" width="90" height="90" alt="apple" />
+      <span class="label">Apple 180</span>
+    </div>
+    <div class="card" data-od-id="fav-192">
+      <img src="assets/favicon/android-chrome-192.png" width="96" height="96" alt="192" />
+      <span class="label">PWA 192</span>
+    </div>
+    <div class="card" data-od-id="fav-512">
+      <img src="assets/favicon/android-chrome-512.png" width="96" height="96" alt="512" />
+      <span class="label">PWA 512</span>
+    </div>
+    <div class="card" data-od-id="fav-tab">
+      <div class="chrome">
+        <img src="assets/favicon/favicon-16.png" width="16" height="16" alt="" />
+        <span style="font-size:12px;color:#333">Terremoto CO</span>
+      </div>
+      <span class="label">Pestaña</span>
+    </div>
+  </div>
+
+  <p class="note" data-od-id="favicon-note">Fuente: <code>brand/mallanet/isotipo-claro.svg</code>. Set completo en <code>brand/favicon/</code>.</p>
+</body>
+</html>

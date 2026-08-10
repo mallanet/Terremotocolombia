@@ -6,11 +6,20 @@ import { deploymentConfig } from "@/lib/deployment-config";
 export const SOCIAL_IMAGE_SIZE = { width: 1200, height: 630 } as const;
 export const SOCIAL_IMAGE_TYPE = "image/png";
 
-/** Shared Open Graph / Twitter card: pin mark PNG + product/org from deployment config. */
+/**
+ * Open Graph / Twitter card — Mallanet ink canvas, official wordmark,
+ * product promise only (no magnitudes, death tolls, or event dates).
+ */
 export async function createSocialPreviewImage(): Promise<ImageResponse> {
-  const iconPath = path.join(process.cwd(), "public", "icon-512.png");
-  const iconData = await readFile(iconPath);
-  const iconSrc = `data:image/png;base64,${iconData.toString("base64")}`;
+  const logoPath = path.join(
+    process.cwd(),
+    "public",
+    "brand",
+    "logo-claro.png",
+  );
+  const logoData = await readFile(logoPath);
+  const logoSrc = `data:image/png;base64,${logoData.toString("base64")}`;
+  const domain = deploymentConfig.domains.web;
 
   return new ImageResponse(
     (
@@ -22,29 +31,49 @@ export async function createSocialPreviewImage(): Promise<ImageResponse> {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background:
-            "linear-gradient(135deg, #00245E 0%, #002F75 45%, #003893 100%)",
-          color: "#ffffff",
+          background: "#0f2154",
+          color: "#e1eaff",
           fontFamily: "sans-serif",
+          position: "relative",
         }}
       >
+        {/* Colombia flag strip — territorial chrome only */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 10,
+            display: "flex",
+          }}
+        >
+          <div style={{ flex: 2, background: "#FCD116" }} />
+          <div style={{ flex: 1, background: "#003893" }} />
+          <div style={{ flex: 1, background: "#CE1126" }} />
+        </div>
+
+        {/* next/og ImageResponse requires <img>; next/image is not supported here */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={iconSrc}
-          width={128}
-          height={128}
+          src={logoSrc}
+          width={320}
+          height={98}
           alt=""
           style={{
             display: "flex",
-            borderRadius: 28,
-            marginBottom: 32,
+            objectFit: "contain",
+            marginBottom: 36,
           }}
         />
         <div
           style={{
             display: "flex",
-            fontSize: 56,
-            fontWeight: 800,
+            fontSize: 52,
+            fontWeight: 700,
             textAlign: "center",
+            color: "#ffffff",
+            letterSpacing: "-0.02em",
           }}
         >
           {deploymentConfig.productName}
@@ -52,13 +81,25 @@ export async function createSocialPreviewImage(): Promise<ImageResponse> {
         <div
           style={{
             display: "flex",
-            marginTop: 16,
-            fontSize: 28,
-            opacity: 0.85,
+            marginTop: 18,
+            fontSize: 26,
+            opacity: 0.9,
             textAlign: "center",
+            maxWidth: 900,
           }}
         >
-          {deploymentConfig.orgName}
+          Reportes, mapa y fuentes oficiales de emergencia
+        </div>
+        <div
+          style={{
+            display: "flex",
+            marginTop: 28,
+            fontSize: 22,
+            color: "#4080f2",
+            fontWeight: 600,
+          }}
+        >
+          {domain}
         </div>
       </div>
     ),

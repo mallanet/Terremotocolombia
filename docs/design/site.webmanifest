@@ -1,0 +1,24 @@
+{
+  "name": "Terremoto Colombia",
+  "short_name": "Terremoto CO",
+  "description": "Infraestructura ciudadana de emergencia — Mallanet.org",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f2154",
+  "theme_color": "#0f2154",
+  "lang": "es-CO",
+  "icons": [
+    {
+      "src": "/assets/favicon/android-chrome-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/favicon/android-chrome-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -301,7 +301,7 @@ export default function HospitalSuppliesPanel({ token, query }: Props) {
         <SupplyMetric label="Hospitales" value={data.stats.hospitals} />
         <SupplyMetric label="Categorías rojas" value={data.stats.redCategories} accent="#ce1126" />
         <SupplyMetric label="Categorías stale" value={data.stats.staleCategories} accent="#b45309" />
-        <SupplyMetric label="Necesidades activas" value={data.stats.activeNeeds} accent="#003893" />
+        <SupplyMetric label="Necesidades activas" value={data.stats.activeNeeds} accent="#4080f2" />
         <SupplyMetric label="Ayuda abierta" value={data.stats.helpOpen} accent="#9333ea" />
       </div>
 
@@ -359,7 +359,7 @@ export default function HospitalSuppliesPanel({ token, query }: Props) {
                           </MiniBadge>
                         )}
                         {row.supply.summary.counts.activeNeeds > 0 && (
-                          <MiniBadge color="#003893">
+                          <MiniBadge color="#4080f2">
                             {row.supply.summary.counts.activeNeeds} necesidades
                           </MiniBadge>
                         )}

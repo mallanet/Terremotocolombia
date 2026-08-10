@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Nunito, Source_Sans_3 } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans, Sora } from "next/font/google";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 import PwaRegister from "@/components/layout/PwaRegister";
@@ -12,23 +12,30 @@ import { graph, organizationSchema, ORG_ID, WEBSITE_ID } from "@/lib/jsonld";
 import { SITE_URL, SITE_NAME, SITE_PRODUCT_NAME, SITE_BRAND_NAME } from "@/lib/site";
 import { deploymentConfig } from "@/lib/deployment-config";
 
-const nunito = Nunito({
+const sora = Sora({
   subsets: ["latin"],
-  weight: ["800", "900"],
+  weight: ["600", "700"],
   variable: "--font-display",
   display: "swap",
 });
 
-const sourceSans = Source_Sans_3({
+const ibmPlexSans = IBM_Plex_Sans({
   subsets: ["latin"],
-  weight: ["400", "600", "700"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-body",
+  display: "swap",
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-mono",
   display: "swap",
 });
 
 const SITE_TITLE = `${SITE_PRODUCT_NAME} · ${SITE_BRAND_NAME}`;
 const SITE_DESC =
-  "Reporte ciudadano en tiempo real para coordinar rescates, identificar daños estructurales y organizar la entrega de ayuda humanitaria durante la emergencia.";
+  "Plataforma ciudadana para reportes, mapa de afectación y acceso a fuentes oficiales de emergencia en Colombia.";
 const OPENPANEL_CLIENT_ID = process.env.NEXT_PUBLIC_OPENPANEL_CLIENT_ID;
 // Google Analytics 4 (gtag). Override con NEXT_PUBLIC_GA_MEASUREMENT_ID;
 // default = propiedad Terremoto Colombia.
@@ -62,37 +69,39 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
       { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon-64.png", sizes: "64x64", type: "image/png" },
     ],
-    shortcut: [{ url: "/favicon-32.png", type: "image/png" }],
+    shortcut: [{ url: "/favicon.ico", sizes: "any" }],
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
   },
   keywords: [
     "emergencia",
-    "desastre",
+    "Colombia",
     "ayuda humanitaria",
     "rescate",
     "mapa de emergencia",
     "reporte ciudadano",
     "personas desaparecidas",
-    "ONG",
+    "Mallanet",
   ],
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
     title: SITE_TITLE,
     description: SITE_DESC,
-    locale: deploymentConfig.languageTag.replace("-", "_"),
+    locale: "es_CO",
     url: SITE_URL,
     images: [
       {
         url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: `${SITE_PRODUCT_NAME} · ${SITE_BRAND_NAME} — mapa de emergencia y rescate`,
+        alt: `${SITE_PRODUCT_NAME} · ${SITE_BRAND_NAME} — mapa y reportes ciudadanos`,
       },
     ],
   },
@@ -109,8 +118,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#EEF2F7" },
-    { media: "(prefers-color-scheme: dark)", color: "#0B1526" },
+    { media: "(prefers-color-scheme: light)", color: "#e1eaff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f2154" },
   ],
 };
 
@@ -142,7 +151,7 @@ export default function RootLayout({
     <html
       lang={deploymentConfig.languageTag}
       data-dark="false"
-      className={`${nunito.variable} ${sourceSans.variable} e-shell-html`}
+      className={`${sora.variable} ${ibmPlexSans.variable} ${ibmPlexMono.variable} e-shell-html`}
       suppressHydrationWarning
     >
       <head>

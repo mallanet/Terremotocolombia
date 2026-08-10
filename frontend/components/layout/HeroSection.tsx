@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
-  SITE_LOGO,
+  SITE_NAV_LOGO,
   SITE_BRAND_NAME,
   SITE_PRODUCT_NAME,
   CONTACT_EMAIL,
@@ -134,7 +134,7 @@ export function SiteBrand({ onClick }: { onClick?: () => void }) {
   const inner = (
     <>
       <Image
-        src={SITE_LOGO}
+        src={SITE_NAV_LOGO}
         alt=""
         width={44}
         height={44}

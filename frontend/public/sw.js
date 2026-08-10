@@ -36,11 +36,14 @@ const KEEP_CACHES = new Set([
 ]);
 
 const CORE_ASSETS = [
+  "/favicon.svg",
+  "/favicon.ico",
   "/favicon-32.png",
   "/favicon-64.png",
   "/apple-touch-icon.png",
   "/icon-192.png",
   "/icon-512.png",
+  "/brand/isotipo-oscuro.svg",
   "/manifest.webmanifest",
 ];
 const CORE_PAGES = ["/", "/privacidad"];
@@ -220,6 +223,8 @@ self.addEventListener("fetch", (event) => {
   if (
     sameOrigin &&
     (url.pathname.startsWith("/_next/static/") ||
+      url.pathname === "/favicon.svg" ||
+      url.pathname === "/favicon.ico" ||
       url.pathname === "/favicon-32.png" ||
       url.pathname === "/favicon-64.png" ||
       url.pathname === "/apple-touch-icon.png" ||
