@@ -8,16 +8,22 @@ import {
 } from "@/components/features/missing/MissingPersonForm";
 import { TabNav, type TabDef } from "@/components/ui/TabNav";
 import { useCreateMissing } from "@/hooks/missing";
+import { useCreatePet } from "@/hooks/pets";
+import type { PetPayload } from "@/components/features/pets/types";
 import { PersonsTab, type PersonsTabHandle } from "./PersonsTab";
+import { PetsTab, type PetsTabHandle } from "./PetsTab";
 import { HospitalsTab } from "./HospitalsTab";
 
-// Form de reporte: code-split (pesado, solo al pulsar "Reportar").
+// Forms de reporte: code-split (pesados, solo al pulsar "Reportar").
 const MissingPersonForm = dynamic(
   () => import("@/components/features/missing/MissingPersonForm"),
   { ssr: false },
 );
+const PetForm = dynamic(() => import("@/components/features/pets/PetForm"), {
+  ssr: false,
+});
 
-type DirectoryTab = "personas" | "hospitales";
+type DirectoryTab = "personas" | "mascotas" | "hospitales";
 
 const TABS: ReadonlyArray<TabDef<DirectoryTab>> = [
   {
@@ -25,6 +31,12 @@ const TABS: ReadonlyArray<TabDef<DirectoryTab>> = [
     label: "Personas",
     tabId: "tab-personas",
     panelId: "panel-personas",
+  },
+  {
+    id: "mascotas",
+    label: "Mascotas",
+    tabId: "tab-mascotas",
+    panelId: "panel-mascotas",
   },
   {
     id: "hospitales",
@@ -37,6 +49,7 @@ const TABS: ReadonlyArray<TabDef<DirectoryTab>> = [
 function tabFromHash(hash: string): DirectoryTab | null {
   const id = hash.replace("#", "");
   if (id === "hospitales") return "hospitales";
+  if (id === "mascotas" || id === "perdidas") return "mascotas";
   if (
     id === "personas" ||
     id === "desaparecidas" ||
@@ -50,7 +63,9 @@ function tabFromHash(hash: string): DirectoryTab | null {
 }
 
 function hashForTab(tab: DirectoryTab): string {
-  return tab === "hospitales" ? "#hospitales" : "#e-directory";
+  if (tab === "hospitales") return "#hospitales";
+  if (tab === "mascotas") return "#mascotas";
+  return "#e-directory";
 }
 
 /**
@@ -62,11 +77,14 @@ function hashForTab(tab: DirectoryTab): string {
 export default function MissingCarousel() {
   const [activeTab, setActiveTab] = useState<DirectoryTab>("personas");
   const [showForm, setShowForm] = useState(false);
+  const [showPetForm, setShowPetForm] = useState(false);
   const [formReportType, setFormReportType] =
     useState<MissingReportType>("missing");
   const [formSessionKey, setFormSessionKey] = useState(0);
   const personasRef = useRef<PersonsTabHandle>(null);
+  const mascotasRef = useRef<PetsTabHandle>(null);
   const createMissing = useCreateMissing();
+  const createPet = useCreatePet();
 
   const selectTab = useCallback((tab: DirectoryTab) => {
     setActiveTab(tab);
@@ -86,6 +104,24 @@ export default function MissingCarousel() {
       personasRef.current?.refresh();
     },
     [createMissing],
+  );
+
+  const openPetForm = useCallback((reportType: MissingReportType) => {
+    setFormReportType(reportType);
+    setFormSessionKey((k) => k + 1);
+    setShowPetForm(true);
+  }, []);
+
+  const handlePetFormSubmit = useCallback(
+    async (payload: PetPayload) => {
+      await createPet.mutateAsync(payload);
+      setShowPetForm(false);
+      // Publicar una mascota lleva a su pestaña: si el reporte no aparece a la
+      // vista, la gente lo reenvía creyendo que no se guardó.
+      setActiveTab("mascotas");
+      mascotasRef.current?.refresh();
+    },
+    [createPet],
   );
 
   useEffect(() => {
@@ -110,14 +146,19 @@ export default function MissingCarousel() {
         className="pointer-events-none absolute -top-24"
         aria-hidden
       />
+      <span
+        id="mascotas"
+        className="pointer-events-none absolute -top-24"
+        aria-hidden
+      />
       <div className="e-m-section__inner">
         <header className="e-m-section__head">
           <span className="e-m-kicker">Directorio humanitario</span>
-          <h2 className="e-m-section__title">Personas y hospitales</h2>
+          <h2 className="e-m-section__title">Personas, mascotas y hospitales</h2>
           <hr className="e-m-section__rule" />
           <p className="e-m-section__sub">
-            Consulta reportes de personas desaparecidas, localizadas y registros
-            hospitalarios.
+            Consulta reportes de personas desaparecidas, localizadas, mascotas
+            perdidas y registros hospitalarios.
           </p>
         </header>
 
@@ -129,16 +170,29 @@ export default function MissingCarousel() {
             ariaLabel="Directorio de personas y hospitales"
             variant="compact"
           />
-          <button
-            type="button"
-            onClick={() => openReportForm("missing")}
-            className="e-m-btn e-m-btn--crisis e-m-btn--sm e-m-directory__report"
-          >
-            Reportar persona
-          </button>
+          {/* El botón sigue a la pestaña activa: en "Mascotas" ofrecer "Reportar
+              persona" haría que la gente publicara a su perro como persona
+              desaparecida, que es exactamente lo que esta feature evita. */}
+          {activeTab === "mascotas" ? (
+            <button
+              type="button"
+              onClick={() => openPetForm("missing")}
+              className="e-m-btn e-m-btn--crisis e-m-btn--sm e-m-directory__report"
+            >
+              Reportar mascota
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openReportForm("missing")}
+              className="e-m-btn e-m-btn--crisis e-m-btn--sm e-m-directory__report"
+            >
+              Reportar persona
+            </button>
+          )}
         </div>
 
-        {activeTab === "personas" ? (
+        {activeTab === "personas" && (
           <div
             role="tabpanel"
             id="panel-personas"
@@ -147,7 +201,18 @@ export default function MissingCarousel() {
           >
             <PersonsTab ref={personasRef} />
           </div>
-        ) : (
+        )}
+        {activeTab === "mascotas" && (
+          <div
+            role="tabpanel"
+            id="panel-mascotas"
+            aria-labelledby="tab-mascotas"
+            className="e-m-directory__panel"
+          >
+            <PetsTab ref={mascotasRef} />
+          </div>
+        )}
+        {activeTab === "hospitales" && (
           <div
             role="tabpanel"
             id="panel-hospitales"
@@ -165,6 +230,15 @@ export default function MissingCarousel() {
             initialFoundPlace={null}
             onCancel={() => setShowForm(false)}
             onSubmit={handleFormSubmit}
+          />
+        )}
+
+        {showPetForm && (
+          <PetForm
+            key={`pet-${formReportType}-${formSessionKey}`}
+            initialReportType={formReportType}
+            onCancel={() => setShowPetForm(false)}
+            onSubmit={handlePetFormSubmit}
           />
         )}
       </div>

@@ -30,6 +30,14 @@ export default async function Home() {
   // mientras tanto la UI renderiza el estado vacío ("Aún no hay reportes", "0
   // reportadas"), que se lee como "no hay nadie reportado" en vez de "cargando".
   // Con el prefetch, la primera pintura ya lleva las personas dentro del HTML.
+  //
+  // POR QUÉ NO se prefetchean las MASCOTAS aquí (omisión deliberada, no olvido):
+  // el directorio abre en la pestaña "Personas", así que la lista de mascotas no
+  // se pinta hasta que alguien cambia de pestaña. Añadir dos peticiones más al
+  // render de la home retrasaría la página que la gente usa para buscar a su
+  // familia a cambio de contenido que todavía no se ve. Mismo criterio que
+  // HospitalsTab, que tampoco se prefetchea. La capa de mascotas del MAPA sí pide
+  // datos (usePetsMap), porque el mapa sí es visible de entrada.
   const [acopio, missingList, missingStats] = await Promise.allSettled([
     serverApiGetCached<AcopioResponse>(
       buildAcopioUrl(ACOPIO_DEFAULT_FILTERS),

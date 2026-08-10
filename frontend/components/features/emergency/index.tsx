@@ -19,6 +19,7 @@ import {
   useResolveReport,
   type ReportsResponse,
 } from "@/hooks/emergency";
+import { usePetsMap } from "@/hooks/pets";
 import { useLowBandwidthMode } from "@/hooks/useLowBandwidthMode";
 import { useMissingStats } from "@/hooks/missing";
 import type { MapBounds } from "@/components/features/map";
@@ -80,6 +81,13 @@ export default function EmergencyApp() {
     () => missingMapQuery.data ?? [],
     [missingMapQuery.data],
   );
+  // Mascotas: query y capa APARTE de las personas (endpoint y tabla propios).
+  const petsMapQuery = usePetsMap(debouncedBounds);
+  const petMapMarkers = useMemo(() => petsMapQuery.data ?? [], [petsMapQuery.data]);
+  // Visibles por defecto: la capa solo se pinta si hay marcadores, así que
+  // encenderla no añade ruido cuando todavía no hay mascotas reportadas.
+  const [showPetsOnMap, setShowPetsOnMap] = useState(true);
+  const togglePets = useCallback(() => setShowPetsOnMap((v) => !v), []);
 
   const confirmMutation = useConfirmReport();
   const resolveMutation = useResolveReport();
@@ -578,6 +586,9 @@ export default function EmergencyApp() {
           earthquakes={earthquakes ?? []}
           missingMapMarkers={missingMapMarkers}
           showMissingOnMap={showMissingOnMap}
+          petMapMarkers={petMapMarkers}
+          showPetsOnMap={showPetsOnMap}
+          onTogglePets={togglePets}
           draft={draft}
           confirmed={confirmed}
           isAdmin={isAdmin}

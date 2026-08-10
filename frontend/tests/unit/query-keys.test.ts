@@ -34,4 +34,25 @@ describe("qk (queryKeys)", () => {
   it("missing.map admite null (sin bounds)", () => {
     expect(qk.missing.map(null)).toEqual(["missing", "map", null]);
   });
+
+  // Mascotas: dominio SEPARADO de personas. Que los prefijos no se solapen es lo
+  // que garantiza que invalidar mascotas tras publicar un reporte no dispare un
+  // refetch del directorio de personas (ni al revés).
+  it("pets vive bajo su propio prefijo, disjunto del de missing", () => {
+    expect(qk.pets.all).toEqual(["pets"]);
+    expect(qk.pets.stats).toEqual(["pets", "stats"]);
+    expect(qk.pets.map(null)).toEqual(["pets", "map", null]);
+    expect(qk.pets.all[0]).not.toBe(qk.missing.all[0]);
+  });
+
+  it("pets.list incrusta los params (incluida la especie) y es estable", () => {
+    const params = {
+      status: "active" as const,
+      page: 1,
+      pageSize: 8,
+      species: "perro",
+    };
+    expect(qk.pets.list(params)).toEqual(qk.pets.list({ ...params }));
+    expect(qk.pets.list(params)).toEqual(["pets", "list", params]);
+  });
 });
