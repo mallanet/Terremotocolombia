@@ -1,21 +1,27 @@
 {
-  "_note": "EXAMPLE values matching config/deployment.config.json. This is a static file served as-is by Next.js — it is NOT generated from the config at build time. The disaster-configure tooling (or a manual edit) rewrites name/short_name/description/lang/icons for a real deployment.",
+  "_note": "Static PWA manifest. Icons are PNG (not SVG) for iOS/Android/crawler compatibility. name/short_name/description/lang follow config/deployment.config.json.",
   "name": "Terremoto Colombia · Mallanet.org",
   "short_name": "Terremoto Colombia",
-  "description": "Reporte ciudadano en tiempo real para coordinar rescates, identificar daños y organizar ayuda humanitaria durante una emergencia en Colombia.",
+  "description": "Infraestructura ciudadana de emergencia — Mallanet.org",
   "lang": "es",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#f8fafc",
-  "theme_color": "#003893",
+  "background_color": "#0f2154",
+  "theme_color": "#0f2154",
   "categories": ["utilities", "social", "news"],
   "icons": [
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],
@@ -24,19 +30,19 @@
       "name": "Reportar",
       "short_name": "Reportar",
       "url": "/#mapa",
-      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Personas desaparecidas",
       "short_name": "Desaparecidas",
       "url": "/#e-directory",
-      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Teléfonos de emergencia",
       "short_name": "Teléfonos",
       "url": "/#telefonos",
-      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

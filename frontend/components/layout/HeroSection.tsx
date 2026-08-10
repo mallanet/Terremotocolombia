@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
-  SITE_LOGO,
+  SITE_NAV_LOGO,
   SITE_BRAND_NAME,
   SITE_PRODUCT_NAME,
   CONTACT_EMAIL,
@@ -77,6 +77,16 @@ export default function HeroSection() {
             Estamos contigo. ¿Qué necesitas hacer?
           </h1>
           <p className="e-hero__subtitle">
+            {SITE_PRODUCT_NAME} es una iniciativa ciudadana de {SITE_BRAND_NAME}:
+            mapa y directorios para coordinar rescates, personas desaparecidas,
+            hospitales, acopio y ayuda humanitaria. No somos un canal oficial de
+            emergencia. En peligro inmediato llama al{" "}
+            <a href="tel:123" className="underline">
+              123
+            </a>
+            .
+          </p>
+          <p className="e-hero__subtitle mt-2 opacity-90">
             Da clic en una opción para recibir o brindar ayuda.
           </p>
 
@@ -124,7 +134,7 @@ export function SiteBrand({ onClick }: { onClick?: () => void }) {
   const inner = (
     <>
       <Image
-        src={SITE_LOGO}
+        src={SITE_NAV_LOGO}
         alt=""
         width={44}
         height={44}

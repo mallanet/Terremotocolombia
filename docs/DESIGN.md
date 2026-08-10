@@ -1,10 +1,10 @@
 ---
 version: alpha
 name: Terremoto Colombia
-description: Sistema visual base para una plataforma humanitaria de emergencia, rescate y coordinacion. El nombre y la marca reales de cada despliegue viven en config/deployment.config.json, no en este archivo.
+description: Sistema visual Mallanet para plataforma ciudadana de emergencia. Marca de red = Mallanet.org; producto = Terremoto Colombia (terremotocolombia.co).
 colors:
-  primary: "#00245E"
-  secondary: "#003893"
+  primary: "#0f2154"
+  secondary: "#4080f2"
   tertiary: "#CE1126"
   neutral: "#EEF2F7"
   canvas: "#EEF2F7"
@@ -13,13 +13,16 @@ colors:
   surface-raised: "#FFFFFF"
   border: "#DCE3EC"
   border-strong: "#CBD5E1"
-  text: "#102A43"
+  text: "#0f2154"
   text-muted: "#52606D"
   text-soft: "#94A3B8"
-  on-dark: "#FFFFFF"
-  brand-navy: "#00245E"
-  brand-blue: "#003893"
-  action-blue: "#003893"
+  on-dark: "#e1eaff"
+  brand-navy: "#0f2154"
+  brand-blue: "#4080f2"
+  action-blue: "#4080f2"
+  mallanet-blue: "#4080f2"
+  mallanet-ink: "#0f2154"
+  mallanet-mist: "#e1eaff"
   crisis-red: "#CE1126"
   crisis-red-hover: "#A30D1E"
   rescue-red: "#DC2626"
@@ -37,61 +40,61 @@ colors:
   context-accent-1: "#FCD116"
   context-accent-2: "#003893"
   context-accent-3: "#CE1126"
-  dark-canvas: "#0B1526"
+  dark-canvas: "#0f2154"
   dark-surface: "#132236"
 typography:
   display-lg:
-    fontFamily: Nunito
+    fontFamily: Sora
     fontSize: "48px"
-    fontWeight: 900
+    fontWeight: 700
     lineHeight: 1.1
     letterSpacing: "-0.02em"
   headline-lg:
-    fontFamily: Nunito
+    fontFamily: Sora
     fontSize: "36px"
-    fontWeight: 900
+    fontWeight: 700
     lineHeight: 1.12
     letterSpacing: "-0.02em"
   headline-md:
-    fontFamily: Nunito
+    fontFamily: Sora
     fontSize: "28px"
-    fontWeight: 800
+    fontWeight: 700
     lineHeight: 1.2
     letterSpacing: "-0.02em"
   title-md:
-    fontFamily: Nunito
+    fontFamily: Sora
     fontSize: "20px"
-    fontWeight: 800
+    fontWeight: 600
     lineHeight: 1.25
     letterSpacing: "0em"
   body-lg:
-    fontFamily: Source Sans 3
+    fontFamily: IBM Plex Sans
     fontSize: "18px"
     fontWeight: 400
     lineHeight: 1.6
     letterSpacing: "0em"
   body-md:
-    fontFamily: Source Sans 3
+    fontFamily: IBM Plex Sans
     fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.45
     letterSpacing: "0em"
   body-sm:
-    fontFamily: Source Sans 3
+    fontFamily: IBM Plex Sans
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.45
     letterSpacing: "0em"
   label-md:
-    fontFamily: Source Sans 3
+    fontFamily: IBM Plex Sans
     fontSize: "14px"
-    fontWeight: 700
+    fontWeight: 600
     lineHeight: 1
     letterSpacing: "0em"
   label-caps:
-    fontFamily: Source Sans 3
+    fontFamily: IBM Plex Sans
     fontSize: "12px"
-    fontWeight: 700
+    fontWeight: 600
     lineHeight: 1
     letterSpacing: "0.12em"
 rounded:
@@ -238,10 +241,10 @@ significado.
 
 ## Typography
 
-La tipografia usa **Nunito 800/900** para titulos, marca y numeros de alto
-impacto, y **Source Sans 3 400/600/700** para cuerpo, controles, formularios y
-metadata. Nunito da una voz cercana y humana a marca/titulares; Source Sans 3
-mantiene legibilidad en tableros densos.
+La tipografia usa **Sora 600/700** para titulos, marca y numeros de alto
+impacto, y **IBM Plex Sans 400/500/600/700** para cuerpo, controles, formularios y
+metadata. Sora marca distancia tipografica frente a Terremoto Venezuela; IBM Plex
+mantiene legibilidad en tableros densos. Mono: **IBM Plex Mono**.
 
 - **Titulares:** `display-lg`, `headline-lg` y `headline-md` deben ser breves,
   directos y legibles sobre fondos complejos. Evitar frases largas en hero.

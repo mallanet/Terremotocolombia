@@ -7,20 +7,24 @@
    ========================================================================== */
 
 :root {
-	/* Brand palette */
-	--brand-navy: #00245e;
-	--brand-blue: #003893;
-	--brand-blue-dark: #002a6e;
-	--brand-blue-light: #e5ecf8;
+	/* Brand palette — Mallanet canon */
+	--brand-navy: #0f2154;
+	--brand-blue: #4080f2;
+	--brand-blue-dark: #0f2154;
+	--brand-blue-light: #e1eaff;
+	--mallanet-blue: #4080f2;
+	--mallanet-ink: #0f2154;
+	--mallanet-mist: #e1eaff;
+	--co-flag-blue: #003893; /* franja territorial only */
 	--brand-gray-50: #f7f9fc;
 	--brand-gray-100: #eef2f7;
 	--brand-gray-200: #dce3ec;
 	--brand-gray-600: #52606d;
-	--brand-gray-900: #102a43;
+	--brand-gray-900: #0f2154;
 
 	/* Legacy aliases used across the emergency product. */
 	--qi-white: #ffffff;
-	--qi-azul-accion: #003893;
+	--qi-azul-accion: #4080f2;
 	--qi-azul: var(--brand-blue);
 	--qi-azul-score: var(--brand-navy);
 	--qi-naranja-frec: #ea522f;
@@ -33,14 +37,14 @@
 	--qi-light-capa-2: #e6eaec;
 	--qi-light-capa-3: #d6dbdf;
 
-	/* Dark surfaces */
-	--qi-dark-base: #092334;
+	/* Dark surfaces — brand chrome ink aligns to Mallanet #0f2154 */
+	--qi-dark-base: #0f2154;
 	--qi-dark-capa-1: #1e3140;
 	--qi-dark-capa-2: #354552;
 	--qi-dark-capa-3: #5c6b77;
 
 	/* Extended neutrals */
-	--qi-ink-900: #092334;
+	--qi-ink-900: #0f2154;
 	--qi-ink-700: #354552;
 	--qi-ink-500: #5c6b77;
 	--qi-ink-300: #8da3b2;
@@ -67,10 +71,11 @@
 
 	/* Typography */
 	--qi-font-display:
-		var(--font-display), "Nunito", ui-sans-serif, system-ui, sans-serif;
+		var(--font-display), "Sora", ui-sans-serif, system-ui, sans-serif;
 	--qi-font-body:
-		var(--font-body), "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
-	--qi-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+		var(--font-body), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+	--qi-font-mono:
+		var(--font-mono), "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
 	--qi-text-display: clamp(2.25rem, 8vw, 3.75rem);
 	--qi-text-h1: clamp(1.75rem, 4.5vw, 2.25rem);
@@ -244,9 +249,9 @@
 	--color-indigo-50: #eef2ff;
 	--color-indigo-100: #e0e7ff;
 	--color-indigo-200: #c7d2fe;
-	--color-indigo-600: #003893;
-	--color-indigo-700: #002a6e;
-	--color-indigo-900: #092334;
+	--color-indigo-600: #4080f2;
+	--color-indigo-700: #0f2154;
+	--color-indigo-900: #0f2154;
 
 	--color-sky-50: #e6f3ff;
 	--color-sky-100: #dbeafe;

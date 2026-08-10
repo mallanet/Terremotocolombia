@@ -69,12 +69,27 @@ Guía humana equivalente, con quickstart de 30 minutos: `docs/standup-guide.md`.
   mientras trabajas en él — eso es una decisión del mantenedor humano, no de
   un agente.
 
+## GEO / SEO (buscadores de IA)
+
+Skill vendored en `.claude/skills/geo/` (upstream:
+https://github.com/zubair-trabzada/geo-seo-claude). Guía: `docs/geo/README.md`.
+
+- Comandos: `/geo audit <url>`, `/geo quick`, `/geo schema`, `/geo llmstxt`, …
+- Target preferido: `https://terremotocolombia.co` cuando TLS funcione.
+- Fallback: `cd frontend && npm run build && npm run start -- -p 3456` →
+  auditar `http://127.0.0.1:3456`.
+- Política robots: bloquear bots de *entrenamiento* de IA está bien; no
+  “arreglarlo” abriendo GPTBot/ClaudeBot. Ver `frontend/app/robots.ts`.
+- Entregable de audit: `docs/geo/audit-YYYY-MM-DD.md`.
+
 ## Dónde mirar
 
 ```text
 config/deployment.config.json   Identidad del despliegue (fuente de verdad)
 .env.example                     Contrato completo de variables de entorno
 .claude/skills/disaster-*/       Los cinco skills de standup (ver arriba)
+.claude/skills/geo/              GEO-SEO skill (AI search + SEO)
+docs/geo/README.md               Cómo correr audits GEO en este repo
 docs/standup-guide.md            Guía humana equivalente + quickstart 30 min
 docs/architecture.md             Estado actual del sistema (actualízalo si
                                   cambias arquitectura real)

@@ -16,8 +16,8 @@ export const metadata: Metadata = pageMetadata({
   description:
     "Coordina rescates, suministros y difusión con otros voluntarios en tiempo real.",
   path: "/chat",
+  index: false,
 });
-
 export default function ChatPage() {
   return (
     <SubPageShell breadcrumb="Chat de voluntarios">

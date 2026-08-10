@@ -35,7 +35,7 @@ export const CHAT_ROLES: Record<ChatRole, ChatRoleMeta> = {
   coordinator: {
     label: "Coordinador",
     description: "Dirige operaciones",
-    color: "#003893",
+    color: "#4080f2",
     icon: "📡",
   },
   ngo: {

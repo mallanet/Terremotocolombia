@@ -9,7 +9,7 @@
  *  - Tiles de OpenStreetMap: NO interceptados — Leaflet los carga como <img>
  *    (img-src https:). Interceptarlos con fetch() en el SW choca con connect-src
  *    y deja el mapa gris en navegadores con SW registrado.
- *  - Otros assets estáticos del propio dominio (_next/static, /icon.svg,
+ *  - Otros assets estáticos del propio dominio (_next/static, /icon-192.png,
  *    manifest, etc.): cache-first.
  *  - APIs JSON (/api/...): siempre network; si falla, devolvemos lo último
  *    cacheado por GET. No interceptamos POST/DELETE.
@@ -36,8 +36,14 @@ const KEEP_CACHES = new Set([
 ]);
 
 const CORE_ASSETS = [
-  "/icon.svg",
+  "/favicon.svg",
   "/favicon.ico",
+  "/favicon-32.png",
+  "/favicon-64.png",
+  "/apple-touch-icon.png",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/brand/isotipo-oscuro.svg",
   "/manifest.webmanifest",
 ];
 const CORE_PAGES = ["/", "/privacidad"];
@@ -217,8 +223,13 @@ self.addEventListener("fetch", (event) => {
   if (
     sameOrigin &&
     (url.pathname.startsWith("/_next/static/") ||
-      url.pathname === "/icon.svg" ||
+      url.pathname === "/favicon.svg" ||
       url.pathname === "/favicon.ico" ||
+      url.pathname === "/favicon-32.png" ||
+      url.pathname === "/favicon-64.png" ||
+      url.pathname === "/apple-touch-icon.png" ||
+      url.pathname === "/icon-192.png" ||
+      url.pathname === "/icon-512.png" ||
       url.pathname === "/manifest.webmanifest" ||
       url.pathname.endsWith(".png") ||
       url.pathname.endsWith(".svg") ||

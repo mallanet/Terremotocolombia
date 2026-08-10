@@ -1,18 +1,7 @@
-import dynamic from "next/dynamic";
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/metadata";
 import SubPageShell from "@/components/layout/SubPageShell";
-
-const SurvivalGuide = dynamic(
-  () => import("@/components/features/guide/SurvivalGuide"),
-  {
-    loading: () => (
-      <section className="mx-auto w-full max-w-7xl px-4 py-10 text-sm text-slate-500">
-        Cargando guía…
-      </section>
-    ),
-  },
-);
+import SurvivalGuide from "@/components/features/guide/SurvivalGuide";
 
 export const metadata: Metadata = pageMetadata({
   title: "Guía rápida de emergencia",
