@@ -9,8 +9,8 @@
   "languageTag": "es",
   "contactEmail": "info@mallanet.org",
   "domains": {
-    "web": "terremotocolombia.app",
-    "api": "api.terremotocolombia.app",
-    "admin": "admin.terremotocolombia.app"
+    "web": "terremotocolombia.co",
+    "api": "api.terremotocolombia.co",
+    "admin": "admin.terremotocolombia.co"
   }
 }

@@ -1,0 +1,7 @@
+# Artefactos de build del adaptador de Cloudflare Workers
+.open-next/
+.wrangler/
+
+# Copia de build de config/deployment.config.json
+# (la generan scripts/sync-deployment-config.mjs desde la raiz del repo)
+config/

@@ -9,7 +9,17 @@
  * missing a required key, or carrying an extra/unknown key, fails the build
  * loudly instead of silently shipping a half-configured site.
  */
-import rawConfig from "../../config/deployment.config.json";
+// Copia local de `config/deployment.config.json` (raiz del repo), generada por
+// el script `prebuild` de este paquete. La fuente de verdad sigue siendo la de
+// la raiz; esto es solo una copia de build, gitignorada.
+//
+// Por que no se importa directamente de `../../config/`: ese path se sale del
+// paquete `frontend/`. Al empaquetar para Cloudflare Workers,
+// @opennextjs/cloudflare fija `outputFileTracingRoot` a `frontend/`, y un
+// import fuera de esa raiz falla ("Can't resolve '../../config/...'"). Alinear
+// las raices tampoco vale: Next pasa a emitir `.next/standalone/frontend/...`
+// (layout de monorepo) y el adaptador no lo encuentra.
+import rawConfig from "../config/deployment.config.json";
 
 export interface DeploymentDomains {
   web: string;

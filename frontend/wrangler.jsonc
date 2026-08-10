@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "terremotocolombia-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Dominios propios. `custom_domain: true` hace que Cloudflare cree el
+  // registro DNS y el certificado de borde por si mismo.
+  "routes": [
+    { "pattern": "terremotocolombia.co", "custom_domain": true },
+    { "pattern": "www.terremotocolombia.co", "custom_domain": true }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
