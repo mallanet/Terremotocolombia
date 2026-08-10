@@ -39,7 +39,7 @@ export default async function HospitalesPage() {
     .catch(() => {});
 
   return (
-    <SubPageShell breadcrumb="Hospitales y pacientes">
+    <SubPageShell breadcrumb="Hospitales y pacientes" path="/hospitales">
       <HydrationBoundary state={dehydrate(queryClient)}>
         <Hospitals />
       </HydrationBoundary>

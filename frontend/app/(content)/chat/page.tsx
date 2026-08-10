@@ -20,7 +20,7 @@ export const metadata: Metadata = pageMetadata({
 });
 export default function ChatPage() {
   return (
-    <SubPageShell breadcrumb="Chat de voluntarios">
+    <SubPageShell breadcrumb="Chat de voluntarios" path="/chat">
       <ChatPanel />
     </SubPageShell>
   );

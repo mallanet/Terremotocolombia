@@ -126,8 +126,9 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      # Raíz del repo: el prebuild copia config/deployment.config.json.
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_R2_PUBLIC_BASE: ${NEXT_PUBLIC_R2_PUBLIC_BASE}

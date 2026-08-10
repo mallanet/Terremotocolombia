@@ -159,8 +159,9 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      # Raíz del repo: el prebuild copia config/deployment.config.json.
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         # URL absoluta del backend para el BROWSER (no la red de Docker).
         NEXT_PUBLIC_API_URL: "http://localhost:8080"
