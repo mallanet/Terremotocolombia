@@ -6,7 +6,7 @@
  * Las escrituras piden hospital:edit en el backend; si faltan permisos el BFF
  * propaga el 403 y se muestra el error tal cual (visible y accionable).
  */
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { useAdminSessionContext } from "@/src/shared/auth/admin-session-context";
 import { Button, Input } from "@/src/ui";
 import { useSupplyEvents, useSupplyMutations } from "./use-hospital-supplies";
@@ -30,11 +30,7 @@ export function SupplyDetail({ row }: { row: SupplyBoardRow }) {
   const mutations = useSupplyMutations(hospital.id);
   const events = useSupplyEvents(hospital.id);
 
-  const mutationError =
-    mutations.updateStatus.error ??
-    mutations.createNeed.error ??
-    mutations.patchNeed.error ??
-    mutations.patchHelp.error;
+  const mutationError = mutations.lastError;
 
   return (
     <div className="flex flex-col gap-6">
@@ -94,7 +90,12 @@ export function SupplyDetail({ row }: { row: SupplyBoardRow }) {
             <li className="text-gray-500">Sin semáforos reportados todavía.</li>
           )}
         </ul>
-        {canEdit && <StatusForm pending={mutations.updateStatus.isPending} onSubmit={(body) => mutations.updateStatus.mutate(body)} />}
+        {canEdit && (
+          <StatusForm
+            pending={mutations.updateStatus.isPending}
+            onSubmit={(body) => mutations.updateStatus.mutateAsync(body)}
+          />
+        )}
       </section>
 
       {/* --- Necesidades activas ----------------------------------------- */}
@@ -121,23 +122,20 @@ export function SupplyDetail({ row }: { row: SupplyBoardRow }) {
                 <p className="text-amber-700">Interno: {need.restrictedNote}</p>
               )}
               {canEdit && (
-                <label className="mt-1 block text-xs text-gray-500">
-                  Cambiar estado
-                  <select
-                    className="ml-2 rounded border px-2 py-1 text-sm"
-                    value={need.status}
-                    disabled={mutations.patchNeed.isPending}
-                    onChange={(event) =>
-                      mutations.patchNeed.mutate({ needId: need.id, status: event.target.value })
-                    }
-                  >
-                    {Object.entries(NEED_STATUS_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <PendingSelect
+                  label="Cambiar estado"
+                  value={need.status}
+                  disabled={mutations.patchNeed.isPending}
+                  onCommit={(next) =>
+                    mutations.patchNeed.mutateAsync({ needId: need.id, status: next })
+                  }
+                >
+                  {Object.entries(NEED_STATUS_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </PendingSelect>
               )}
             </li>
           ))}
@@ -145,7 +143,12 @@ export function SupplyDetail({ row }: { row: SupplyBoardRow }) {
             <li className="text-gray-500">Sin necesidades activas.</li>
           )}
         </ul>
-        {canEdit && <NeedForm pending={mutations.createNeed.isPending} onSubmit={(body) => mutations.createNeed.mutate(body)} />}
+        {canEdit && (
+          <NeedForm
+            pending={mutations.createNeed.isPending}
+            onSubmit={(body) => mutations.createNeed.mutateAsync(body)}
+          />
+        )}
       </section>
 
       {/* --- Solicitudes de ayuda ---------------------------------------- */}
@@ -163,26 +166,20 @@ export function SupplyDetail({ row }: { row: SupplyBoardRow }) {
                 <p className="text-amber-700">Interno: {request.restrictedNote}</p>
               )}
               {canEdit && (
-                <label className="mt-1 block text-xs text-gray-500">
-                  Cambiar estado
-                  <select
-                    className="ml-2 rounded border px-2 py-1 text-sm"
-                    value={request.status}
-                    disabled={mutations.patchHelp.isPending}
-                    onChange={(event) =>
-                      mutations.patchHelp.mutate({
-                        requestId: request.id,
-                        status: event.target.value,
-                      })
-                    }
-                  >
-                    {Object.entries(HELP_STATUS_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <PendingSelect
+                  label="Cambiar estado"
+                  value={request.status}
+                  disabled={mutations.patchHelp.isPending}
+                  onCommit={(next) =>
+                    mutations.patchHelp.mutateAsync({ requestId: request.id, status: next })
+                  }
+                >
+                  {Object.entries(HELP_STATUS_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </PendingSelect>
               )}
             </li>
           ))}
@@ -214,6 +211,12 @@ export function SupplyDetail({ row }: { row: SupplyBoardRow }) {
       {/* --- Bitácora ----------------------------------------------------- */}
       <section className="rounded border p-4">
         <h3 className="font-semibold">Bitácora reciente</h3>
+        {events.isLoading && <p className="mt-2 text-sm text-gray-500">Cargando bitácora…</p>}
+        {events.isError && (
+          <p role="alert" className="mt-2 text-sm text-red-600">
+            No se pudo cargar la bitácora: {events.error.message}
+          </p>
+        )}
         <ul className="mt-2 flex flex-col gap-1 text-sm">
           {(events.data?.items ?? []).map((event) => (
             <li key={event.id} className="text-gray-600">
@@ -231,13 +234,56 @@ export function SupplyDetail({ row }: { row: SupplyBoardRow }) {
   );
 }
 
+/**
+ * Select controlado con valor optimista: al elegir, muestra la opción elegida
+ * (no el valor del server) hasta que la mutación TERMINA — sin esto el select
+ * "rebota" al valor viejo durante el write y parece que la edición se perdió.
+ * En fallo vuelve al valor real; el banner de error explica el porqué.
+ */
+function PendingSelect({
+  label,
+  value,
+  disabled,
+  onCommit,
+  children,
+}: {
+  label: string;
+  value: string;
+  disabled: boolean;
+  onCommit: (next: string) => Promise<unknown>;
+  children: ReactNode;
+}) {
+  const [pendingValue, setPendingValue] = useState<string | null>(null);
+  return (
+    <label className="mt-1 block text-xs text-gray-500">
+      {label}
+      <select
+        className="ml-2 rounded border px-2 py-1 text-sm"
+        value={pendingValue ?? value}
+        disabled={disabled || pendingValue !== null}
+        onChange={(event) => {
+          const next = event.target.value;
+          setPendingValue(next);
+          // Al resolver, el board ya refetcheó (onSuccess espera la
+          // invalidación), así que `value` es la verdad del server.
+          onCommit(next)
+            .catch(() => {})
+            .finally(() => setPendingValue(null));
+        }}
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
 /** Form de upsert de semáforo: categoría + estado + notas. */
 function StatusForm({
   pending,
   onSubmit,
 }: {
   pending: boolean;
-  onSubmit: (body: Record<string, unknown>) => void;
+  onSubmit: (body: Record<string, unknown>) => Promise<unknown>;
 }) {
   const [category, setCategory] = useState<SupplyCategory>("medications");
   const [status, setStatus] = useState<SupplyStatusValue>("yellow");
@@ -246,14 +292,19 @@ function StatusForm({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    onSubmit({
+    // Limpia SOLO si la escritura llegó: un 400 (p.ej. texto rechazado por el
+    // filtro de seguridad) no debe borrar lo que la persona escribió.
+    void onSubmit({
       category,
       status,
       publicNote: publicNote || undefined,
       restrictedNote: restrictedNote || undefined,
-    });
-    setPublicNote("");
-    setRestrictedNote("");
+    })
+      .then(() => {
+        setPublicNote("");
+        setRestrictedNote("");
+      })
+      .catch(() => {});
   }
 
   return (
@@ -312,7 +363,7 @@ function NeedForm({
   onSubmit,
 }: {
   pending: boolean;
-  onSubmit: (body: Record<string, unknown>) => void;
+  onSubmit: (body: Record<string, unknown>) => Promise<unknown>;
 }) {
   const [category, setCategory] = useState<SupplyCategory>("medications");
   const [itemType, setItemType] = useState("");
@@ -323,18 +374,22 @@ function NeedForm({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    onSubmit({
+    // Limpia SOLO en éxito — un rechazo del server no borra lo escrito.
+    void onSubmit({
       category,
       itemType,
       quantity: quantity ? Number(quantity) : undefined,
       unit: unit || undefined,
       urgency,
       publicNote: publicNote || undefined,
-    });
-    setItemType("");
-    setQuantity("");
-    setUnit("");
-    setPublicNote("");
+    })
+      .then(() => {
+        setItemType("");
+        setQuantity("");
+        setUnit("");
+        setPublicNote("");
+      })
+      .catch(() => {});
   }
 
   return (

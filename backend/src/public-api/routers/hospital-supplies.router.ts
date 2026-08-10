@@ -42,7 +42,9 @@ const hospitalParams = z.object({ hospitalId: z.string().min(1, "Falta el hospit
 // semáforos, clamps y textos seguros) vive en services/hospitals, la misma que
 // usa la superficie pública de POCs. No la dupliquemos aquí.
 const passthroughBody = z.object({}).passthrough();
-const eventsQuery = z.object({ limit: z.coerce.number().int().optional() });
+const eventsQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(service.MAX_SUPPLY_EVENTS_LIMIT).optional(),
+});
 
 /** Snapshot vacío para hospitales sin filas de insumos todavía. */
 function emptySnapshot(hospitalId: string): RestrictedHospitalSupplySnapshot {
@@ -70,15 +72,18 @@ async function requireHospital(hospitalId: string): Promise<Hospital> {
 }
 
 /**
- * Sella actor y origen de la mutación: `updatedBy` es el email del admin
- * autenticado (salvo override explícito del caller) y `source` distingue esta
- * superficie en la bitácora de insumos frente al panel de POCs público.
+ * Sella actor y origen de la mutación SIN excepción: `updatedBy` es SIEMPRE el
+ * email del admin autenticado (cualquier valor del body se descarta — permitir
+ * override dejaría forjar la atribución en la bitácora) y `source` distingue
+ * esta superficie frente al panel de POCs público. Mismo criterio que los
+ * demás routers a mano (users/grants/api-keys): el actor sale de la sesión,
+ * nunca del request.
  */
 function stampActor(
   body: Record<string, unknown>,
   userEmail: string,
 ): Record<string, unknown> {
-  return { ...body, updatedBy: body.updatedBy || userEmail, source: "admin_api" };
+  return { ...body, updatedBy: userEmail, source: "admin_api" };
 }
 
 // ---------------------------------------------------------------------------
@@ -256,12 +261,13 @@ hospitalSuppliesRouter.patch(
       requestId: string;
     };
     await requireHospital(hospitalId);
-    // Las solicitudes de ayuda llevan `requestedBy` (no `updatedBy`): sella el
-    // actor con la misma regla pero en su campo.
+    // Las solicitudes de ayuda llevan `requestedBy` (no `updatedBy`); el
+    // service lo trata como "quién ejecuta este patch" y lo copia a la
+    // bitácora. Igual que stampActor: SIEMPRE la sesión, nunca el body.
     const body = req.body as Record<string, unknown>;
     const input = {
       ...body,
-      requestedBy: body.requestedBy || req.user!.email,
+      requestedBy: req.user!.email,
       source: "admin_api",
     };
     const result = await service.updateHospitalSupplyHelpRequest(
