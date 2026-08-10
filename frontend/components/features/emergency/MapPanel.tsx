@@ -11,16 +11,13 @@ import type { MissingMapMarker } from "@/hooks/missing";
 import type { EmergencyReport, ReportType, Earthquake } from "@/lib/types";
 import { deploymentConfig } from "@/lib/deployment-config";
 import FilterChips from "./FilterChips";
+import { MapLoading } from "@/components/ui/SectionLoading";
 
 // Mapa Leaflet: pesado + depende de window. next/dynamic ssr:false lo saca del
 // bundle inicial y lo carga en cliente solo cuando esta vista se monta.
 const MapView = dynamic(() => import("@/components/features/map"), {
 	ssr: false,
-	loading: () => (
-		<div className="flex h-full w-full items-center justify-center bg-slate-100 text-slate-500">
-			Cargando mapa…
-		</div>
-	),
+	loading: () => <MapLoading label="Cargando mapa de reportes…" />,
 });
 
 export interface MapPanelProps {

@@ -6,12 +6,13 @@ import HeroSection from "@/components/layout/HeroSection";
 import HelpSection from "@/components/layout/HelpSection";
 import TutorialSteps from "@/components/layout/TutorialSteps";
 import { LazySection } from "@/components/ui/LazySection";
+import { SectionLoading } from "@/components/ui/SectionLoading";
 
 const MissingPersonsCarousel = dynamic(
   () => import("@/components/features/missing-carousel"),
   {
     loading: () => (
-      <section className="e-page-loading">Cargando directorio…</section>
+      <SectionLoading label="Cargando directorio de personas…" rows={3} />
     ),
   },
 );
@@ -20,9 +21,7 @@ const EarthquakesPanel = dynamic(
   () => import("@/components/features/earthquakes"),
   {
     loading: () => (
-      <section className="e-page-loading e-page-loading--alt">
-        Cargando sismos…
-      </section>
+      <SectionLoading label="Cargando sismos recientes…" rows={4} />
     ),
   },
 );

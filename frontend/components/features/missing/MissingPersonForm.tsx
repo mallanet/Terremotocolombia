@@ -183,6 +183,7 @@ export default function MissingPersonForm({
       personStatus,
       onSubmit,
       turnstileGetToken,
+          ensureConsent,
     ],
   );
 
