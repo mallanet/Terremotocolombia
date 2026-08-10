@@ -77,6 +77,16 @@ export default function HeroSection() {
             Estamos contigo. ¿Qué necesitas hacer?
           </h1>
           <p className="e-hero__subtitle">
+            {SITE_PRODUCT_NAME} es una iniciativa ciudadana de {SITE_BRAND_NAME}:
+            mapa y directorios para coordinar rescates, personas desaparecidas,
+            hospitales, acopio y ayuda humanitaria. No somos un canal oficial de
+            emergencia. En peligro inmediato llama al{" "}
+            <a href="tel:123" className="underline">
+              123
+            </a>
+            .
+          </p>
+          <p className="e-hero__subtitle mt-2 opacity-90">
             Da clic en una opción para recibir o brindar ayuda.
           </p>
 

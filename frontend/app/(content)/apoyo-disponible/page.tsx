@@ -178,7 +178,7 @@ export default function ApoyoPage() {
             <ContactRow
               label="Emergencias"
               sublabel="Línea nacional"
-              phone="911"
+              phone="123"
             />
           </Card>
 

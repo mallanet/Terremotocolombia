@@ -1,18 +1,7 @@
-import dynamic from "next/dynamic";
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/metadata";
 import SubPageShell from "@/components/layout/SubPageShell";
-
-const EmergencyContacts = dynamic(
-  () => import("@/components/features/contacts/EmergencyContacts"),
-  {
-    loading: () => (
-      <section className="mx-auto w-full max-w-7xl px-4 py-10 text-sm text-slate-500">
-        Cargando teléfonos…
-      </section>
-    ),
-  },
-);
+import EmergencyContacts from "@/components/features/contacts/EmergencyContacts";
 
 export const metadata: Metadata = pageMetadata({
   title: "Teléfonos de emergencia",

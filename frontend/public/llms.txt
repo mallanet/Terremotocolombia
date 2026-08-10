@@ -1,0 +1,33 @@
+# Terremoto Colombia · Mallanet.org
+
+> Citizen emergency coordination map for the Colombia earthquake response.
+> Not an official government emergency channel. In immediate danger, call **123**.
+
+## Key facts
+
+- Product: Terremoto Colombia (Mallanet.org initiative)
+- Canonical site: https://terremotocolombia.co
+- Contact: info@mallanet.org
+- Role: citizen reports, missing-person directory, hospitals/shelters, collection centers, survival guide
+- Official seismic parameters: Servicio Geológico Colombiano (SGC) — https://www.sgc.gov.co/sismos — X @sgcol
+- National disaster coordination: UNGRD — https://portal.gestiondelriesgo.gov.co/ — X @UNGRD
+- International seismic cross-check: USGS
+
+## Primary pages
+
+- Home / map: https://terremotocolombia.co/
+- Who we are: https://terremotocolombia.co/quienes-somos
+- Emergency phones: https://terremotocolombia.co/telefonos
+- Survival guide: https://terremotocolombia.co/guia
+- Hospitals: https://terremotocolombia.co/hospitales
+- Collection centers: https://terremotocolombia.co/acopio
+- Privacy: https://terremotocolombia.co/privacidad
+- Contact: https://terremotocolombia.co/contacto
+- Seismic risk methodology: https://terremotocolombia.co/riesgo-sismico
+
+## Optional
+
+- Sitemap: https://terremotocolombia.co/sitemap.xml
+- Robots: https://terremotocolombia.co/robots.txt
+- Org site: https://mallanet.org
+- Discord: https://discord.gg/mallanet

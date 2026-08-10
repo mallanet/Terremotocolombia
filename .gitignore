@@ -21,3 +21,6 @@ scripts/content-audit/banned-patterns.local.txt
 
 # Los skills .claude/ SON parte de la plantilla (algunos entornos los ignoran globalmente)
 !.claude/
+
+# GEO skill local Python venv (optional)
+.claude/skills/geo/.venv/

@@ -11,7 +11,7 @@ export default function TutorialSteps() {
           <hr className="e-m-section__rule" />
           <p className="e-m-section__sub">
             Tu solicitud llega directo a brigadas activas. En peligro inmediato,
-            llama al 911.
+            llama al 123.
           </p>
         </header>
 

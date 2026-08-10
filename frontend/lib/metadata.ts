@@ -15,6 +15,16 @@ export function pageMetadata({
   index = true,
 }: PageMetadataInput): Metadata {
   const fullTitle = `${title} · ${SITE_NAME}`;
+  // Explicit images: a partial `openGraph` object replaces the root layout
+  // metadata and would otherwise drop `/opengraph-image` on inner pages.
+  const socialImages = [
+    {
+      url: "/opengraph-image",
+      width: 1200,
+      height: 630,
+      alt: fullTitle,
+    },
+  ];
   const meta: Metadata = {
     title: { absolute: fullTitle },
     description,
@@ -22,15 +32,14 @@ export function pageMetadata({
       title: fullTitle,
       description,
       type: "website",
-      // Sin `images`: hereda la imagen generada por app/opengraph-image.tsx
-      // (convención de archivo de Next.js) en vez de un binario estático.
+      images: socialImages,
       ...(path ? { url: path } : {}),
     },
     twitter: {
       card: "summary_large_image",
       title: fullTitle,
       description,
-      // Sin `images`: hereda app/twitter-image.tsx.
+      images: ["/twitter-image"],
     },
   };
   if (path) meta.alternates = { canonical: path };

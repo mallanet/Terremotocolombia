@@ -34,15 +34,24 @@ export async function createSocialPreviewImage(): Promise<ImageResponse> {
           height={128}
           alt=""
           style={{
+            display: "flex",
             borderRadius: 28,
             marginBottom: 32,
           }}
         />
-        <div style={{ fontSize: 56, fontWeight: 800, textAlign: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            fontSize: 56,
+            fontWeight: 800,
+            textAlign: "center",
+          }}
+        >
           {deploymentConfig.productName}
         </div>
         <div
           style={{
+            display: "flex",
             marginTop: 16,
             fontSize: 28,
             opacity: 0.85,

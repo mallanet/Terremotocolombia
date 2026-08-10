@@ -31,12 +31,8 @@ export default function TerminosPage() {
         </p>
         <p className="mt-1 leading-relaxed">
           En caso de peligro inmediato llama al{" "}
-          <a href="tel:171" className="font-bold underline">
-            171
-          </a>
-          ,{" "}
-          <a href="tel:911" className="font-bold underline">
-            911
+          <a href="tel:123" className="font-bold underline">
+            123
           </a>{" "}
           o a las autoridades competentes antes de publicar aquí.
         </p>

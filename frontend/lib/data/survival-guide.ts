@@ -119,6 +119,6 @@ export const CARDS: GuideCard[] = [
       { text: "Carga tu teléfono al mínimo posible para durar más." },
       { text: "Envía un mensaje de texto si las llamadas fallan." },
     ],
-    tip: "No difundas rumores. Confía en fuentes oficiales y en esta plataforma.",
+    tip: "No difundas rumores. Prioriza fuentes oficiales (SGC, UNGRD y autoridades locales); esta plataforma solo ayuda a coordinar información ciudadana.",
   },
 ];

@@ -26,11 +26,27 @@ export function organizationSchema(): JsonLdNode {
     name: SITE_NAME,
     alternateName: deploymentConfig.productName,
     url: SITE_URL,
-    logo: `${SITE_URL}${SITE_LOGO}`,
+    logo: {
+      "@type": "ImageObject",
+      url: `${SITE_URL}${SITE_LOGO}`,
+      width: 512,
+      height: 512,
+    },
     image: `${SITE_URL}/opengraph-image`,
     email: CONTACT_EMAIL,
     description: ORG_DESCRIPTION,
     areaServed: { "@type": "Place", name: deploymentConfig.regionLabel },
+    sameAs: [
+      "https://mallanet.org",
+      "https://discord.gg/mallanet",
+      "https://github.com/mallanet/Terremotocolombia",
+    ],
+    knowsAbout: [
+      "Earthquake emergency response",
+      "Humanitarian aid coordination",
+      "Hospital and shelter directories",
+      "Disaster preparedness Colombia",
+    ],
     contactPoint: {
       "@type": "ContactPoint",
       email: CONTACT_EMAIL,

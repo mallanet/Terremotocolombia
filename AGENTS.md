@@ -287,6 +287,8 @@ repos/issues/PRs/gists.
 - Estado actual del sistema va en `docs/architecture.md`; sistema de diseño
   en `docs/DESIGN.md`. Si el proyecto crece, organiza propuestas/decisiones
   en subcarpetas nuevas (`docs/rfcs/`, `docs/adr/`) y enlázalas desde aquí.
+- GEO/SEO para buscadores de IA: skill en `.claude/skills/geo/` y guía en
+  `docs/geo/README.md`. Audits van a `docs/geo/audit-YYYY-MM-DD.md`.
 
 ## Mapa rápido del repo
 
@@ -299,6 +301,9 @@ admin/                  Panel admin standalone (Next.js: BFF app/api/* + RBAC)
 infra/db/               Esquema Drizzle + migraciones
 config/                 deployment.config.json (identidad del despliegue)
 docs/                   Diseño y arquitectura
+docs/geo/               GEO/SEO audits + cómo usar el skill
+.claude/skills/geo/     Skill GEO-SEO vendored (zubair-trabzada/geo-seo-claude)
+.claude/agents/geo-*.md Prompts de subagentes GEO
 docker-compose.yml      Stack local (dev)
 docker-compose.prod.yml Stack de produccion (un solo VPS + Caddy)
 Caddyfile.example       Config de Caddy con placeholders {$VAR}
