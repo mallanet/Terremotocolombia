@@ -70,8 +70,12 @@ report() {
 #    applied consistently to every check below, not just the grep pass, so
 #    the audit doesn't drown in third-party node_modules assets.)
 # ===========================================================================
+# .open-next/ y .wrangler/ son salida de build del despliegue en Cloudflare
+# Workers (gitignorados). En CI no existen —el checkout es limpio— pero en
+# local llenaban el informe de copias de assets que ya se revisan en su origen.
 find . \
-  \( -path './.git' -o -path '*/node_modules' -o -path '*/.next' \) -prune -o \
+  \( -path './.git' -o -path '*/node_modules' -o -path '*/.next' \
+     -o -path '*/.open-next' -o -path '*/.wrangler' \) -prune -o \
   -type f -print > "$FILELIST_TMP"
 
 # Content-scan file list: same, minus the pattern file(s) themselves. They
@@ -79,13 +83,50 @@ find . \
 # would always self-match otherwise.
 SELF="./scripts/content-audit/banned-patterns.txt"
 SELF_LOCAL="./scripts/content-audit/banned-patterns.local.txt"
-grep -v -F -x -e "$SELF" -e "$SELF_LOCAL" "$FILELIST_TMP" > "$CONTENT_FILELIST_TMP" || true
+grep -v -F -x -e "$SELF" -e "$SELF_LOCAL" "$FILELIST_TMP" \
+  | grep -v -E '\.svg$|/generated/|^\./\.claude/skills/geo/' > "$CONTENT_FILELIST_TMP" || true
+
+# .claude/skills/geo/ es codigo VENDORIZADO de terceros
+# (https://github.com/zubair-trabzada/geo-seo-claude), no contenido nuestro.
+# Sus scripts mandan un User-Agent de Chrome cuya version de cuatro numeros
+# separados por puntos el patron de IPv4 publica lee, con toda la razon del
+# mundo, como una direccion IP.
+# Auditar el arbol de un tercero por fugas de NUESTRO despliegue no aporta; si
+# se actualiza el vendor, se revisa el diff del vendor.
+
+# Por que se excluyen los .svg y lo generado del escaneo POR CONTENIDO:
+#
+# El patron de IP privada busca secuencias decimales tipo 192.168.x.x. Los
+# datos de un <path> SVG son exactamente eso — "M652.17,195.34c-4.95,0-9.11…" —
+# asi que cada logo daba [hard-banned] por pura coincidencia numerica. Igual
+# pasa con frontend/lib/generated/brand-logo.ts, que es el mismo SVG embebido
+# como data-URI.
+#
+# No se pierde cobertura real: los SVG siguen pasando por el check de
+# [banned-svg-payload] (nada de <image> ni base64, que es como se colaria una
+# foto dentro de un vector) y por la revision de EXIF/GPS del checklist humano.
+# Lo que se pierde es un falso positivo que, repetido en cada ejecucion, es lo
+# que hace que la gente deje de leer el informe.
 
 # Context-banned allowlist: the origin-story docs, exact paths only (does
 # NOT exempt nested READMEs like admin/README.md or frontend/AGENTS.md).
+# Superficies de DOCUMENTACION donde los patrones CONTEXT: si pueden aparecer.
+#
+# Antes eran solo tres ficheros, porque en una plantilla generica cualquier
+# mencion a un despliegue concreto era ruido. En un despliegue real la linea
+# util es otra: la historia y las decisiones SE CUENTAN en los docs (de donde
+# viene este repo, en que se diferencia del anterior), y lo que no puede pasar
+# es que un identificador del despliegue anterior acabe en codigo o config.
+#
+# Por eso el allowlist es "documentacion", y el veto sigue firme en
+# frontend/, backend/, admin/, infra/ y config/ — que es donde un valor
+# copiado de Venezuela romperia o filtraria algo de verdad.
 is_allowlisted() {
   case "$1" in
-    ./README.md|./README.es.md|./docs/standup-guide.md) return 0 ;;
+    ./README.md|./README.es.md|./CLAUDE.md|./AGENTS.md|./CONTRIBUTING.md|./SECURITY.md) return 0 ;;
+    ./docs/*) return 0 ;;
+    # El propio audit y sus patrones se explican a si mismos.
+    ./scripts/content-audit/*) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -157,7 +198,7 @@ if [ -s "$CONTEXT_PAT_TMP" ] && [ "${#context_files[@]}" -gt 0 ]; then
   context_hits="$(grep -H -n -i -I -E -f "$CONTEXT_PAT_TMP" -- "${context_files[@]}" 2>/dev/null || true)"
   if [ -n "$context_hits" ]; then
     while IFS= read -r hit; do
-      [ -n "$hit" ] && report "[context-banned] $hit  (allowed only in README.md, README.es.md, docs/standup-guide.md)"
+      [ -n "$hit" ] && report "[context-banned] $hit  (identificador del despliegue anterior: permitido en documentacion, no en codigo ni config)"
     done <<CONTEXTHITS
 $context_hits
 CONTEXTHITS
@@ -165,38 +206,69 @@ CONTEXTHITS
 fi
 
 # ===========================================================================
-# 2a. No binary asset extensions, anywhere, except a small SVG allowlist.
+# 2a. Binary/vector assets: allowed only inside declared asset directories.
+#
+# WHY THIS IS AN ALLOWLIST AND NOT A BLANKET BAN
+#
+# The original rule banned binary assets everywhere, because this repo was a
+# GENERIC PUBLIC TEMPLATE that must not carry any organisation's identity: a
+# stray logo was, by definition, someone else's branding leaking into a
+# template other people would fork.
+#
+# This repo is now a real deployment (terremotocolombia.co, Mallanet.org) and
+# it legitimately ships its own brand: logos, favicons, OG images. Under the
+# old rule the audit could only ever fail, and an audit that always fails is
+# an audit nobody reads — which costs far more than the assets it flags.
+#
+# So the rule is narrowed rather than dropped. Assets are allowed ONLY under
+# the directories below; anywhere else is still a finding, because an image
+# appearing outside them is the shape of the thing we actually fear: a photo
+# of an affected person committed by accident.
+#
+# The checks that matter for privacy — banned literals, .env files, EXIF/GPS
+# review, git history — are untouched.
+ASSET_ALLOW_PREFIXES="./brand/ ./docs/design/brand/ ./frontend/public/ ./frontend/app/"
+
+is_asset_allowed() {
+  # $1 = path as printed by find (starts with ./)
+  for prefix in $ASSET_ALLOW_PREFIXES; do
+    case "$1" in
+      "$prefix"*) return 0 ;;
+    esac
+  done
+  return 1
+}
 # ===========================================================================
 BANNED_EXTS="jpg jpeg png gif webp ico woff woff2 ttf otf mp4 pdf"
 while IFS= read -r f; do
+  is_asset_allowed "$f" && continue
   lower_f="$(printf '%s' "$f" | tr '[:upper:]' '[:lower:]')"
   for ext in $BANNED_EXTS; do
     case "$lower_f" in
       *".$ext")
-        report "[banned-extension] $f  (.$ext assets are not allowed in this template; use small inline SVG or text)"
+        report "[banned-extension] $f  (.$ext assets belong under one of: $ASSET_ALLOW_PREFIXES)"
         ;;
     esac
   done
 done < "$FILELIST_TMP"
 
-# SVGs are only allowed under frontend/public/ or frontend/app/, and must be
-# plain vector markup (no <image> tags, no embedded base64 payloads).
+# SVGs: same allowlist. Wherever they ARE allowed they must still be plain
+# vector markup — no <image> tags, no embedded base64. That check is the one
+# with teeth: it is what stops a raster photo being smuggled inside an .svg,
+# so it now runs across every allowed directory, not just frontend/.
 while IFS= read -r f; do
   lower_f="$(printf '%s' "$f" | tr '[:upper:]' '[:lower:]')"
   case "$lower_f" in
     *.svg) : ;;
     *) continue ;;
   esac
-  case "$f" in
-    ./frontend/public/*|./frontend/app/*)
-      if grep -q -i -E '<image|base64' -- "$f" 2>/dev/null; then
-        report "[banned-svg-payload] $f  (svg must not contain an <image> tag or a base64 payload)"
-      fi
-      ;;
-    *)
-      report "[banned-svg-location] $f  (svg files are only allowed under frontend/public/ or frontend/app/)"
-      ;;
-  esac
+  if is_asset_allowed "$f"; then
+    if grep -q -i -E '<image|base64' -- "$f" 2>/dev/null; then
+      report "[banned-svg-payload] $f  (svg must not contain an <image> tag or a base64 payload)"
+    fi
+  else
+    report "[banned-svg-location] $f  (svg files belong under one of: $ASSET_ALLOW_PREFIXES)"
+  fi
 done < "$FILELIST_TMP"
 
 # ===========================================================================

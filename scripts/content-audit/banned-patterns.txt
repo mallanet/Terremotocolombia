@@ -86,7 +86,11 @@
 # doc placeholder "G-XXXXXXXXXX" (all letters, no digits) keeps matching
 # NOTHING here — it's not a real id.
 # ---------------------------------------------------------------------------
-\bG-[A-Z0-9]{2,}[0-9][A-Z0-9]{2,}\b
+# (retirado) \bG-[A-Z0-9]{2,}[0-9][A-Z0-9]{2,}\b
+#   El GA measurement ID es publico por diseño: se sirve en el JS del
+#   cliente, cualquiera lo lee con ver-fuente. Se prohibia para que la
+#   plantilla no arrastrase el de otro despliegue; el que hay ahora
+#   (G-ZRH5VQX89P) es el de Terremoto Colombia, o sea el nuestro.
 
 # ---------------------------------------------------------------------------
 # Hard-banned: social/payment/messaging link hosts with a fixed recipient or
@@ -94,7 +98,10 @@
 # Discord, GoFundMe, Stripe Payment Link, PayPal checkout, or WhatsApp
 # number) must never ship as a default in a public template.
 # ---------------------------------------------------------------------------
-discord\.gg/
+# (retirado) discord\.gg/
+#   discord.gg/mallanet es el enlace publico de comunidad de Mallanet,
+#   el operador de este despliegue. Se anuncia a proposito en llms.txt y
+#   en el JSON-LD del sitio.
 gofund\.me/
 gofundme\.com/
 buy\.stripe\.com/[A-Za-z0-9]
@@ -117,16 +124,23 @@ eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}
 [A-Za-z_][A-Za-z0-9_]*(SECRET|_KEY|APIKEY)[A-Za-z0-9_]*[[:space:]]*[:=][[:space:]]*["']?[0-9a-fA-F]{32,}
 
 # ---------------------------------------------------------------------------
-# Context-banned: allowed ONLY in README.md / README.es.md /
-# docs/standup-guide.md (the template's own origin story). Banned in every
-# other file, including all other docs and all code/config. These are plain
-# generic words — none of them, alone, reveals anything: "Venezuela",
-# "mallanet" and "Terremotoapp" are the template's own name/history, already
-# stated in the README by design, and "Caracas" is just a well-known city
-# name. They're banned outside the origin-story docs only to stop them
-# creeping into code/config/other docs as an unintentional real-world tie.
+# Context-banned: allowed in documentation, banned in code and config.
+# See is_allowlisted() in run.sh for the exact list of documentation paths.
+#
+# WHAT THESE ARE FOR, NOW THAT THIS IS A DEPLOYMENT AND NOT THE TEMPLATE
+#
+# These are the identifiers of the PREVIOUS deployment (Terremoto Venezuela).
+# Keeping them banned in code/config is a real correctness and privacy control:
+# this repo shares its lineage with that one, so the natural failure mode is
+# copy-pasting a route, a fixture or a config value that still carries
+# Venezuela's specifics into Colombia's live site. Prose in docs that discusses
+# that history is fine; a hostname or a fixture is not.
+#
+# "mallanet" was removed from this list deliberately. It used to be banned
+# because a generic template must not carry any organisation's identity —
+# but Mallanet.org is now the operator of THIS deployment, so its own name
+# appearing in its own repo is correct, not a leak.
 # ---------------------------------------------------------------------------
 CONTEXT:Venezuela
-CONTEXT:mallanet
 CONTEXT:Caracas
 CONTEXT:Terremotoapp
