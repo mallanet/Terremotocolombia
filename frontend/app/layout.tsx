@@ -9,7 +9,7 @@ import ThemeProvider from "@/components/layout/ThemeProvider";
 import QueryProvider from "@/components/layout/QueryProvider";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { graph, organizationSchema, ORG_ID, WEBSITE_ID } from "@/lib/jsonld";
-import { SITE_URL, SITE_LOGO, SITE_NAME, SITE_PRODUCT_NAME, SITE_BRAND_NAME } from "@/lib/site";
+import { SITE_URL, SITE_NAME, SITE_PRODUCT_NAME, SITE_BRAND_NAME } from "@/lib/site";
 import { deploymentConfig } from "@/lib/deployment-config";
 
 const nunito = Nunito({
@@ -61,9 +61,14 @@ export const metadata: Metadata = {
   applicationName: SITE_NAME,
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: [{ url: SITE_LOGO, type: "image/svg+xml" }],
-    shortcut: SITE_LOGO,
-    apple: SITE_LOGO,
+    icon: [
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-64.png", sizes: "64x64", type: "image/png" },
+    ],
+    shortcut: [{ url: "/favicon-32.png", type: "image/png" }],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
   },
   keywords: [
     "emergencia",
@@ -82,11 +87,20 @@ export const metadata: Metadata = {
     description: SITE_DESC,
     locale: deploymentConfig.languageTag.replace("-", "_"),
     url: SITE_URL,
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: `${SITE_PRODUCT_NAME} · ${SITE_BRAND_NAME} — mapa de emergencia y rescate`,
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_TITLE,
     description: SITE_DESC,
+    images: ["/twitter-image"],
   },
 };
 
