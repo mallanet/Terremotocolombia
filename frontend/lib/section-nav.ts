@@ -29,7 +29,9 @@ export const SECTION_LINKS: SectionLink[] = [
     mobileBar: true,
   },
   {
-    href: "#mascotas",
+    // Ruta propia, no el ancla `#mascotas` de la home: desde una subpagina
+    // (/hospitales, /guia…) un enlace a un ancla no lleva a ningun sitio.
+    href: "/mascotas",
     label: "Mascotas perdidas",
     shortLabel: "Mascotas",
     icon: "🐾",
