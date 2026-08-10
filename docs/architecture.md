@@ -121,6 +121,20 @@ backend con `mediaUrl()`.
   corte en `auth/resolve.ts`). La llave cruda se muestra una sola vez; en DB
   solo va su hash + un prefijo no secreto. Revocar = soft-delete
   (`revokedAt`).
+- **Insumos hospitalarios en `api/public/hospital-supplies`.** Superficie
+  operativa para el panel admin: board de todos los hospitales con su
+  snapshot RESTRINGIDO (semáforos con notas internas, necesidades,
+  solicitudes de ayuda, POCs), escrituras de semáforo/necesidades/ayuda y
+  bitácora (`hospital_supply_events`). Router a mano
+  (`public-api/routers/hospital-supplies.router.ts`): el recurso es un
+  agregado por hospital, no un CRUD plano. Reutiliza las capacidades
+  `hospital:read` / `hospital:edit` del catálogo — a propósito NO introduce
+  claves nuevas, porque el seed de capacidades solo corre en el job de
+  migración (gateado a humanos). La validación de fondo es la misma de
+  `services/hospitals` que usa la superficie pública de POCs; las mutaciones
+  sellan `updatedBy` (email del admin) y `source: "admin_api"`, y NO espejan
+  necesidades a ResponseGrid (eso pertenece al flujo del POC). El panel
+  (`admin/app/hospital-supplies`) consume esto vía su BFF.
 
 ## Integraciones de terceros (flags `ENABLE_*`)
 
