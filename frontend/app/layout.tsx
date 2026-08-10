@@ -98,9 +98,12 @@ export const metadata: Metadata = {
     url: SITE_URL,
     images: [
       {
-        url: "/opengraph-image",
+        // Static asset (not /opengraph-image) so crawlers like X get a stable
+        // URL and drop stale caches of the previous pin-based card.
+        url: "/og-1200x630.png",
         width: 1200,
         height: 630,
+        type: "image/png",
         alt: `${SITE_PRODUCT_NAME} · ${SITE_BRAND_NAME} — mapa y reportes ciudadanos`,
       },
     ],
@@ -109,7 +112,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: SITE_TITLE,
     description: SITE_DESC,
-    images: ["/twitter-image"],
+    images: ["/og-1200x630.png"],
   },
 };
 

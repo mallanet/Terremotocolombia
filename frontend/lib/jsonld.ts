@@ -32,7 +32,7 @@ export function organizationSchema(): JsonLdNode {
       width: 512,
       height: 512,
     },
-    image: `${SITE_URL}/opengraph-image`,
+    image: `${SITE_URL}/og-1200x630.png`,
     email: CONTACT_EMAIL,
     description: ORG_DESCRIPTION,
     areaServed: { "@type": "Place", name: deploymentConfig.regionLabel },

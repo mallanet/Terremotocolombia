@@ -16,12 +16,14 @@ export function pageMetadata({
 }: PageMetadataInput): Metadata {
   const fullTitle = `${title} · ${SITE_NAME}`;
   // Explicit images: a partial `openGraph` object replaces the root layout
-  // metadata and would otherwise drop `/opengraph-image` on inner pages.
+  // metadata and would otherwise drop the social card on inner pages.
+  // Use the static PNG (not /opengraph-image) so X/WhatsApp can cache-bust.
   const socialImages = [
     {
-      url: "/opengraph-image",
+      url: "/og-1200x630.png",
       width: 1200,
       height: 630,
+      type: "image/png",
       alt: fullTitle,
     },
   ];
