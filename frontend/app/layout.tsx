@@ -30,10 +30,10 @@ const SITE_TITLE = `${SITE_PRODUCT_NAME} · ${SITE_BRAND_NAME}`;
 const SITE_DESC =
   "Reporte ciudadano en tiempo real para coordinar rescates, identificar daños estructurales y organizar la entrega de ayuda humanitaria durante la emergencia.";
 const OPENPANEL_CLIENT_ID = process.env.NEXT_PUBLIC_OPENPANEL_CLIENT_ID;
-// Google Analytics es opcional: sin ID configurado, el componente no se
-// renderiza (ni el script se carga) en vez de reportar a una propiedad GA
-// hardcodeada del deployment de origen.
-const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+// Google Analytics 4 (gtag). Override con NEXT_PUBLIC_GA_MEASUREMENT_ID;
+// default = propiedad Terremoto Colombia.
+const GA_MEASUREMENT_ID =
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-ZRH5VQX89P";
 
 // Orígenes cross-origin que el navegador SIEMPRE golpea: el backend (datos de
 // emergencia, vía fetch con credenciales) y el CDN R2 (fotos). Preconectar

@@ -168,6 +168,8 @@ services:
         # Base pública del CDN de fotos (no sensible). Vacío en local: las
         # fotos se sirven desde el propio backend.
         NEXT_PUBLIC_R2_PUBLIC_BASE: "${NEXT_PUBLIC_R2_PUBLIC_BASE:-}"
+        # GA4 (NEXT_PUBLIC_* se inlinea en build). Default: propiedad Terremoto Colombia.
+        NEXT_PUBLIC_GA_MEASUREMENT_ID: "${NEXT_PUBLIC_GA_MEASUREMENT_ID:-G-ZRH5VQX89P}"
     environment:
       # SSR / Server Components dentro de Docker llaman al backend por la RED
       # interna (nombre de servicio), NO localhost. Sin esto, server-api.ts cae a
