@@ -109,6 +109,11 @@ tenga que construir desde cero:
 
 ## Deployers: van a recopilar PII de personas en crisis
 
+> **Esto ya aplica hoy, no en futuro condicional.** terremotocolombia.co está en
+> producción contra una base Neon real, con tráfico real. Mallanet.org es
+> responsable de esos datos desde ya, con las obligaciones que esta sección
+> describe. No es una checklist para "cuando lancemos".
+
 Esto no es opcional ni un detalle secundario: el propósito mismo de este
 software es recopilar información sobre personas afectadas por un desastre
 —nombres, ubicaciones, estado de salud, contactos familiares, a veces fotos.

@@ -1,5 +1,18 @@
 # Registro de módulos opcionales
 
+> **Aviso de estado — casi todo esto depende de una cola que no está
+> desplegada.**
+>
+> En producción (Cloudflare Workers) no hay worker de BullMQ ni Valkey, así que
+> encolar un job **no lo ejecuta nadie**. Afecta a la sincronización de fuentes
+> externas, la publicación de necesidades en ResponseGrid, la importación de
+> pacientes (**manual y OCR por igual**: las dos pasan por
+> `enqueuePatientImport`) y la federación de hub.
+>
+> Este documento describe cómo funcionan los módulos cuando el worker **sí**
+> corre — es decir, en el camino docker-compose. Ver
+> [`architecture.md`](architecture.md) → "Workers y colas".
+
 Toda integración con un tercero en este template está apagada por defecto y
 se enciende con su propio flag `ENABLE_*` en `.env.example`. El template
 completo — mapa, reportes, hospitales/refugios, panel admin — funciona sin

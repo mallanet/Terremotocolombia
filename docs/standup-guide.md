@@ -51,6 +51,11 @@ dependen de tenerlo.
 
 ### 0. Antes de tocar nada
 
+> **Este paso NO está pendiente en `mallanet/Terremotocolombia`.** El repo ya es
+> público a propósito y sirve un sitio en vivo. **No cambies su visibilidad por
+> tu cuenta**: hacerlo privado rompería los enlaces públicos y no arregla nada.
+> Lo de abajo aplica a un despliegue nuevo, no a este.
+
 Haz fork de este repo a tu propia cuenta/organización de GitHub, **en
 privado** — no lo publiques todavía. Todo lo que sigue pasa en ese fork
 privado; solo al final, después de `disaster-content-audit`, decides
