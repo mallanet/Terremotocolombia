@@ -1,4 +1,5 @@
 import type { MissingMapMarker } from "@/hooks/missing";
+import type { PetMapMarker } from "@/lib/pets";
 import type { EmergencyReport, Earthquake } from "@/lib/types";
 
 export type MapBounds = {
@@ -11,9 +12,12 @@ export type MapBounds = {
 export interface MapViewProps {
 	reports: EmergencyReport[];
 	missingMarkers?: MissingMapMarker[];
+	/** Mascotas perdidas con coordenadas. Capa APARTE de missingMarkers. */
+	petMarkers?: PetMapMarker[];
 	/** Catalogo USGS: circulos por magnitud + anillos en el epicentro. */
 	earthquakes?: Earthquake[];
 	showMissingOnMap?: boolean;
+	showPetsOnMap?: boolean;
 	onBoundsChange?: (bounds: MapBounds) => void;
 	draft: { lat: number; lng: number } | null;
 	onPick: (lat: number, lng: number) => void;

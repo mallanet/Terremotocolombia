@@ -29,6 +29,13 @@ export const SECTION_LINKS: SectionLink[] = [
     mobileBar: true,
   },
   {
+    href: "#mascotas",
+    label: "Mascotas perdidas",
+    shortLabel: "Mascotas",
+    icon: "🐾",
+    tone: "purple",
+  },
+  {
     href: "/hospitales",
     label: "Hospitales y pacientes",
     shortLabel: "Hospitales",

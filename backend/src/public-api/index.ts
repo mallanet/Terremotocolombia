@@ -15,6 +15,7 @@ import { authRouter } from "@/routes/auth";
 import { patientImportsRouter } from "@/public-api/patient-imports";
 import { reportsResource } from "@/public-api/resources/reports.resource";
 import { missingResource } from "@/public-api/resources/missing.resource";
+import { petsResource } from "@/public-api/resources/pets.resource";
 import { hospitalsResource } from "@/public-api/resources/hospitals.resource";
 import { patientsResource } from "@/public-api/resources/patients.resource";
 import { donationsResource } from "@/public-api/resources/donations.resource";
@@ -41,6 +42,7 @@ type AnyResource = CrudResource<unknown, unknown, unknown, unknown>;
 export const PUBLIC_RESOURCES: Record<string, AnyResource> = {
   reports: reportsResource as AnyResource,
   missing: missingResource as AnyResource,
+  pets: petsResource as AnyResource,
   hospitals: hospitalsResource as AnyResource,
   patients: patientsResource as AnyResource,
   donations: donationsResource as AnyResource,
