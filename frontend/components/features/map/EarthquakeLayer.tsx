@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { Fragment, memo, useMemo } from "react";
 import { CircleMarker, Popup } from "react-leaflet";
 import type { Earthquake } from "@/lib/types";
 import { timeAgo } from "@/lib/format";
@@ -58,7 +58,7 @@ function EarthquakeLayerBase({ earthquakes = [] }: { earthquakes?: Earthquake[] 
         const r = radiusFor(q.magnitude);
 
         return (
-          <span key={q.id}>
+          <Fragment key={q.id}>
             {/* Anillos del epicentro: por debajo del circulo, sin interaccion
                 para no robarle el click al popup. */}
             {isEpicentro && (
@@ -118,7 +118,7 @@ function EarthquakeLayerBase({ earthquakes = [] }: { earthquakes?: Earthquake[] 
                 </div>
               </Popup>
             </CircleMarker>
-          </span>
+          </Fragment>
         );
       })}
     </>
