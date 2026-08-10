@@ -1,4 +1,4 @@
-import { SITE_URL, SITE_NAME, CONTACT_EMAIL } from "@/lib/site";
+import { SITE_URL, SITE_NAME, SITE_LOGO, CONTACT_EMAIL } from "@/lib/site";
 import { deploymentConfig } from "@/lib/deployment-config";
 
 // Constructores de JSON-LD (schema.org) compartidos. Centralizan el marcado
@@ -26,7 +26,7 @@ export function organizationSchema(): JsonLdNode {
     name: SITE_NAME,
     alternateName: deploymentConfig.productName,
     url: SITE_URL,
-    logo: `${SITE_URL}/icon.svg`,
+    logo: `${SITE_URL}${SITE_LOGO}`,
     image: `${SITE_URL}/opengraph-image`,
     email: CONTACT_EMAIL,
     description: ORG_DESCRIPTION,

@@ -3,7 +3,8 @@ import { deploymentConfig } from "@/lib/deployment-config";
 /** Dominio público del sitio (config/deployment.config.json → domains.web). */
 export const SITE_URL = `https://${deploymentConfig.domains.web}`;
 export const SITE_NAME = `${deploymentConfig.disasterName} · ${deploymentConfig.orgName}`;
-export const SITE_LOGO = "/icon.svg";
+/** Schema.org / primary brand mark — PNG for crawler and iOS compatibility. */
+export const SITE_LOGO = "/icon-512.png";
 export const SITE_BRAND_NAME = deploymentConfig.orgName;
 export const SITE_PRODUCT_NAME = deploymentConfig.productName;
 
