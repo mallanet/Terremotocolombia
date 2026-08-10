@@ -17,6 +17,14 @@
   // Config NO secreta (versionada a proposito). Los secretos van por
   // `wrangler secret bulk` desde Doppler, nunca aqui.
   "vars": {
+    // Bounding box de Colombia para el catalogo de sismos del USGS.
+    // getBbox() LANZA si falta cualquiera de las cuatro, asi que sin esto el
+    // sync no puede correr. Incluye San Andres (~12.5N, -81.7) y las zonas
+    // fronterizas cuyos sismos si se sienten en Colombia.
+    "EARTHQUAKES_MIN_LAT": "-5",
+    "EARTHQUAKES_MAX_LAT": "14",
+    "EARTHQUAKES_MIN_LNG": "-82",
+    "EARTHQUAKES_MAX_LNG": "-66",
     "NODE_ENV": "production",
     "COOKIE_SECURE": "true",
     "APP_BASE_URL": "https://terremotocolombia.co",
@@ -55,6 +63,10 @@
     "staging": {
       "name": "terremotocolombia-api-staging",
       "vars": {
+        "EARTHQUAKES_MIN_LAT": "-5",
+        "EARTHQUAKES_MAX_LAT": "14",
+        "EARTHQUAKES_MIN_LNG": "-82",
+        "EARTHQUAKES_MAX_LNG": "-66",
         "NODE_ENV": "production",
         "COOKIE_SECURE": "true",
         "APP_BASE_URL": "https://staging.terremotocolombia.co",
