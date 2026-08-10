@@ -5,10 +5,8 @@ import LegalConsentNotice from "@/components/content/LegalConsentNotice";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { useContactSubmit } from "@/hooks/contact";
 import { useTurnstile } from "@/hooks/useTurnstile";
-import { usePrivacyConsent } from "@/components/layout/PrivacyConsentGate";
 
 export default function ContactForm() {
-  const { ensureConsent } = usePrivacyConsent();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
@@ -22,10 +20,6 @@ export default function ContactForm() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-
-    // Consentimiento ANTES de enviar datos personales. Si la persona no acepta,
-    // no se envia nada. Ver components/layout/PrivacyConsentGate.tsx.
-    if (!(await ensureConsent())) return;
     setError(null);
     setSuccess(null);
 

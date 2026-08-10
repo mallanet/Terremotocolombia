@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import { useLowBandwidthMode } from "@/hooks/useLowBandwidthMode";
 import { trackEvent } from "@/lib/openpanel";
 import { useTurnstile } from "@/hooks/useTurnstile";
-import { usePrivacyConsent } from "@/components/layout/PrivacyConsentGate";
 import {
   useChatMessages,
   useDeleteChatMessage,
@@ -73,7 +72,6 @@ function formatTime(ts: number): string {
 }
 
 export default function ChatPanel() {
-  const { ensureConsent } = usePrivacyConsent();
   const [name, setName] = useState(() =>
     typeof window === "undefined"
       ? ""
@@ -142,8 +140,6 @@ export default function ChatPanel() {
       setError(null);
       const trimmed = text.trim();
       if (!trimmed) return;
-      // Consentimiento antes de publicar un mensaje (es contenido publico).
-      if (!(await ensureConsent())) return;
       localStorage.setItem(NAME_STORAGE_KEY, name.trim());
       try {
         // Token FRESCO de Turnstile para este envío (se resetea tras leerlo).
@@ -168,7 +164,7 @@ export default function ChatPanel() {
         setError(err instanceof Error ? err.message : "Error al enviar.");
       }
     },
-    [text, name, role, replyingTo, sendMutation, turnstileGetToken, ensureConsent],
+    [text, name, role, replyingTo, sendMutation, turnstileGetToken],
   );
 
   const handleDelete = useCallback(
