@@ -85,7 +85,7 @@ export const PetsTab = forwardRef<PetsTabHandle>(function PetsTab(_props, ref) {
     q: search.length >= MIN_SEARCH_LEN ? search : undefined,
     species: species ?? undefined,
   };
-  const { data, isPending } = usePetsList(listParams, network.pollIntervalMs);
+  const { data, isPending, isError } = usePetsList(listParams, network.pollIntervalMs);
   const stats = usePetStats();
 
   const pets = data?.pets ?? [];
@@ -97,13 +97,16 @@ export const PetsTab = forwardRef<PetsTabHandle>(function PetsTab(_props, ref) {
   // que no suman y que hacen dudar del resto de la página.
   const activeTotal = stats.data?.active ?? 0;
   const foundTotal = stats.data?.found ?? 0;
-  // Sin datos todavía no se afirma "0": un cero mientras la lista viaja se lee
-  // como "no hay ninguna reportada" (mismo criterio que PersonsTab).
-  const fmtCount = (n: number, pending: boolean) =>
-    pending ? "—" : n.toLocaleString("es");
-  const totalLabel = fmtCount(total, isPending);
-  const activeLabel = fmtCount(activeTotal, stats.isPending);
-  const foundLabel = fmtCount(foundTotal, stats.isPending);
+  // Sin datos todavía no se afirma "0": un cero mientras la lista viaja —o
+  // cuando la petición falló— se lee como "no hay ninguna reportada", que es
+  // una afirmación falsa sobre cuántas mascotas hay buscándose. Se muestra "—"
+  // hasta tener un número de verdad (mismo criterio que PersonsTab, extendido
+  // también al caso de error).
+  const fmtCount = (n: number, unknown: boolean) =>
+    unknown ? "—" : n.toLocaleString("es");
+  const totalLabel = fmtCount(total, isPending || isError);
+  const activeLabel = fmtCount(activeTotal, stats.isPending || stats.isError);
+  const foundLabel = fmtCount(foundTotal, stats.isPending || stats.isError);
 
   const prefetchPetsPages = usePrefetchPetsPages();
   useEffect(() => {
@@ -252,6 +255,19 @@ export const PetsTab = forwardRef<PetsTabHandle>(function PetsTab(_props, ref) {
             rows={3}
             className="col-span-full"
           />
+        ) : isError ? (
+          // "Falló la petición" y "no hay reportes" NO son lo mismo. Sin esta
+          // rama, un error de la API se pinta como "Aún no hay reportes", que
+          // afirma algo falso: alguien buscando a su mascota concluiría que su
+          // reporte se perdió. Pasa de verdad en la ventana entre desplegar el
+          // backend y correr la migración, cuando /api/pets todavía da 500.
+          <div className="e-m-person-empty" role="listitem">
+            <p className="e-m-person-empty__title">No pudimos cargar las mascotas</p>
+            <p className="e-m-person-empty__desc">
+              Es un problema nuestro, no tuyo: los reportes siguen guardados.
+              Reintentamos solos en unos segundos.
+            </p>
+          </div>
         ) : pets.length === 0 ? (
           <div className="e-m-person-empty" role="listitem">
             <p className="e-m-person-empty__title">
