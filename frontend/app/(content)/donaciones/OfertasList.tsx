@@ -11,29 +11,34 @@ type Oferta = {
 };
 
 /**
- * EXAMPLE donation partner directory. Every entry below is synthetic
- * placeholder data — replace this list with the real, verified organizations
- * for this deployment before going live (disaster-configure does not
- * populate this automatically, since partner vetting is a manual, per-event
- * decision).
+ * Directorio de instituciones verificadas (revisión 2026-08-10).
+ * Mallanet / Terremoto Colombia no recauda: solo enlaza canales oficiales.
+ * Solo deep links — nunca números de cuenta en el frontend.
  */
 const OFERTAS: { category: string; items: Oferta[] }[] = [
   {
     category: "Fundaciones",
     items: [
       {
-        name: "Fundación Ejemplo de Ayuda Humanitaria",
+        name: "Cruz Roja Colombiana",
         description:
-          "Atención médica, rescate y ayuda humanitaria en la zona afectada. (Ejemplo — reemplazar con una organización verificada.)",
+          "Respuesta humanitaria y socio del SNGRD. Confirma en su sitio la emergencia activa en Colombia; no uses landings de otras campañas.",
         action: "Donar",
-        url: "#",
+        url: "https://www.cruzrojacolombiana.org/",
       },
       {
-        name: "Banco de Alimentos Ejemplo",
+        name: "ABACO — Bancos de Alimentos",
         description:
-          "Distribución de alimentos a familias en situación de vulnerabilidad. (Ejemplo — reemplazar con una organización verificada.)",
+          "Red nacional de bancos de alimentos (ESAL NIT 900326456-1). Canal institucional para seguridad alimentaria en emergencias.",
         action: "Donar",
-        url: "#",
+        url: "https://abaco.org.co/",
+      },
+      {
+        name: "Banco de Alimentos de Bogotá",
+        description:
+          "Miembro de la red ABACO. Recibe alimentos y aportes; confirma si la distribución cubre la zona que quieres apoyar.",
+        action: "Donar",
+        url: "https://www.bancodealimentos.org.co/donaciones-hoy/",
       },
     ],
   },
@@ -41,11 +46,18 @@ const OFERTAS: { category: string; items: Oferta[] }[] = [
     category: "Envío de dinero",
     items: [
       {
-        name: "Plataforma de envíos Ejemplo",
+        name: "Cruz Roja — donación monetaria",
         description:
-          "Envía dinero de forma segura a personas afectadas. (Ejemplo — reemplazar con un proveedor verificado.)",
+          "Hub oficial para donar dinero a la Cruz Roja Colombiana. Verifica destino y emergencia en el formulario del sitio.",
         action: "Enviar dinero",
-        url: "#",
+        url: "https://www.cruzrojacolombiana.org/dona-dinero/",
+      },
+      {
+        name: "ABACO — donación monetaria",
+        description:
+          "Cuentas institucionales publicadas por ABACO para emergencia en Colombia. Canal verificado; no es campaña exclusiva del sismo.",
+        action: "Enviar dinero",
+        url: "https://abaco.org.co/emergenciainvernalcolombia",
       },
     ],
   },
@@ -53,11 +65,18 @@ const OFERTAS: { category: string; items: Oferta[] }[] = [
     category: "Salud",
     items: [
       {
-        name: "Banco de Sangre Ejemplo",
+        name: "Banco de Sangre Cruz Roja",
         description:
-          "Consulta horarios y requisitos de donación en el centro de salud más cercano. (Ejemplo — reemplazar con datos reales.)",
+          "Red nacional de bancos de sangre de la Cruz Roja. Consulta horarios y requisitos en el banco local.",
         action: "Ver detalles",
-        url: "#",
+        url: "https://www.cruzrojacolombiana.org/banco-de-sangre/",
+      },
+      {
+        name: "Dónde donar sangre (INS)",
+        description:
+          "Localizador del Instituto Nacional de Salud (Dona Vida / Red Nacional). Orientación sanitaria, no donación de dinero.",
+        action: "Ver detalles",
+        url: "https://donavida.ins.gov.co/Paginas/donacion-sangre.html",
       },
     ],
   },

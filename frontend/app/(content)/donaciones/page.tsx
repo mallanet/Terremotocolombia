@@ -7,7 +7,8 @@ import OfertasList from "./OfertasList";
 
 export const metadata: Metadata = pageMetadata({
   title: "Donaciones",
-  description: "Dona dinero, sangre o insumos a organizaciones verificadas que trabajan en el terreno. Iniciativa ciudadana, independiente y no gubernamental.",
+  description:
+    "Canales oficiales de instituciones verificadas (Cruz Roja, ABACO, bancos de sangre). Este sitio no recauda donaciones.",
   path: "/donaciones",
 });
 
@@ -17,7 +18,9 @@ export default function DonacionesPage() {
       <section className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6">
         <h1 className="mb-2 text-[28px] font-bold text-slate-900 sm:text-[32px]">Donaciones</h1>
         <p className="mb-4 text-[15px] text-slate-600 sm:text-base">
-          Dona dinero, sangre o insumos a organizaciones verificadas que trabajan en el terreno.
+          Enlaces a canales oficiales de instituciones verificadas. Este sitio no
+          recauda donaciones: confirma siempre la emergencia activa en el sitio
+          de cada organización antes de aportar.
         </p>
 
         {/* Acceso directo para quien llega buscando ayuda y no a donar:
@@ -35,9 +38,14 @@ export default function DonacionesPage() {
           <OfertasList />
         </div>
 
-        <div className="flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-medium text-amber-900">
-          <Info size={18} className="shrink-0 text-amber-600" />
-          <p>Dona solo en sitios oficiales. Desconfía de cuentas no verificadas en redes sociales.</p>
+        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-medium text-amber-900">
+          <Info size={18} className="mt-0.5 shrink-0 text-amber-600" />
+          <p>
+            Dona solo en sitios oficiales (.org / .org.co / .gov.co). Evita
+            recaudaciones solo en redes, GoFundMe no verificados o envíos P2P a
+            particulares. Copia cuentas bancarias únicamente desde la página
+            viva de la institución, nunca desde mensajes reenviados.
+          </p>
         </div>
       </section>
     </SubPageShell>
