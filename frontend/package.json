@@ -11,8 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prebuild": "node scripts/sync-deployment-config.mjs && node scripts/generate-brand-logo.mjs",
-    "codegen": "node scripts/sync-deployment-config.mjs && node scripts/generate-brand-logo.mjs"
+    "codegen": "node scripts/sync-deployment-config.mjs && node scripts/generate-brand-logo.mjs",
+    "prebuild": "npm run codegen",
+    "pretypecheck": "npm run codegen"
   },
   "engines": {
     "node": ">=24"

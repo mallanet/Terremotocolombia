@@ -13,8 +13,21 @@ import { Pool } from "pg";
 import * as schema from "../../../infra/db/schema.js";
 import { env } from "@/config/env";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _db: any = null;
+/**
+ * Tipo canonico de la base: el de node-postgres.
+ *
+ * Los dos drivers (node-postgres y neon-http) exponen la MISMA API de consulta
+ * de Drizzle sobre el mismo `schema`; solo cambia el transporte. Se fija este
+ * como tipo publico y el otro se castea, para que `getDb()` siga devolviendo un
+ * tipo concreto.
+ *
+ * Importa: cuando esto devolvia `any`, la inferencia se caia en cascada por
+ * todos los servicios que lo consumen (~10 ficheros con TS7006/TS7031
+ * "implicitly has an any type"). Un `any` aqui no es local, se propaga.
+ */
+type Db = ReturnType<typeof drizzle<typeof schema>>;
+
+let _db: Db | null = null;
 
 /**
  * ¿Estamos en Cloudflare Workers?
@@ -28,15 +41,14 @@ let _db: any = null;
  * del cliente.
  */
 function isWorkers(): boolean {
-  return (
-    typeof navigator !== "undefined" &&
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (navigator as any)?.userAgent === "Cloudflare-Workers"
-  );
+  // Via globalThis y no `navigator` a pelo: el tsconfig del backend es de Node
+  // y no trae los tipos DOM, asi que referenciar `navigator` directamente no
+  // compila ("Cannot find name 'navigator'").
+  const g = globalThis as { navigator?: { userAgent?: string } };
+  return g.navigator?.userAgent === "Cloudflare-Workers";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getDb(): any {
+export function getDb(): Db {
   if (_db) return _db;
 
   // process.env por delante de env.DATABASE_URL: en Workers, src/worker.ts
@@ -53,7 +65,7 @@ export function getDb(): any {
     // services/roles.ts y services/patient-imports/* — administración e
     // importación, no la superficie pública del sitio. Esas rutas fallarán en
     // Workers hasta que se migren a `db.batch()` o se muevan a un runtime Node.
-    _db = drizzleHttp(neon(connectionString), { schema });
+    _db = drizzleHttp(neon(connectionString), { schema }) as unknown as Db;
     return _db;
   }
 
