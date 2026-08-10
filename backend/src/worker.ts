@@ -19,15 +19,25 @@ import { httpServerHandler } from "cloudflare:node";
 import { app } from "./server.js";
 import { backfill, isEmpty, syncFromFeed } from "./services/earthquakes.js";
 
-const PORT = 8080;
-
 // El servidor se crea en ambito de modulo y NO se mueve dentro de fetch():
 // hacerlo daba 500/503 intermitentes porque cada isolate levantaba el suyo y la
 // primera peticion se colgaba.
 const server = createServer(app);
-server.listen(PORT);
 
-const nodeHandler = httpServerHandler({ port: PORT });
+// Se le pasa el SERVIDOR, no `{ port }`.
+//
+// Con la forma `{ port }` hay que llamar a `server.listen(PORT)` a mano, y esa
+// llamada no se puede esperar en ambito de modulo: una peticion que entra en un
+// isolate recien creado, antes de que el listen se complete, no encuentra
+// servidor donde enrutar y se va en 503 — sin dejar rastro en el errorHandler de
+// Express, que es justo lo que veiamos (503 en /api/earthquakes sin ningun log
+// "Unhandled error" correspondiente).
+//
+// La forma que recibe el servidor es la documentada como "simplified" y llama a
+// `listen()` ella misma cuando hace falta, asi que el runtime es el dueño del
+// ciclo de vida y la carrera desaparece. Ojo: con este handler el puerto es solo
+// una CLAVE DE ENRUTADO entre servidores del mismo Worker, no un puerto de red.
+const nodeHandler = httpServerHandler(server);
 
 interface ScheduledController {
   cron: string;

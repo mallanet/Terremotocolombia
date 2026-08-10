@@ -8,10 +8,11 @@
  */
 import { drizzle } from "drizzle-orm/node-postgres";
 import { drizzle as drizzleHttp } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { neon, neonConfig } from "@neondatabase/serverless";
 import { Pool } from "pg";
 import * as schema from "../../../infra/db/schema.js";
 import { env } from "@/config/env";
+import { retryingFetch } from "./retry.js";
 
 /**
  * Tipo canonico de la base: el de node-postgres.
@@ -65,6 +66,11 @@ export function getDb(): Db {
     // services/roles.ts y services/patient-imports/* — administración e
     // importación, no la superficie pública del sitio. Esas rutas fallarán en
     // Workers hasta que se migren a `db.batch()` o se muevan a un runtime Node.
+    //
+    // `fetchFunction` es GLOBAL en el driver: se fija aqui, junto a la unica
+    // construccion del cliente HTTP, para que no haya forma de crear un cliente
+    // sin la politica de reintentos.
+    neonConfig.fetchFunction = retryingFetch;
     _db = drizzleHttp(neon(connectionString), { schema }) as unknown as Db;
     return _db;
   }
