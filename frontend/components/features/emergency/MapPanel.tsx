@@ -8,6 +8,7 @@ import AddressSearch, {
 import type { MapBounds } from "@/components/features/map";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import type { MissingMapMarker } from "@/hooks/missing";
+import type { PetMapMarker } from "@/lib/pets";
 import type { EmergencyReport, ReportType, Earthquake } from "@/lib/types";
 import { deploymentConfig } from "@/lib/deployment-config";
 import FilterChips from "./FilterChips";
@@ -26,6 +27,9 @@ export interface MapPanelProps {
 	earthquakes?: Earthquake[];
 	missingMapMarkers: MissingMapMarker[];
 	showMissingOnMap: boolean;
+	petMapMarkers: PetMapMarker[];
+	showPetsOnMap: boolean;
+	onTogglePets: () => void;
 	draft: { lat: number; lng: number } | null;
 	confirmed: Set<string>;
 	isAdmin: boolean;
@@ -51,6 +55,9 @@ export interface MapPanelProps {
 export default function MapPanel({
 	mapReports,
 	missingMapMarkers,
+	petMapMarkers,
+	showPetsOnMap,
+	onTogglePets,
 	earthquakes,
 	showMissingOnMap,
 	draft,
@@ -96,8 +103,10 @@ export default function MapPanel({
 				<MapView
 					reports={mapReports}
 					missingMarkers={missingMapMarkers}
+					petMarkers={petMapMarkers}
 					earthquakes={earthquakes}
 					showMissingOnMap={showMissingOnMap}
+					showPetsOnMap={showPetsOnMap}
 					onBoundsChange={onBoundsChange}
 					draft={draft}
 					onPick={onPick}
@@ -125,6 +134,27 @@ export default function MapPanel({
 						counts={counts}
 						onChipClick={onChipClick}
 					/>
+					{/* Chip propio y NO uno de FilterChips: esa lista se indexa por
+					    ReportType, que también alimenta el formulario de reportes de
+					    emergencia. Meter "mascotas" ahí ofrecería "mascota" como tipo de
+					    emergencia, que no es. */}
+					<button
+						type="button"
+						onClick={onTogglePets}
+						aria-pressed={showPetsOnMap}
+						title={`Mascotas perdidas: ${petMapMarkers.length}`}
+						aria-label={`Mascotas perdidas: ${petMapMarkers.length} en el mapa. ${
+							showPetsOnMap
+								? "Visibles, toca para ocultar."
+								: "Ocultas, toca para mostrar."
+						}`}
+						className={`e-m-chip shrink-0${showPetsOnMap ? " e-m-chip--active" : ""}`}
+					>
+						<span aria-hidden>🐾</span> Mascotas
+						{petMapMarkers.length > 0 && (
+							<span className="ml-1 tabular-nums">{petMapMarkers.length}</span>
+						)}
+					</button>
 				</div>
 			</div>
 

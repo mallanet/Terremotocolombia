@@ -8,6 +8,7 @@ import {
   type MissingPerson,
   type ReportType,
 } from "@/lib/types";
+import { petDisplayName, type Pet } from "@/lib/pets";
 import AdminLogin from "@/components/features/emergency/AdminLogin";
 import { formatDonationUsd } from "@/lib/donation-shared";
 import { apiFetch, mediaUrl } from "@/lib/api";
@@ -101,10 +102,21 @@ interface AdminData {
       found?: number;
       withPhoto: number;
     };
+    // Mascotas: bloque PROPIO. Nunca se suma a `missing` — el panel no debe poder
+    // hacer creer que hay más personas desaparecidas de las que hay.
+    pets?: {
+      total: number;
+      active?: number;
+      found?: number;
+      withPhoto: number;
+    };
   };
   reports: Report[];
   messages: Message[];
   people: Person[];
+  /** Opcional: una API vieja (sin desplegar aún) no lo trae. Ver CLAUDE.md:
+   *  el backend se despliega a mano, así que el panel debe tolerar su ausencia. */
+  pets?: Pet[];
 }
 
 type Person = MissingPerson;
@@ -174,9 +186,10 @@ type Tab =
   | "reports"
   | "chat"
   | "missing"
+  | "pets"
   | "donations"
   | "contact";
-type RemovableTab = "reports" | "chat" | "missing";
+type RemovableTab = "reports" | "chat" | "missing" | "pets";
 
 function timeAgo(ts: number): string {
   const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
@@ -465,13 +478,17 @@ export default function AdminDashboard() {
           ? `/api/reports/${id}`
           : kind === "chat"
             ? `/api/chat/${id}`
-            : `/api/missing/${id}`;
+            : kind === "pets"
+              ? `/api/pets/${id}`
+              : `/api/missing/${id}`;
       setData((prev) => {
         if (!prev) return prev;
         if (kind === "reports")
           return { ...prev, reports: prev.reports.filter((r) => r.id !== id) };
         if (kind === "chat")
           return { ...prev, messages: prev.messages.filter((m) => m.id !== id) };
+        if (kind === "pets")
+          return { ...prev, pets: (prev.pets ?? []).filter((p) => p.id !== id) };
         return { ...prev, people: prev.people.filter((p) => p.id !== id) };
       });
       await apiFetch(endpoint, {
@@ -582,6 +599,18 @@ export default function AdminDashboard() {
     return data.people.filter((p) => {
       if (terms.length === 0) return true;
       const hay = normalize(`${p.name} ${p.lastSeen} ${p.description} ${p.contact}`);
+      return terms.every((t) => hay.includes(t));
+    });
+  }, [data, query]);
+
+  const filteredPets = useMemo(() => {
+    if (!data?.pets) return [];
+    const terms = normalize(query).split(/\s+/).filter(Boolean);
+    return data.pets.filter((p) => {
+      if (terms.length === 0) return true;
+      const hay = normalize(
+        `${p.name} ${p.species} ${p.breed} ${p.color} ${p.lastSeen} ${p.description} ${p.contact}`,
+      );
       return terms.every((t) => hay.includes(t));
     });
   }, [data, query]);
@@ -963,6 +992,7 @@ export default function AdminDashboard() {
               ["supplies", "Insumos hospitalarios"],
               ["reports", `Reportes (${data?.reports.length ?? 0})`],
               ["missing", `Desaparecidas (${data?.people.length ?? 0})`],
+              ["pets", `Mascotas (${data?.pets?.length ?? 0})`],
               ["chat", `Chat (${data?.messages.length ?? 0})`],
               [
                 "donations",
@@ -1250,6 +1280,109 @@ export default function AdminDashboard() {
                         <button
                           type="button"
                           onClick={() => remove("missing", p.id)}
+                          className="rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          )}
+
+          {tab === "pets" && (
+            <ul className="divide-y divide-slate-100">
+              {filteredPets.length === 0 ? (
+                <li className="p-6 text-center text-sm text-slate-500">
+                  Sin mascotas reportadas.
+                </li>
+              ) : (
+                filteredPets.map((p) => {
+                  const phone = extractPhone(p.contact);
+                  const petMeta = [
+                    p.breed || null,
+                    p.color || null,
+                    p.age !== null ? `${p.age} años` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ");
+                  const name = petDisplayName(p);
+                  return (
+                    <li key={p.id} className="flex items-start gap-3 p-3">
+                      {p.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={mediaUrl(p.photoUrl)}
+                          alt={name}
+                          loading="lazy"
+                          className="h-16 w-16 shrink-0 rounded-lg object-cover ring-1 ring-slate-200"
+                        />
+                      ) : (
+                        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-slate-100 text-2xl text-slate-400">
+                          🐾
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {name}
+                          {petMeta && (
+                            <span className="font-normal text-slate-500"> · {petMeta}</span>
+                          )}
+                        </p>
+                        {p.lastSeen && (
+                          <p className="text-xs text-slate-600">📍 {p.lastSeen}</p>
+                        )}
+                        {p.description && (
+                          <p className="mt-0.5 text-xs text-slate-600">{p.description}</p>
+                        )}
+                        {/* Solo si TIENE chip, nunca el número: el panel no es
+                            excepción a la regla, el DTO ni siquiera lo trae. */}
+                        {p.hasMicrochip && (
+                          <p className="mt-0.5 text-xs text-emerald-700">
+                            Tiene microchip registrado
+                          </p>
+                        )}
+                        {p.contact &&
+                          (phone ? (
+                            <a
+                              href={`tel:${phone}`}
+                              className="text-xs font-medium text-red-700 hover:underline"
+                            >
+                              📞 {p.contact}
+                            </a>
+                          ) : (
+                            <p className="text-xs text-slate-700">{p.contact}</p>
+                          ))}
+                        <p className="mt-0.5 text-[11px] text-slate-400">
+                          {fmt(p.createdAt)}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        {p.status === "found" && (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                            ✓ Reunida
+                          </span>
+                        )}
+                        {p.status === "found" && token && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await apiFetch(`/api/pets/${p.id}/restore`, {
+                                method: "POST",
+                                headers: { "x-admin-token": token },
+                              }).catch(() => null);
+                              fetchData();
+                            }}
+                            className="rounded-md border border-amber-200 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50"
+                          >
+                            Restaurar
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => remove("pets", p.id)}
                           className="rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
                         >
                           Eliminar
