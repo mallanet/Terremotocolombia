@@ -11,6 +11,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { graph, organizationSchema, ORG_ID, WEBSITE_ID } from "@/lib/jsonld";
 import { SITE_URL, SITE_NAME, SITE_PRODUCT_NAME, SITE_BRAND_NAME } from "@/lib/site";
 import { deploymentConfig } from "@/lib/deployment-config";
+import { ogImageMeta } from "@/lib/og-image";
 
 const sora = Sora({
   subsets: ["latin"],
@@ -97,22 +98,18 @@ export const metadata: Metadata = {
     locale: "es_CO",
     url: SITE_URL,
     images: [
-      {
-        // Static asset (not /opengraph-image) so crawlers like X get a stable
-        // URL and drop stale caches of the previous pin-based card.
-        url: "/og-1200x630.png",
-        width: 1200,
-        height: 630,
-        type: "image/png",
-        alt: `${SITE_PRODUCT_NAME} · ${SITE_BRAND_NAME} — mapa y reportes ciudadanos`,
-      },
+      ogImageMeta(
+        `${SITE_PRODUCT_NAME} · ${SITE_BRAND_NAME} — mapa y reportes ciudadanos`,
+      ),
     ],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_TITLE,
     description: SITE_DESC,
-    images: ["/og-1200x630.png"],
+    images: [ogImageMeta(
+      `${SITE_PRODUCT_NAME} · ${SITE_BRAND_NAME} — mapa y reportes ciudadanos`,
+    ).url],
   },
 };
 

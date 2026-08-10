@@ -6,6 +6,7 @@ import {
   DISCORD_INVITE_URL,
 } from "@/lib/site";
 import { deploymentConfig } from "@/lib/deployment-config";
+import { OG_IMAGE_URL } from "@/lib/og-image";
 
 // Constructores de JSON-LD (schema.org) compartidos. Centralizan el marcado
 // estructurado para que buscadores y agentes de IA (ChatGPT, Gemini, Claude,
@@ -38,7 +39,7 @@ export function organizationSchema(): JsonLdNode {
       width: 512,
       height: 512,
     },
-    image: `${SITE_URL}/og-1200x630.png`,
+    image: OG_IMAGE_URL,
     email: CONTACT_EMAIL,
     description: ORG_DESCRIPTION,
     areaServed: { "@type": "Place", name: deploymentConfig.regionLabel },
