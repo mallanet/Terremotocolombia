@@ -1,0 +1,80 @@
+name: Deploy backend (manual)
+
+# Despliega SOLO la API (Worker terremotocolombia-api).
+#
+# MANUAL A PROPOSITO. No se dispara con push a main.
+#
+# El frontend se redespliega solo en cada push que lo toque; la API no, porque
+# sus despliegues no son equivalentes: comparte base de datos con lo que ya
+# esta sirviendo, y una version mala deja de aceptar reportes de personas
+# desaparecidas. Que alguien tenga que pulsar el boton es la funcionalidad.
+#
+# Lanzarlo:  Actions -> "Deploy backend (manual)" -> Run workflow
+#       o:   gh workflow run deploy-backend.yml
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Escribe "desplegar" para confirmar'
+        required: true
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy de la API
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Segunda red de seguridad: sin la palabra exacta, ni se ejecuta.
+    if: github.event.inputs.confirmar == 'desplegar'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - uses: dopplerhq/cli-action@v3
+
+      - name: Instalar dependencias
+        working-directory: backend
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: backend
+        run: npm run typecheck
+
+      # OJO: las migraciones NO corren aqui. Son un paso aparte y deliberado
+      # (backend/worker/migrate.ts con DATABASE_URL apuntando a Neon DIRECTO,
+      # no al endpoint -pooler). Encadenarlas a cada deploy significaria migrar
+      # el esquema de produccion sin que nadie lo mire.
+      - name: Deploy a Cloudflare Workers
+        working-directory: backend
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+        run: |
+          doppler run --command '
+            CLOUDFLARE_API_TOKEN="$CLOUDFLARE_ACCOUNT_API_TOKEN" \
+            CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID" \
+            npx wrangler deploy'
+
+      - name: Smoke check de la API
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 10); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://api.terremotocolombia.co/api/readyz || echo 000)
+            echo "intento $i -> HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "La API no devolvio 200 tras el despliegue"
+          exit 1
