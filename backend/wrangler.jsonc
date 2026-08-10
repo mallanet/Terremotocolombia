@@ -16,6 +16,13 @@
   // adjunta aparte. Ver docs/cloudflare-cutover.md.
   // Config NO secreta (versionada a proposito). Los secretos van por
   // `wrangler secret bulk` desde Doppler, nunca aqui.
+  // Cron Trigger del sync de sismos. Cada 5 minutos: el feed del USGS se
+  // refresca cada minuto, pero el evento ya paso y los replicas entran con
+  // holgura; cada minuto solo multiplica invocaciones sin ganar frescura util.
+  //
+  // A nivel superior a proposito: `triggers` se HEREDA en env.staging, asi que
+  // los dos entornos sincronizan sin duplicar configuracion.
+  "triggers": { "crons": ["*/5 * * * *"] },
   "vars": {
     // Bounding box de Colombia para el catalogo de sismos del USGS.
     // getBbox() LANZA si falta cualquiera de las cuatro, asi que sin esto el

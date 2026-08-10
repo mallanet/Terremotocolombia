@@ -17,10 +17,74 @@
 import { createServer } from "node:http";
 import { httpServerHandler } from "cloudflare:node";
 import { app } from "./server.js";
+import { backfill, isEmpty, syncFromFeed } from "./services/earthquakes.js";
 
 const PORT = 8080;
 
+// El servidor se crea en ambito de modulo y NO se mueve dentro de fetch():
+// hacerlo daba 500/503 intermitentes porque cada isolate levantaba el suyo y la
+// primera peticion se colgaba.
 const server = createServer(app);
 server.listen(PORT);
 
-export default httpServerHandler({ port: PORT });
+const nodeHandler = httpServerHandler({ port: PORT });
+
+interface ScheduledController {
+  cron: string;
+  scheduledTime: number;
+  noRetry(): void;
+}
+interface Ctx {
+  waitUntil(p: Promise<unknown>): void;
+}
+type WorkerEnv = Record<string, string | undefined>;
+
+/**
+ * Sync del catalogo de sismos (USGS), como Cron Trigger.
+ *
+ * Sustituye al worker de BullMQ, que no esta desplegado. Se puede hacer porque
+ * `services/earthquakes.ts` expone `syncFromFeed`/`backfill` como funciones
+ * puras: BullMQ solo las agendaba. Sin Redis, sin proceso aparte.
+ *
+ * `bridgeEnv` copia vars y secrets del Worker a process.env porque
+ * `config/env.ts` y `getBbox()` leen de ahi. En el handler, no arriba: leer
+ * bindings en ambito global lanza "Disallowed operation called within global
+ * scope".
+ */
+function bridgeEnv(env: WorkerEnv): void {
+  for (const [k, v] of Object.entries(env)) {
+    if (typeof v === "string" && process.env[k] === undefined) process.env[k] = v;
+  }
+}
+
+export default {
+  fetch(request: Request, env: WorkerEnv, ctx: Ctx): Promise<Response> {
+    return nodeHandler.fetch(request, env, ctx);
+  },
+
+  async scheduled(controller: ScheduledController, env: WorkerEnv, ctx: Ctx): Promise<void> {
+    ctx.waitUntil(
+      (async () => {
+        bridgeEnv(env);
+        const now = controller.scheduledTime || Date.now();
+        try {
+          // Tabla vacia -> backfill de los ultimos dias; si no, solo el feed
+          // incremental, que es una peticion y unas pocas filas.
+          const r = (await isEmpty()) ? await backfill(now) : await syncFromFeed(now);
+          console.log(
+            `[cron:sismos] origen=${r.source} bajados=${r.fetched} en_region=${r.matched} escritos=${r.upserted}`,
+          );
+        } catch (err) {
+          console.error(
+            "[cron:sismos] fallo:",
+            err instanceof Error ? err.message : String(err),
+          );
+          // Se relanza a proposito, SIN noRetry(): el upsert es idempotente
+          // (clave = id del evento USGS), asi que reintentar es seguro y
+          // preferible a perder una ventana de sismos.
+          throw err;
+        }
+      })(),
+    );
+  },
+};

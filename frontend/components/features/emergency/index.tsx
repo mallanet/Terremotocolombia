@@ -14,6 +14,7 @@ import { qk } from "@/lib/query-keys";
 import {
   useReports,
   useMissingMap,
+  useEarthquakes,
   useConfirmReport,
   useResolveReport,
   type ReportsResponse,
@@ -72,6 +73,9 @@ export default function EmergencyApp() {
   const [debouncedBounds, setDebouncedBounds] = useState<MapBounds | null>(null);
   const boundsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const missingMapQuery = useMissingMap(debouncedBounds);
+  // Mismo queryKey que EarthquakesPanel: TanStack deduplica por clave,
+  // asi que tener dos consumidores no dispara una segunda peticion.
+  const { data: earthquakes } = useEarthquakes(60_000);
   const missingMapMarkers = useMemo(
     () => missingMapQuery.data ?? [],
     [missingMapQuery.data],
@@ -570,6 +574,7 @@ export default function EmergencyApp() {
       <div className={`e-map-grid ${placing ? "is-placing" : ""}`}>
         <MapPanel
           mapReports={mapReports}
+          earthquakes={earthquakes ?? []}
           missingMapMarkers={missingMapMarkers}
           showMissingOnMap={showMissingOnMap}
           draft={draft}
