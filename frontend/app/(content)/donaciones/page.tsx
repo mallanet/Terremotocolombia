@@ -4,17 +4,30 @@ import { pageMetadata } from "@/lib/metadata";
 import SubPageShell from "@/components/layout/SubPageShell";
 import { Info, LifeBuoy } from "lucide-react";
 import OfertasList from "./OfertasList";
+import { webPageSchema } from "@/lib/jsonld";
+
+const DONACIONES_DESC =
+  "Canales oficiales de instituciones verificadas (Cruz Roja, ABACO, bancos de sangre). Este sitio no recauda donaciones.";
 
 export const metadata: Metadata = pageMetadata({
   title: "Donaciones",
-  description:
-    "Canales oficiales de instituciones verificadas (Cruz Roja, ABACO, bancos de sangre). Este sitio no recauda donaciones.",
+  description: DONACIONES_DESC,
   path: "/donaciones",
 });
 
 export default function DonacionesPage() {
   return (
-    <SubPageShell breadcrumb="Donaciones">
+    <SubPageShell
+      breadcrumb="Donaciones"
+      path="/donaciones"
+      extraSchema={[
+        webPageSchema({
+          path: "/donaciones",
+          name: "Donaciones",
+          description: DONACIONES_DESC,
+        }),
+      ]}
+    >
       <section className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6">
         <h1 className="mb-2 text-[28px] font-bold text-slate-900 sm:text-[32px]">Donaciones</h1>
         <p className="mb-4 text-[15px] text-slate-600 sm:text-base">

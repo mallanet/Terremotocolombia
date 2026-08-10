@@ -102,6 +102,7 @@ function ControlledCard({
 
   return (
     <article
+      id={card.id}
       className={`overflow-hidden rounded-2xl border-2 bg-white shadow-sm transition-all duration-300 ${
         open
           ? card.accentBorder

@@ -72,7 +72,7 @@ export default async function AcopioPage() {
   };
 
   return (
-    <SubPageShell breadcrumb="Centros de acopio">
+    <SubPageShell breadcrumb="Centros de acopio" path="/acopio">
       {centers.length > 0 && (
         <script
           type="application/ld+json"

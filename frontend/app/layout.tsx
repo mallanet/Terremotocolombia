@@ -8,7 +8,12 @@ import OpenPanelProduction from "@/components/layout/OpenPanelProduction";
 import ThemeProvider from "@/components/layout/ThemeProvider";
 import QueryProvider from "@/components/layout/QueryProvider";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { graph, organizationSchema, ORG_ID, WEBSITE_ID } from "@/lib/jsonld";
+import {
+  graph,
+  organizationSchema,
+  websiteSchema,
+  ORG_ID,
+} from "@/lib/jsonld";
 import { SITE_URL, SITE_NAME, SITE_PRODUCT_NAME, SITE_BRAND_NAME } from "@/lib/site";
 import { deploymentConfig } from "@/lib/deployment-config";
 import { ogImageMeta } from "@/lib/og-image";
@@ -130,15 +135,7 @@ export default function RootLayout({
 }>) {
   const jsonLd = graph(
     organizationSchema(),
-    {
-      "@type": "WebSite",
-      "@id": WEBSITE_ID,
-      name: SITE_NAME,
-      url: SITE_URL,
-      inLanguage: deploymentConfig.languageTag,
-      description: SITE_DESC,
-      publisher: { "@id": ORG_ID },
-    },
+    websiteSchema(SITE_DESC),
     {
       "@type": "EmergencyService",
       name: "Plataforma ciudadana de coordinación de rescate",
