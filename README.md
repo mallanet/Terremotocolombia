@@ -25,6 +25,22 @@ Agents and contributors: read [`CLAUDE.md`](CLAUDE.md) first — it covers where
 this actually runs, what deploys automatically, and what must never be done
 without a human.
 
+## This deployment
+
+| | |
+| --- | --- |
+| Live | **https://terremotocolombia.co** |
+| Frontend | Cloudflare Workers (`@opennextjs/cloudflare`) |
+| API | Cloudflare Workers, `api.terremotocolombia.co` |
+| Database | Neon Postgres (external) |
+| Secrets | Doppler — not `.env` files |
+| Frontend deploys | **Automatically, on every push to `main`** touching `frontend/**` |
+| Backend deploys | Manual only, with an explicit confirmation |
+
+There is no staging environment: **`main` is production.** Not currently
+deployed: the admin panel and the BullMQ queue worker. Turnstile is disabled —
+see [`SECURITY.md`](SECURITY.md).
+
 ## Who this is for
 
 - Volunteer tech teams and NGOs responding to a specific disaster who need a

@@ -37,13 +37,18 @@ Estos tres pasos deben haber corrido ya, en este orden, sobre tu propio fork
    Debe devolver vacío.
 2. **`disaster-brand`** — `docs/DESIGN.md` y `frontend/app/globals.css` ya
    tienen tu paleta real, no la de ejemplo.
-3. **`disaster-secrets-bootstrap`** — ya existe un `.env`/`.prod.env`
-   completo, sin `CHANGE_ME` ni valores de ejemplo:
+3. **Secretos** — en este repo **ya están, y no en un fichero**. La fuente de
+   verdad es **Doppler** (proyecto `terremotocolombia-web`, config `prd`):
+
    ```bash
-   grep -in "change_me\|example.org\|example_" .prod.env
+   doppler secrets --only-names --project terremotocolombia-web --config prd
    ```
-   Debe devolver vacío. Si `.prod.env` todavía no existe, corre esa skill
-   ahora — no generes secretos ad-hoc en este paso.
+
+   **No existe `.prod.env` en producción, y su ausencia no significa que falte
+   un paso.** No vuelvas a correr `disaster-secrets-bootstrap` sobre este repo:
+   regenerar `JWT_SECRET` invalida todas las sesiones abiertas, y regenerar
+   `PATIENT_DOCUMENT_HASH_SECRET` o `IP_SALT` desalinea hashes ya escritos en la
+   base real — no se pueden recalcular.
 
 Si alguno de los tres falla, resuélvelo antes de seguir.
 

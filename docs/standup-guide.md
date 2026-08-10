@@ -33,6 +33,8 @@ tu región, y un VPS Ubuntu recién provisto con acceso SSH.
    2 abajo).
 3. **Genera secretos** (~2 min): `disaster-secrets-bootstrap` genera
    contraseñas/claves fuertes y arma tu `.env` de producción.
+   *(En este repo: hecho, y vive en Doppler, no en `.env`. Regenerarlos ahora
+   invalidaría sesiones y desalinearía hashes ya escritos.)*
 4. **Despliega al VPS** (~15 min, incluye propagación DNS): `disaster-deploy-vps`
    provisiona el servidor, levanta Docker Compose + Caddy con TLS y corre
    smoke checks.

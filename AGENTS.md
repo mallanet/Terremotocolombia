@@ -54,6 +54,15 @@ Si cambias la arquitectura real del sistema, no dejes la documentación atrás:
 - Si agregas o cambias un dominio/puerto/servicio, actualiza
   `docker-compose.yml`, `docker-compose.prod.yml` y `Caddyfile.example` a la
   vez que el código que lo necesita.
+- **Y lo que gobierna producción hoy**, que no está en compose:
+  - `frontend/wrangler.jsonc` / `backend/wrangler.jsonc` — bindings, vars,
+    `compatibility_flags`, alias de bundling.
+  - `frontend/open-next.config.ts` — adaptador Next → Workers.
+  - `.github/workflows/deploy-*.yml` — filtros de rutas y smoke checks.
+  - El módulo OpenTofu **externo** (`~/Colombia/infra/cloudflare`) si cambia
+    DNS, WAF, cache o rate limit de la zona.
+
+  Un cambio que solo toca `docker-compose*.yml` **no llega a producción**.
 
 ## Seguridad y privacidad (invariantes duros)
 
@@ -206,6 +215,11 @@ cd backend
 npm run db:generate
 npm run migrate
 ```
+
+> `npm run migrate` aplica sobre la base **local/compose**. En producción no hay
+> gate automático ni las corre CI: son un paso manual contra Neon **directo**
+> (no el `-pooler`), y no se lanzan por iniciativa de un agente. Ver
+> `docs/architecture.md` → "Datos y migraciones".
 
 ## Convenciones de implementación
 

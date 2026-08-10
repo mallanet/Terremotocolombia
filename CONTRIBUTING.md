@@ -65,16 +65,20 @@ despliegue.
    git fetch upstream
    ```
 
-4. Crea una rama desde `upstream/staging` si el proyecto usa una rama de
-   integración separada de `main` (NO desde `main` en ese caso); si el
-   proyecto trabaja directo sobre `main`, crea la rama desde ahí:
+4. Crea tu rama desde `upstream/main`:
 
    ```bash
-   git switch -c fix/descripcion-corta upstream/staging
+   git switch -c fix/descripcion-corta upstream/main
    ```
 
-   > Si el proyecto promueve `staging` → `main`, documenta ese flujo en
-   > `docs/architecture.md` o en un runbook de despliegue.
+   > **No hay rama `staging`.** Este repo tiene `main` y ramas de trabajo, nada
+   > más. `main` **es** producción: al mergear un cambio en `frontend/**` o en
+   > `config/deployment.config.json` se despliega solo a terremotocolombia.co,
+   > sin aprobación intermedia. No existe un entorno donde probarlo antes.
+   >
+   > *(Pendiente de decidir por el mantenedor: si los colaboradores externos
+   > siguen el flujo fork-first descrito aquí o se les da acceso directo a
+   > ramas. Hoy el equipo empuja ramas directamente a `origin`.)*
 
 5. Corre la app. Docker Compose es la vía preferida y levanta el stack completo
    (frontend + admin + backend + Postgres + Valkey) sin instalar dependencias a
@@ -95,7 +99,7 @@ despliegue.
    ```
 
 8. Sube tu rama y abre un PR contra la rama de integración del repo principal
-   (`staging` si existe, si no `main`).
+   (`main` — no hay rama de integración separada).
 
 Si eres maintainer, puedes crear una rama en el repo principal, pero conserva
 la misma disciplina: rama descriptiva, PR pequeño, issue enlazada y
@@ -140,7 +144,7 @@ Manten el PR revisable:
 - Prefiere cambios pequeños a un PR grande con muchas responsabilidades.
 - No mezcles refactors estéticos con fixes funcionales.
 - No subas credenciales, `.env.local`, dumps o datos reales.
-- Rebasea o actualiza tu rama si `staging` cambió mucho antes de mergear.
+- Rebasea o actualiza tu rama si `main` avanzó mucho antes de mergear.
 - Responde comentarios con commits nuevos; evita resolver conversaciones sin
   explicar el cambio.
 
@@ -169,6 +173,17 @@ Las reglas se **enforcan con ESLint** (`backend/eslint-rules/`, corren en
 - **`no-turnstile-in-public-api`**: `src/public-api/*` no usa Turnstile.
 - **Sin I/O largo de terceros inline**: ese trabajo se ENCOLA en BullMQ y el
   handler responde `202 {jobId}` (status-poll en `/api/sync/status`).
+
+> **Dos avisos sobre el estado real, para que no te confundan al probar:**
+>
+> - `requireHuman` **no verifica nada en producción ahora mismo**:
+>   `TURNSTILE_SECRET_KEY` está retirada del Worker, así que la comprobación
+>   pasa siempre. La regla de ESLint sigue siendo obligatoria —el gate debe
+>   estar en el código— pero hoy no te protege en vivo.
+> - El **worker de BullMQ no está desplegado**. Encolar sigue siendo lo
+>   correcto y es lo que debes escribir, pero en producción **nadie consume la
+>   cola**: un `202 {jobId}` no terminará nunca. Tenlo en cuenta antes de
+>   apoyar una funcionalidad nueva sobre un job.
 - Bloque **`@swagger`** sobre el primer handler de los routes a mano (los routers
   de la fábrica CRUD auto-documentan desde su esquema zod).
 

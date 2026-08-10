@@ -26,6 +26,22 @@ Agentes y colaboradores: lee [`CLAUDE.md`](CLAUDE.md) primero — cubre dónde
 corre esto de verdad, qué se despliega solo, y qué no se toca nunca sin un
 humano.
 
+## Este despliegue
+
+| | |
+| --- | --- |
+| En vivo | **https://terremotocolombia.co** |
+| Frontend | Cloudflare Workers (`@opennextjs/cloudflare`) |
+| API | Cloudflare Workers, `api.terremotocolombia.co` |
+| Base de datos | Neon Postgres (externa) |
+| Secretos | Doppler — no ficheros `.env` |
+| Despliegue del frontend | **Automático, en cada push a `main`** que toque `frontend/**` |
+| Despliegue del backend | Solo manual, con confirmación explícita |
+
+No hay entorno de staging: **`main` es producción.** Hoy sin desplegar: el panel
+de administración y el worker de colas BullMQ. Turnstile está desactivado — ver
+[`SECURITY.md`](SECURITY.md).
+
 ## Para quién es
 
 - Equipos técnicos voluntarios y ONGs respondiendo a un desastre específico
