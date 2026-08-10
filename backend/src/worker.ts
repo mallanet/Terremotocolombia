@@ -18,6 +18,13 @@ import { createServer } from "node:http";
 import { httpServerHandler } from "cloudflare:node";
 import { app } from "./server.js";
 import { backfill, isEmpty, syncFromFeed } from "./services/earthquakes.js";
+import { runGeocode } from "./services/geocode-batch.js";
+import {
+  CRON_EARTHQUAKES,
+  CRON_GEOCODE,
+  dispatchCron,
+} from "./services/cron-jobs.js";
+import { registerJobBindings } from "./lib/job-dispatch.js";
 
 const PORT = 8080;
 
@@ -57,8 +64,63 @@ function bridgeEnv(env: WorkerEnv): void {
   }
 }
 
+/**
+ * Sync del catalogo de sismos. Cuerpo INTACTO respecto a cuando era el unico
+ * trabajo del handler: esto corre en produccion sirviendo la respuesta al
+ * terremoto, y el port a multi-cron no es momento de cambiarle nada.
+ */
+async function syncEarthquakes(now: number): Promise<void> {
+  try {
+    // Tabla vacia -> backfill de los ultimos dias; si no, solo el feed
+    // incremental, que es una peticion y unas pocas filas.
+    const r = (await isEmpty()) ? await backfill(now) : await syncFromFeed(now);
+    console.log(
+      `[cron:sismos] origen=${r.source} bajados=${r.fetched} en_region=${r.matched} escritos=${r.upserted}`,
+    );
+  } catch (err) {
+    console.error(
+      "[cron:sismos] fallo:",
+      err instanceof Error ? err.message : String(err),
+    );
+    // Se relanza a proposito, SIN noRetry(): el upsert es idempotente
+    // (clave = id del evento USGS), asi que reintentar es seguro y
+    // preferible a perder una ventana de sismos.
+    throw err;
+  }
+}
+
+/**
+ * Geocodificacion de ubicaciones pendientes.
+ *
+ * Acotada por cantidad y por tiempo con los defaults de runGeocode (20
+ * ubicaciones, ~1 req/s a Nominatim): una invocacion programada tiene
+ * presupuesto limitado, y Nominatim pide cadencia suave. Drena la cola poco a
+ * poco en vez de intentar vaciarla de una vez.
+ *
+ * Tambien se relanza el fallo sin noRetry(): el geocode es idempotente
+ * (geocode_cache por clave normalizada y UPDATE solo donde lat IS NULL).
+ */
+async function geocodePending(): Promise<void> {
+  try {
+    const r = await runGeocode();
+    console.log(
+      `[cron:geocode] ubicaciones=${r.locations} nuevas=${r.geocodedNew} cache=${r.fromCache} fallidas=${r.failed} personas=${r.peopleUpdated}`,
+    );
+  } catch (err) {
+    console.error(
+      "[cron:geocode] fallo:",
+      err instanceof Error ? err.message : String(err),
+    );
+    throw err;
+  }
+}
+
 export default {
   fetch(request: Request, env: WorkerEnv, ctx: Ctx): Promise<Response> {
+    // Idempotente y barato (un Map.set por binding). Va aqui porque `env` solo
+    // existe dentro del handler: leerlo en ambito global lanza "Disallowed
+    // operation called within global scope".
+    registerJobBindings(env);
     return nodeHandler.fetch(request, env, ctx);
   },
 
@@ -66,24 +128,14 @@ export default {
     ctx.waitUntil(
       (async () => {
         bridgeEnv(env);
+        // Los bindings de cola son objetos, asi que bridgeEnv (solo strings) no
+        // los alcanza. Se registran aqui para que el seam de despacho los vea.
+        registerJobBindings(env);
         const now = controller.scheduledTime || Date.now();
-        try {
-          // Tabla vacia -> backfill de los ultimos dias; si no, solo el feed
-          // incremental, que es una peticion y unas pocas filas.
-          const r = (await isEmpty()) ? await backfill(now) : await syncFromFeed(now);
-          console.log(
-            `[cron:sismos] origen=${r.source} bajados=${r.fetched} en_region=${r.matched} escritos=${r.upserted}`,
-          );
-        } catch (err) {
-          console.error(
-            "[cron:sismos] fallo:",
-            err instanceof Error ? err.message : String(err),
-          );
-          // Se relanza a proposito, SIN noRetry(): el upsert es idempotente
-          // (clave = id del evento USGS), asi que reintentar es seguro y
-          // preferible a perder una ventana de sismos.
-          throw err;
-        }
+        await dispatchCron(controller.cron, now, {
+          [CRON_EARTHQUAKES]: syncEarthquakes,
+          [CRON_GEOCODE]: geocodePending,
+        });
       })(),
     );
   },
