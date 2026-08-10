@@ -1,0 +1,16 @@
+{
+  "orgName": "Mallanet.org",
+  "productName": "Terremoto Colombia",
+  "disasterName": "Terremoto Colombia 2026",
+  "disasterType": "earthquake",
+  "regionLabel": "Colombia",
+  "mapCenter": [4.711, -74.0721],
+  "mapZoom": 5,
+  "languageTag": "es",
+  "contactEmail": "info@mallanet.org",
+  "domains": {
+    "web": "terremotocolombia.app",
+    "api": "api.terremotocolombia.app",
+    "admin": "admin.terremotocolombia.app"
+  }
+}
