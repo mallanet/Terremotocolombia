@@ -1,10 +1,9 @@
 import Link from "next/link";
 import {
-  PRIVACY_COMPANY_ADDRESS,
   PRIVACY_COMPANY_ALIASES,
   PRIVACY_COMPANY_NAME,
   PRIVACY_CONTACT_EMAIL,
-  PRIVACY_CONTACT_PHONE,
+  PRIVACY_ORG_URL,
   PRIVACY_EFFECTIVE_DATE,
   privacyMailto,
 } from "@/lib/privacy-policy";
@@ -311,8 +310,6 @@ export default function PrivacyPolicyBody() {
         <p className="pl-2 leading-relaxed">
           <strong>{PRIVACY_COMPANY_NAME}</strong>
           <br />
-          {PRIVACY_COMPANY_ADDRESS}
-          <br />
           Correo:{" "}
           <a
             href={privacyMailto()}
@@ -321,12 +318,14 @@ export default function PrivacyPolicyBody() {
             {PRIVACY_CONTACT_EMAIL}
           </a>
           <br />
-          Teléfono:{" "}
+          Web:{" "}
           <a
-            href={`tel:${PRIVACY_CONTACT_PHONE}`}
+            href={PRIVACY_ORG_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="font-semibold text-sky-700 hover:underline"
           >
-            {PRIVACY_CONTACT_PHONE}
+            mallanet.org
           </a>
         </p>
       </Section>
