@@ -31,7 +31,14 @@ const OFERTAS: { category: string; items: Oferta[] }[] = [
         description:
           "Red nacional de bancos de alimentos (ESAL NIT 900326456-1). Canal institucional para seguridad alimentaria en emergencias.",
         action: "Donar",
-        url: "https://abaco.org.co/",
+        url: "https://abaco.org.co/donar/",
+      },
+      {
+        name: "Cáritas Colombiana",
+        description:
+          "Canal oficial de donaciones de Cáritas Colombiana. Confirma en su sitio el destino y la campaña activa antes de aportar.",
+        action: "Donar",
+        url: "https://donar.caritascolombiana.org/",
       },
       {
         name: "Banco de Alimentos de Bogotá",
@@ -55,9 +62,9 @@ const OFERTAS: { category: string; items: Oferta[] }[] = [
       {
         name: "ABACO — donación monetaria",
         description:
-          "Cuentas institucionales publicadas por ABACO para emergencia en Colombia. Canal verificado; no es campaña exclusiva del sismo.",
+          "Página oficial de donación de ABACO. Canal verificado en abaco.org.co; confirma la campaña activa en el sitio.",
         action: "Enviar dinero",
-        url: "https://abaco.org.co/emergenciainvernalcolombia",
+        url: "https://abaco.org.co/donar/",
       },
     ],
   },

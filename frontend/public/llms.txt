@@ -30,4 +30,4 @@
 - Sitemap: https://terremotocolombia.co/sitemap.xml
 - Robots: https://terremotocolombia.co/robots.txt
 - Org site: https://mallanet.org
-- Discord: https://discord.gg/mallanet
+- Discord: https://discord.gg/GJCB6xwxj

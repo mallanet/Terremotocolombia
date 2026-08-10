@@ -1,4 +1,5 @@
-# Imagen de producción del frontend Next.js (UI). Contexto de build = frontend/.
+# Imagen de producción del frontend Next.js (UI).
+# Contexto de build = raíz del repo (necesita config/deployment.config.json).
 # Multi-stage: deps -> build (standalone) -> runtime slim no-root.
 # El worker y la API ya NO viven aquí (están en backend/).
 FROM node:24-slim AS base
@@ -6,13 +7,15 @@ WORKDIR /app
 
 # ---- deps: instala con el lockfile (mejor cache de capas) ----
 FROM base AS deps
-COPY package.json package-lock.json ./
+COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
 # ---- builder: compila el server standalone ----
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY frontend/ ./
+# sync-deployment-config.mjs resuelve ../../config desde /app/scripts → /config
+COPY config/deployment.config.json /config/deployment.config.json
 # Build id determinista (anti version-skew, ver next.config.ts). Sin setear -> "dev".
 ARG APP_BUILD_SHA
 ENV APP_BUILD_SHA=$APP_BUILD_SHA
@@ -52,7 +55,8 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
-COPY --from=builder --chown=node:node /app/.next/standalone ./
+# Con WORKDIR=/app, Next emite standalone bajo `.next/standalone/app/`.
+COPY --from=builder --chown=node:node /app/.next/standalone/app ./
 COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 USER node
