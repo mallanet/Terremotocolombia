@@ -7,7 +7,7 @@ import { HandCoins, MapPinned } from "lucide-react";
 import TranslateWidget from "@/components/ui/TranslateWidget";
 import { SiteBrand } from "./HeroSection";
 import { toggleTheme } from "./ThemeProvider";
-import { useMissingStats } from "@/hooks/useMissingStats";
+import { useMissingStats } from "@/hooks/missing";
 import { SITE_PRODUCT_NAME } from "@/lib/site";
 import {
   MOBILE_BAR_LINKS,
@@ -74,7 +74,7 @@ function useIosScrollLock(active: boolean) {
 }
 
 function usePeopleTotals() {
-  const stats = useMissingStats();
+  const { data: stats } = useMissingStats();
   return { missing: stats?.active ?? null, found: stats?.found ?? null };
 }
 

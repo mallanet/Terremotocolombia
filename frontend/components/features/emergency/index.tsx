@@ -20,7 +20,7 @@ import {
   type ReportsResponse,
 } from "@/hooks/emergency";
 import { useLowBandwidthMode } from "@/hooks/useLowBandwidthMode";
-import { useMissingStats } from "@/hooks/useMissingStats";
+import { useMissingStats } from "@/hooks/missing";
 import type { MapBounds } from "@/components/features/map";
 import type { GeocodeResult } from "@/components/features/emergency/AddressSearch";
 import {
@@ -150,9 +150,10 @@ export default function EmergencyApp() {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
     return { lat, lng, ts: Date.now() };
   });
-  // Store compartido: un solo poll de /api/missing/stats para toda la página
-  // (la navbar también lo usa).
-  const missingStats = useMissingStats();
+  // Query compartida (qk.missing.stats): un solo poll de /api/missing/stats para
+  // toda la página — la navbar y el carousel usan la MISMA clave, así que
+  // TanStack dedup a un único request y una única entrada de caché.
+  const missingStats = useMissingStats().data ?? null;
 
   const isAdmin = Boolean(adminToken);
 
