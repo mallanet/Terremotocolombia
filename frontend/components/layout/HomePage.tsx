@@ -6,7 +6,6 @@ import HeroSection from "@/components/layout/HeroSection";
 import HelpSection from "@/components/layout/HelpSection";
 import TutorialSteps from "@/components/layout/TutorialSteps";
 import { LazySection } from "@/components/ui/LazySection";
-import ResponseGridHub from "@/components/features/responsegrid";
 
 const MissingPersonsCarousel = dynamic(
   () => import("@/components/features/missing-carousel"),
@@ -34,15 +33,14 @@ export default function HomePage() {
       <HeroDesktopNav />
       <main id="main" className="e-shell-main">
         <HeroSection />
-        <ResponseGridHub />
+
+        <EmergencyApp />
 
         <MissingPersonsCarousel />
 
         <TutorialSteps />
 
         <HelpSection />
-
-        <EmergencyApp />
 
         <LazySection rootMargin="400px" minHeight={240}>
           <EarthquakesPanel />
