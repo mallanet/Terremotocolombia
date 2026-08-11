@@ -9,7 +9,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // Se decide por el HOST de la request (no por el pod): ambos tiers son el mismo
 // binario, así que la única señal fiable de "esto es la API" es el hostname.
 // Cubre api.<dominio> (config/deployment.config.json → domains.api) y
-// cualquier api.* de staging.
+// api-staging.<dominio> (el host API de staging).
 //
 // Excepciones que SÍ pasan aunque no sean /api/*:
 //   - /api/*        : la superficie real (incluye /api/readyz del health-check
@@ -21,7 +21,10 @@ import { NextResponse, type NextRequest } from "next/server";
 function isApiHost(host: string | null): boolean {
   if (!host) return false;
   // host puede venir con puerto (api.localhost:3000) → basta el prefijo.
-  return host.startsWith("api.");
+  // `api-staging.<dominio>` es hermano de `api.`, no hijo, así que el primer
+  // prefijo no lo cubre. Espejo de `isApiRequest` en public/sw.js — un solo
+  // criterio de "esto es API" en ambos entornos.
+  return host.startsWith("api.") || host.startsWith("api-staging.");
 }
 
 const ALLOWED_NON_API = ["/_next/", "/favicon.ico", "/robots.txt"];

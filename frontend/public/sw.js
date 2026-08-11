@@ -15,11 +15,12 @@
  *    cacheado por GET. No interceptamos POST/DELETE.
  *
  * Hosts cross-origin de la API:
- *  El backend vive en api.<dominio> (subdominio dedicado, ver middleware.ts y
- *  NEXT_PUBLIC_API_URL). El SW intercepta las peticiones GET al host API igual
- *  que a las same-origin `/api/...` (necesario para mantener network-first con
- *  fallback offline). Las respuestas vienen con CORS habilitado, así que la
- *  Cache API las puede guardar sin restricciones de "opaque response".
+ *  El backend vive en api.<dominio> (api-staging.<dominio> en staging; ver
+ *  middleware.ts y NEXT_PUBLIC_API_URL). El SW intercepta las peticiones GET
+ *  al host API igual que a las same-origin `/api/...` (necesario para mantener
+ *  network-first con fallback offline). Las respuestas vienen con CORS
+ *  habilitado, así que la Cache API las puede guardar sin restricciones de
+ *  "opaque response".
  */
 
 const CACHE_VERSION = "v7";
@@ -101,14 +102,18 @@ function isPhotoApi(url) {
 
 // Reconoce las peticiones que apuntan a la superficie `/api/...`, sea en el
 // mismo origen (dev/legado) o en el subdominio API cross-origin
-// (`api.<dominio>`, p.ej. `api.example.org`). Espejo de la heurística
-// de `frontend/middleware.ts` para mantener un solo criterio de "esto es API".
+// (`api.<dominio>` en producción, `api-staging.<dominio>` en staging). Espejo
+// de la heurística de `frontend/middleware.ts` para mantener un solo criterio
+// de "esto es API".
 function isApiRequest(url) {
   if (!url.pathname.startsWith("/api/")) return false;
   const sameOrigin = url.origin === self.location.origin;
   if (sameOrigin) return true;
-  // Cross-origin: solo si el host empieza con `api.` (puerto incluido).
-  return url.host.startsWith("api.");
+  // Cross-origin: solo si el host empieza con `api.` o `api-staging.` (puerto
+  // incluido). `api-staging.` es hermano de `api.`, no hijo: sin el segundo
+  // prefijo, staging nunca ejercitaba estas rutas de intercepción del SW y no
+  // probaba lo que producción sí ejecuta.
+  return url.host.startsWith("api.") || url.host.startsWith("api-staging.");
 }
 
 async function cacheFirst(request, cacheName) {
