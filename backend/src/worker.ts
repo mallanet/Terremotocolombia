@@ -20,6 +20,7 @@ import { app } from "./server.js";
 import { backfill, isEmpty, syncFromFeed } from "./services/earthquakes.js";
 import { runGeocode } from "./services/geocode-batch.js";
 import { reconcilePersonRecords } from "./services/person-records.js";
+import { drainFailedSubmissionsRetention } from "./services/failed-submissions.js";
 import {
   CRON_EARTHQUAKES,
   CRON_GEOCODE,
@@ -153,6 +154,24 @@ async function geocodePending(): Promise<void> {
  * dejar backlog sin estampar.
  */
 async function reconcilePeople(): Promise<void> {
+  // Retención de failed_submissions (Ley 1581): mismo tick, fallo NO fatal —
+  // un problema del drenaje no debe impedir estampar PRNs, y viceversa el
+  // reintento de Cloudflare por un fallo del reconcile re-ejecuta un drenaje
+  // idempotente sin daño.
+  try {
+    const d = await drainFailedSubmissionsRetention();
+    if (d.replayedPurged > 0 || d.unreplayedPurged > 0 || d.pendingBacklog > 0) {
+      console.log(
+        `[cron:person-reconcile] failed_submissions: purgadas_reinyectadas=${d.replayedPurged} ` +
+          `purgadas_pendientes=${d.unreplayedPurged} backlog=${d.pendingBacklog}`,
+      );
+    }
+  } catch (err) {
+    console.error(
+      "[cron:person-reconcile] drenaje de failed_submissions falló:",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
   try {
     const r = await reconcilePersonRecords();
     console.log(

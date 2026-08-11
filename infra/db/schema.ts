@@ -1367,8 +1367,10 @@ export const recordStatusSignals = pgTable(
 // exactamente el dato que no queremos perder — la persona lo envió para que lo
 // guardáramos. Vive en la MISMA base y bajo las mismas protecciones que la tabla
 // destino: no se relocaliza PII a KV ni a una cola externa. `turnstileToken` se
-// quita antes de persistir. PENDIENTE: el flujo de supresión (Ley 1581,
-// routes/data-deletion.ts) tiene que mirar también aquí.
+// quita antes de persistir. La supresión (Ley 1581) SÍ mira aquí: resolver una
+// solicitud purga los envíos fallidos por email, y el cron de reconciliación
+// aplica retención (7d reinyectadas / 30d pendientes) — ver
+// backend/src/services/failed-submissions.ts.
 export const failedSubmissions = pgTable(
   "failed_submissions",
   {
