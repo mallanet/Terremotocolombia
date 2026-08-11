@@ -1,10 +1,14 @@
 name: CI
 
+# CI runs on both long-lived branches. `staging` matters as much as `main`
+# here: the documented flow is work-branch -> PR into `staging` -> PR
+# `staging` -> `main`, so a trigger scoped to `main` alone meant the PR the
+# team actually opens never ran CI at all.
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
   pull_request:
-    branches: [main]
+    branches: [main, staging]
 
 # Least-privilege default: every job gets read-only repo access and nothing
 # else. No job in this workflow needs to write anything back to the repo,
@@ -27,7 +31,7 @@ jobs:
   # time.
   # ---------------------------------------------------------------------
   build-backend:
-    name: backend (typecheck + build)
+    name: backend (lint + typecheck + build)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -48,6 +52,10 @@ jobs:
         working-directory: backend
         run: npm ci
 
+      - name: Lint
+        working-directory: backend
+        run: npm run lint
+
       - name: Typecheck
         working-directory: backend
         run: npm run typecheck
@@ -65,7 +73,7 @@ jobs:
   # build succeeds against these fake values with no backend running).
   # ---------------------------------------------------------------------
   build-frontend:
-    name: frontend (typecheck + build)
+    name: frontend (lint + typecheck + test + build)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -102,9 +110,17 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
       - name: Typecheck
         working-directory: frontend
         run: npm run typecheck
+
+      - name: Test
+        working-directory: frontend
+        run: npm test
 
       - name: Build
         working-directory: frontend
@@ -215,7 +231,7 @@ jobs:
   # safe fallback), so nothing extra is injected here.
   # ---------------------------------------------------------------------
   build-admin:
-    name: admin (typecheck + build)
+    name: admin (lint + typecheck + test + build)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -236,13 +252,100 @@ jobs:
         working-directory: admin
         run: npm ci
 
+      - name: Lint
+        working-directory: admin
+        run: npm run lint
+
       - name: Typecheck
         working-directory: admin
         run: npm run typecheck
 
+      - name: Test
+        working-directory: admin
+        run: npm test
+
       - name: Build
         working-directory: admin
         run: npm run build
+
+  # ---------------------------------------------------------------------
+  # test-backend: the backend suite is INTEGRATION tests, not unit tests —
+  # backend/vitest.config.ts sets fileParallelism:false precisely because
+  # every file shares one real Postgres and one real Valkey. Run without
+  # them and 38 tests fail on connection errors, which is why this needs a
+  # job of its own with service containers rather than a step in
+  # build-backend.
+  #
+  # Image versions and credentials mirror docker-compose.yml so local and
+  # CI agree; test/helpers.ts already defaults to exactly these URLs.
+  # ---------------------------------------------------------------------
+  test-backend:
+    name: backend (integration tests)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      db:
+        image: postgres:16
+        env:
+          POSTGRES_USER: mapa_app
+          POSTGRES_PASSWORD: localdev
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mapa_app -d app"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      NODE_ENV: test
+      DATABASE_URL: "postgres://mapa_app:localdev@localhost:5432/app"
+      VALKEY_URL: "redis://localhost:6379"
+      # Synthetic, CI-only. Never real secrets — these exist so config/env.ts's
+      # fail-fast checks pass against a throwaway database.
+      JWT_SECRET: "ci-jwt-secret-not-for-prod-0123456789"
+      PATIENT_DOCUMENT_HASH_SECRET: "ci-patient-document-hash-secret-0123456789"
+      IP_SALT: "ci-ip-salt-not-for-prod-0123456789"
+      TRUSTED_IP_HEADER: "cf-connecting-ip"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "${{ env.NODE_VERSION }}"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      # MIGRATIONS_DIR defaults to a path relative to the process CWD, and
+      # this runs from backend/ — without the override it would look for
+      # backend/infra/db/migrations, which does not exist.
+      - name: Apply migrations and seed auth
+        working-directory: backend
+        env:
+          MIGRATIONS_DIR: "../infra/db/migrations"
+        run: npm run migrate
+
+      - name: Test
+        working-directory: backend
+        run: npm test
 
   # ---------------------------------------------------------------------
   # content-audit: blocks on any known real-deployment literal, banned
