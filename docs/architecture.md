@@ -242,9 +242,9 @@ Turnstile + rate-limit).
 > | --- | --- |
 > | `GET /api/earthquakes` | **sync vivo** por Cron Trigger (`*/5`) |
 > | Geocodificación pendiente | **viva** por Cron Trigger (`2-59/5`) |
-> | `POST /api/needs` (publicación) | Cloudflare Queue + consumidor `queue` en `src/worker.ts`; DLQ persistido en `audit_log` (`queue.dead_letter`). Verificación staging → cutover G4 |
-> | Sync de fuentes (personas) | pendiente (U5) |
-> | Importación de pacientes | **inerte a propósito** — transacciones interactivas fallan en Workers; plan propio |
+> | `POST /api/needs` (publicación) | **viva**: Cloudflare Queue + consumidor `queue` en `src/worker.ts`; DLQ persistido en `audit_log` (`queue.dead_letter`) |
+> | Sync de fuentes (personas) | pendiente (U5; sin fuentes `ENABLE_*` habilitadas no hay nada que sincronizar) |
+> | Importación de pacientes | **viva**: cola `terremotocolombia-imports` + consumidor en el mismo Worker. Las transacciones interactivas se reescribieron como máquina de estados idempotente (claim condicional por fila + id de paciente determinista → reanudable sin duplicar); archivos CSV/XLSX se materializan ANTES de encolar (límite 128 KB/mensaje). Un lote agotado queda `failed` y su carta muerta va a `audit_log` |
 > | Federación de hub | no corre (flag apagado) |
 >
 > El rate-limit distribuido también cae a su modo degradado (en memoria, por

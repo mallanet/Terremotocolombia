@@ -81,11 +81,12 @@ vez de levantar contenedores + Valkey con costo recurrente. Estado por unidad:
 | U1 seam de despacho (`lib/job-dispatch.ts`) | binding de Queues gana; BullMQ con `VALKEY_URL`; sin ambos, error claro | **en producción** |
 | U4 geocode por Cron Trigger | `2-59/5 * * * *` | **en producción** |
 | — sismos por Cron Trigger | `*/5 * * * *` (pre-plan) | **en producción** |
-| U2 publicación de necesidades por Queue | colas `terremotocolombia-needs[-staging]`, consumidor `queue` en `worker.ts` | código listo, verificación en staging (G2) |
-| U3 visibilidad de cartas muertas | DLQ → `audit_log` (`queue.dead_letter`), visible en Auditoría del panel | código listo, verificación en staging (G2) |
-| U5 sync de fuentes por Cron | + semántica de `/api/sync/status` sin BullMQ | pendiente |
-| U6 retirar Valkey del bundle de Workers | + documentar rate-limit permanente | pendiente |
-| U7 `scripts/verify-jobs.sh` | verificación por frescura derivada | pendiente |
+| U2 publicación de necesidades por Queue | colas `terremotocolombia-needs[-staging]`, consumidor `queue` en `worker.ts` | **en producción** (G4: fallo forzado → DLQ → audit_log, verificado en ambos entornos) |
+| U3 visibilidad de cartas muertas | DLQ → `audit_log` (`queue.dead_letter`), visible en Auditoría del panel | **en producción** |
+| — importación de pacientes por Queue | fuera del plan original, pedida por el mantenedor: colas `terremotocolombia-imports[-staging]`; transacciones interactivas reescritas como máquina de estados idempotente/reanudable (apply con claim + id determinista); roles.ts también reescrito (create/edit de roles estaba roto en Workers) | **hecha** — suite completa verde (375 tests) + E2E en staging |
+| U5 sync de fuentes por Cron | + semántica de `/api/sync/status` sin BullMQ | pendiente (sin fuentes externas habilitadas hoy: `ENABLE_*` en false — no hay nada que sincronizar hasta que se habilite una) |
+| U6 retirar Valkey del bundle de Workers | + documentar rate-limit permanente | parcial: rate-limit documentado; `lib/queues.ts` (BullMQ) sigue en el bundle, INERTE sin `VALKEY_URL` — sacarlo del todo toca los routers de sync (U5) |
+| U7 `scripts/verify-jobs.sh` | verificación por frescura derivada | **hecho** |
 
 **Cutover a producción (G4) = gate humano**: deploy manual del backend con
 confirmación. Igual que siempre.
