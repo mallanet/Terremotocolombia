@@ -32,6 +32,7 @@ import { apiKeysRouter } from "@/public-api/routers/api-keys.router";
 import { hubCredentialsRouter } from "@/public-api/routers/hub-credentials.router";
 import { hospitalSuppliesRouter } from "@/public-api/routers/hospital-supplies.router";
 import { deletionRequestsRouter } from "@/public-api/routers/deletion-requests.router";
+import { partnerSyncRouter } from "@/public-api/routers/partner-sync.router";
 
 /**
  * Registro path → CONFIG del recurso. Fuente de verdad ÚNICA: de aquí salen
@@ -70,6 +71,9 @@ export function mountPublicApi(app: Express): void {
   app.use("/api/public/hospital-supplies", hospitalSuppliesRouter);
   // Supresión de datos (Ley 1581): gestión de solicitudes, deletion:read/edit.
   app.use("/api/public/deletion-requests", deletionRequestsRouter);
+  // Ingesta síncrona de un socio externo (missing:create, sin cola — ver el
+  // comment-block del router para por qué no usa worker/sync ni worker/hub).
+  app.use("/api/public/partner-sync", partnerSyncRouter);
   // RBAC con verbos irregulares (no CRUD): routers a mano. Cada ruta lleva
   // rateLimit + requireCapability + writeAudit (gates que exige el ESLint).
   app.use("/api/public/users", usersRouter); // user:read/edit/delete (invite→auth)

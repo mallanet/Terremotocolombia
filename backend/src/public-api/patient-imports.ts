@@ -1,4 +1,5 @@
 import { json, Router } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { z } from "zod";
 import { writeAudit } from "@/auth/audit";
 import {
@@ -6,6 +7,7 @@ import {
 	notFound,
 	notImplemented,
 	serviceUnavailable,
+	unsupportedMediaType,
 } from "@/lib/errors";
 import { enqueuePatientImport } from "@/lib/queues";
 import { asyncHandler, rateLimit, validate } from "@/middleware";
@@ -13,9 +15,9 @@ import { requireCapability } from "@/middleware/auth";
 import { getHospital } from "@/services/hospitals";
 import { getMinimaxOcrConfig } from "@/services/ocr/minimax-config";
 import {
-	CONTENT_TYPE,
 	FILE_CONTENT_TYPES,
 	isOcrPendingContentType,
+	isSupportedImportContentType,
 	MAX_IMPORT_ROWS,
 } from "@/services/patient-import-parse";
 import * as service from "@/services/patient-imports";
@@ -44,14 +46,37 @@ const rowSchema = z
 
 const MAX_FILE_BASE64_LEN = 4_000_000;
 
-const SUPPORTED_CONTENT_TYPES: ReadonlySet<string> = new Set([
-	CONTENT_TYPE.JSON,
-	CONTENT_TYPE.CSV,
-	CONTENT_TYPE.XLSX,
-]);
-
 function isImageContentType(contentType: string | undefined): boolean {
 	return (contentType?.trim().toLowerCase() ?? "").startsWith("image/");
+}
+
+const UNSUPPORTED_CONTENT_TYPE_MESSAGE =
+	"Formato no soportado. Envía JSON, CSV, XLSX o imágenes (JPG/PNG); si tienes un PDF, " +
+	"fotografía o exporta sus páginas como imagen.";
+
+/**
+ * Rechaza content-types sin ruta de procesamiento (p.ej. application/pdf)
+ * ANTES del zod validator, con 415 en vez de dejarlos "pasar" la validación
+ * de forma y morir más abajo con 501 (la contradicción que tenía PDF: el
+ * validator lo aceptaba como OCR-pendiente, pero el router jamás implementó
+ * rasterizado de PDF). `isSupportedImportContentType` es la única fuente de
+ * verdad de qué se acepta; este middleware es su único punto de aplicación.
+ */
+function rejectUnsupportedContentType(
+	req: Request,
+	_res: Response,
+	next: NextFunction,
+): void {
+	const contentType = (req.body as { contentType?: unknown } | undefined)
+		?.contentType;
+	if (
+		typeof contentType === "string" &&
+		!isSupportedImportContentType(contentType)
+	) {
+		next(unsupportedMediaType(UNSUPPORTED_CONTENT_TYPE_MESSAGE));
+		return;
+	}
+	next();
 }
 
 const createSchema = z
@@ -66,21 +91,10 @@ const createSchema = z
 		// nombres que no matchean el catálogo — queda válido en un paso.
 		defaultHospitalId: z.string().trim().min(1).max(120).optional(),
 
-		contentType: z
-			.string()
-			.trim()
-			.max(120)
-			.optional()
-			.refine(
-				(v) =>
-					v === undefined ||
-					SUPPORTED_CONTENT_TYPES.has(v) ||
-					isOcrPendingContentType(v),
-				{
-					message:
-						'contentType admitido: "application/json", "text/csv" o XLSX.',
-				},
-			),
+		// La aceptación de contentType (JSON/CSV/XLSX/image) se aplica ANTES de
+		// este validator, en `rejectUnsupportedContentType` (415). Aquí solo se
+		// acota forma/longitud para que zod no filtre basura arbitraria.
+		contentType: z.string().trim().max(120).optional(),
 
 		rows: z
 			.array(rowSchema)
@@ -185,6 +199,7 @@ const rowsQuery = z.object({
  *     responses:
  *       202: { description: Lote encolado }
  *       400: { description: Payload inválido }
+ *       415: { description: Content-type no soportado (p.ej. application/pdf) }
  *       501: { description: OCR no habilitado }
  */
 patientImportsRouter.post(
@@ -192,6 +207,7 @@ patientImportsRouter.post(
 	rateLimit({ scope: "public:patient-import:create", limit: 30 }),
 	requireCapability("patient:import"),
 	jsonLargeBatch,
+	rejectUnsupportedContentType,
 	validate({ body: createSchema }),
 	asyncHandler(async (req, res) => {
 		const parsedHeaders = idempotencyKeyHeader.safeParse(req.headers);
@@ -203,12 +219,14 @@ patientImportsRouter.post(
 			parsed.contentType !== undefined &&
 			isOcrPendingContentType(parsed.contentType)
 		) {
+			// isOcrPendingContentType ya solo reconoce image/*: `rejectUnsupportedContentType`
+			// rechazó cualquier otro content-type (PDF incluido) más arriba con 415, así
+			// que llegar aquí implica isImage === true. No hay rama "PDF sin OCR" que cubrir.
 			const ocrConfig = getMinimaxOcrConfig();
-			const isImage = isImageContentType(parsed.contentType);
-			if (!ocrConfig || !isImage) {
+			if (!ocrConfig) {
 				throw notImplemented(
-					"Importación por OCR/ICR (imagen o PDF) no está habilitada en este servidor. " +
-						"El reconocimiento de imágenes/PDF y de texto manuscrito requiere revisión humana. " +
+					"Importación por OCR/ICR (imagen) no está habilitada en este servidor. " +
+						"El reconocimiento de imágenes y de texto manuscrito requiere revisión humana. " +
 						"Por ahora envía datos tabulares: JSON (rows) o un archivo CSV/XLSX (fileBase64).",
 				);
 			}

@@ -22,6 +22,20 @@
       "when": 1786465755019,
       "tag": "0002_premium_loki",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786469031678,
+      "tag": "0003_special_piledriver",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786469335684,
+      "tag": "0004_stiff_toro",
+      "breakpoints": true
     }
   ]
 }
