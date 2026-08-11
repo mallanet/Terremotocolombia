@@ -10,16 +10,20 @@ ya está definida, el standup ya ocurrió, y **lo que empujes a `main` sale a
 producción**. Si buscas las convenciones de código (endpoints, DDD de
 integraciones, Drizzle, reglas ESLint), lee **`AGENTS.md`**.
 
-## Lo primero: empujar a `main` DESPLIEGA
+## Lo primero: empujar a `main` DESPLIEGA (frontend y admin; backend ya no)
 
-Las **tres piezas** se despliegan solas en push a `main`, cada una con su
+**Frontend y admin** se despliegan solos en push a `main`, cada uno con su
 filtro de rutas: `deploy-frontend.yml` (`frontend/**` +
-`config/deployment.config.json`), `deploy-admin.yml` (`admin/**`) y
-`deploy-backend.yml` (`backend/**`, `infra/db/**`,
-`config/deployment.config.json`). No hay paso de aprobación: `main` **es**
-producción. Un commit es un despliegue a un sitio que usa gente buscando a
-familiares. (Backend y admin eran manuales con confirmación hasta el
-2026-08-11; el mantenedor quitó ambas puertas.)
+`config/deployment.config.json`) y `deploy-admin.yml` (`admin/**`). No hay
+paso de aprobación para esos dos: un commit es un despliegue a un sitio que
+usa gente buscando a familiares.
+
+**El backend de producción es MANUAL** (`deploy-backend.yml`, solo
+`workflow_dispatch`) desde la tarde del 2026-08-11, decisión del mantenedor
+tras el incidente de 6h de 503 por deriva de esquema: mergear a main deja el
+código listo, pero el Worker de la API solo se despliega cuando un humano
+lanza el workflow (que además corre un gate de deriva de esquema que falla
+cerrado). Staging sí sigue desplegando solo (`deploy-staging.yml`).
 
 **Nunca por iniciativa propia** (requieren un humano):
 
@@ -44,7 +48,7 @@ familiares. (Backend y admin eran manuales con confirmación hasta el
 | Base de datos | rama Neon `production` | rama Neon `staging` |
 | Secretos | Doppler config `prd` | Doppler config `stg` |
 | Despliegue frontend | automático al pushear | automático al pushear |
-| Despliegue backend | automático al pushear (`deploy-backend.yml`, filtro de rutas) | automático |
+| Despliegue backend | **manual** (`deploy-backend.yml`, solo dispatch + gate de deriva) | automático |
 | Despliegue admin | automático al pushear (`deploy-admin.yml`, filtro `admin/**`) | automático |
 
 Ambos entornos comparten `wrangler.jsonc` (bloque `env.staging`) a propósito: si
@@ -225,7 +229,7 @@ admin/wrangler.jsonc             Config del Worker del panel admin (sin secretos
 admin/open-next.config.ts        Adaptador Next -> Workers del panel
 
 .github/workflows/deploy-frontend.yml   Automático en push a main (con filtro de rutas)
-.github/workflows/deploy-backend.yml    Automático en push a main (backend/infra-db/config)
+.github/workflows/deploy-backend.yml    MANUAL (dispatch + gate de deriva de esquema)
 .github/workflows/deploy-admin.yml      Automático en push a main (filtro admin/**)
 .github/workflows/ci.yml                typecheck + build + content audit
 
