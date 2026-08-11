@@ -277,7 +277,7 @@ export async function applyImport(
 		const applied = await applyOneRow(row.id);
 		if (applied?.prn) sweepPrns.push(applied.prn);
 	}
-	if (sweepPrns.length > 0) enqueueMatcherSweep([...new Set(sweepPrns)]);
+	if (sweepPrns.length > 0) await enqueueMatcherSweep([...new Set(sweepPrns)]);
 
 	const now = Date.now();
 	const appliedCount = (await db

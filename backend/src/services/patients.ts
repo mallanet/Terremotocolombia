@@ -312,7 +312,7 @@ export async function createPatient(input: CreatePatientInput): Promise<PatientD
   // jamás lo barre, así que un paciente cuya cédula coincide con un reporte
   // existente no genera propuesta hasta el próximo cambio de document_hash.
   const prn = await ensurePrn("hospital_patient", id);
-  if (prn) enqueueMatcherSweep([prn]);
+  if (prn) await enqueueMatcherSweep([prn]);
 
   return {
     id,

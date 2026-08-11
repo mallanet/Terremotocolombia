@@ -399,7 +399,7 @@ export async function addMissing(input: CreateInput): Promise<MissingDTO> {
   // jamás lo barre, así que un match contra un reporte existente no genera
   // propuesta hasta el próximo cambio de document_hash.
   const prn = await ensurePrn("missing_report", id);
-  if (prn) enqueueMatcherSweep([prn]);
+  if (prn) await enqueueMatcherSweep([prn]);
 
   return {
     id,
@@ -801,7 +801,7 @@ export async function updateMissing(
   // jamás tumba una actualización ya confirmada en la fila.
   if (documentChanged) {
     const prn = await ensurePrn("missing_report", id);
-    if (prn) enqueueMatcherSweep([prn]);
+    if (prn) await enqueueMatcherSweep([prn]);
   }
 
   return rowToPersonWithDocument(rows[0]!);
@@ -1169,7 +1169,7 @@ export async function upsertExternalMissingBatch(
     // recoge reconcilePersonRecords en su próxima corrida.
     const prnById = await ensurePrns("missing_report", upsertedIds);
     const prns = [...new Set(prnById.values())];
-    if (prns.length > 0) enqueueMatcherSweep(prns);
+    if (prns.length > 0) await enqueueMatcherSweep(prns);
 
     // R25/R26 — señal de status DESPUÉS del batch de PRNs, usando el mapa que
     // devolvió: sin PRN para esa fila (caso raro, ensurePrns falló) la
