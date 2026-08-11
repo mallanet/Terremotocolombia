@@ -145,7 +145,11 @@ export const MODELS = [
       { key: "id", label: "ID" },
       { key: "name", label: "Nombre" },
       { key: "hospitalId", label: "Hospital" },
+      { key: "age", label: "Edad" },
       { key: "status", label: "Estado" },
+      { key: "condition", label: "Condición" },
+      // Presencia de cédula/documento (solo sí/—; el valor nunca se expone).
+      { key: "hasDocument", label: "Doc." },
     ],
     createFields: [
       {
@@ -162,14 +166,27 @@ export const MODELS = [
       { key: "status", label: "Estado" },
       { key: "notes", label: "Notas" },
       { key: "contact", label: "Contacto" },
+      { key: "documentId", label: "Cédula / Documento" },
     ],
+    // Todos los campos que se iteran al ganar confianza en el dato: la carga
+    // inicial puede venir incompleta y se completa aquí (incl. cédula y
+    // traslado de hospital). El documento no se prefill-ea (solo existe su
+    // huella); dejarlo vacío = no tocarlo.
     editFields: [
       { key: "name", label: "Nombre" },
+      {
+        key: "hospitalId",
+        label: "Hospital",
+        type: "select-model",
+        optionsModel: "hospitals",
+        optionLabelKey: "name",
+      },
       { key: "age", label: "Edad", type: "number" },
       { key: "condition", label: "Condición" },
       { key: "status", label: "Estado" },
       { key: "notes", label: "Notas" },
       { key: "contact", label: "Contacto" },
+      { key: "documentId", label: "Cédula / Documento (vacío = sin cambio)" },
     ],
     canDelete: true,
   },

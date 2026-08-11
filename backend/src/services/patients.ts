@@ -57,11 +57,17 @@ export interface PatientDTO {
   status: PatientStatus;
   notes: string;
   contact: string;
+  /**
+   * true si el registro tiene documento/cédula (solo se guarda su HMAC, nunca
+   * el crudo). Presente SOLO en el CRUD admin (patientSelect); la búsqueda
+   * pública lo excluye a propósito.
+   */
+  hasDocument?: boolean;
   admittedAt: number;
   updatedAt: number;
 }
 
-export type PublicPatientDTO = Omit<PatientDTO, "notes">;
+export type PublicPatientDTO = Omit<PatientDTO, "notes" | "hasDocument">;
 
 export interface PatientSearchResult {
   patient: PublicPatientDTO;
@@ -84,6 +90,8 @@ interface PatientWithHospitalRow {
   status: string;
   notes: string | null;
   contact: string | null;
+  /** Solo presente en el camino CRUD (patientSelect); la búsqueda no lo trae. */
+  hasDocument?: boolean;
   admittedAt: number;
   updatedAt: number;
   hospitalName: string;
@@ -106,13 +114,14 @@ function rowToPatientDTO(r: PatientWithHospitalRow): PatientDTO {
       : "hospitalized",
     notes: r.notes ?? "",
     contact: r.contact ?? "",
+    ...(r.hasDocument !== undefined ? { hasDocument: Boolean(r.hasDocument) } : {}),
     admittedAt: Number(r.admittedAt),
     updatedAt: Number(r.updatedAt),
   };
 }
 
 function rowToSearchResult(r: PatientWithHospitalRow): PatientSearchResult {
-  const { notes: _notes, ...patient } = rowToPatientDTO(r);
+  const { notes: _notes, hasDocument: _hasDocument, ...patient } = rowToPatientDTO(r);
   return {
     patient,
     hospital: {
@@ -216,6 +225,7 @@ interface PatientRow {
   status: string;
   notes: string | null;
   contact: string | null;
+  hasDocument: boolean;
   admittedAt: number;
   updatedAt: number;
 }
@@ -235,7 +245,9 @@ function rowToPatient(r: PatientRow): PatientDTO {
 const patientSelect = sql`
   SELECT
     p.id, p.hospital_id AS "hospitalId", p.name, p.age, p.condition,
-    p.status, p.notes, p.contact, p.admitted_at AS "admittedAt",
+    p.status, p.notes, p.contact,
+    (p.document_hash IS NOT NULL) AS "hasDocument",
+    p.admitted_at AS "admittedAt",
     p.updated_at AS "updatedAt"
   FROM hospital_patients p
 `;
@@ -256,6 +268,11 @@ export interface CreatePatientInput {
   status?: PatientStatus;
   notes?: string;
   contact?: string;
+  /**
+   * HMAC del documento normalizado (lo computa la capa de interfaz con
+   * PATIENT_DOCUMENT_HASH_SECRET; aquí NUNCA llega el documento crudo).
+   */
+  documentHash?: string | null;
 }
 
 /** Crea un paciente. Recorta/clampea igual que el resto del service. */
@@ -279,10 +296,10 @@ export async function createPatient(input: CreatePatientInput): Promise<PatientD
 
   await db.execute(sql`
     INSERT INTO hospital_patients
-      (id, hospital_id, name, age, condition, status, notes, contact, admitted_at, updated_at)
+      (id, hospital_id, name, age, condition, status, notes, contact, document_hash, admitted_at, updated_at)
     VALUES
       (${id}, ${input.hospitalId}, ${name}, ${age}, ${condition}, ${status},
-       ${notes}, ${contact}, ${now}, ${now})
+       ${notes}, ${contact}, ${input.documentHash ?? null}, ${now}, ${now})
   `);
   return {
     id,
@@ -293,6 +310,7 @@ export async function createPatient(input: CreatePatientInput): Promise<PatientD
     status,
     notes,
     contact,
+    hasDocument: (input.documentHash ?? null) !== null,
     admittedAt: now,
     updatedAt: now,
   };
@@ -305,6 +323,13 @@ export interface UpdatePatientInput {
   status?: PatientStatus;
   notes?: string;
   contact?: string;
+  /** Traslado a otro hospital. La capa de interfaz valida que el id exista. */
+  hospitalId?: string;
+  /**
+   * HMAC del documento normalizado (computado en la capa de interfaz; el
+   * documento crudo nunca llega aquí). `null` borra el documento del registro.
+   */
+  documentHash?: string | null;
 }
 
 /** Actualiza campos permitidos de un paciente. Devuelve el DTO o null si no existe. */
@@ -326,6 +351,9 @@ export async function updatePatient(
   if (input.notes !== undefined) sets.push(sql`notes = ${input.notes.trim().slice(0, 600)}`);
   if (input.contact !== undefined)
     sets.push(sql`contact = ${input.contact.trim().slice(0, 120)}`);
+  if (input.hospitalId !== undefined) sets.push(sql`hospital_id = ${input.hospitalId}`);
+  if (input.documentHash !== undefined)
+    sets.push(sql`document_hash = ${input.documentHash}`);
 
   const result = await db.execute(sql`
     UPDATE hospital_patients
