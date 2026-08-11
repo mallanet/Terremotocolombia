@@ -2,6 +2,8 @@ node_modules/
 .next/
 dist/
 coverage/
+frontend/test-results/
+frontend/playwright-report/
 *.tsbuildinfo
 .env
 .env.*
@@ -27,3 +29,6 @@ scripts/content-audit/banned-patterns.local.txt
 
 # kleosrules runtime state (velocity log, intent snapshots)
 state/
+
+# Mailbox y worktrees efímeros de colaboradores OpenCode.
+.codex/coworkers/

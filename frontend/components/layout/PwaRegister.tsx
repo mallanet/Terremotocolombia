@@ -8,7 +8,7 @@ export default function PwaRegister() {
     if (process.env.NODE_ENV !== "production") return;
     if (!("serviceWorker" in navigator)) return;
     navigator.serviceWorker
-      .register("/sw.js")
+      .register("/sw.js", { updateViaCache: "none" })
       .catch(() => {
         // No bloqueamos la app por un fallo de registro.
       });

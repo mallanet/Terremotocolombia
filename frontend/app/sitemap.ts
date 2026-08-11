@@ -15,6 +15,11 @@ const BUILD_DATE = new Date();
 // /chat (herramienta efímera de voluntarios) y /api/* (endpoints no indexables).
 const STATIC_PATHS = [
   { path: "/", changeFrequency: "hourly" as const, priority: 1 },
+  {
+    path: "/mapa-de-rescate",
+    changeFrequency: "hourly" as const,
+    priority: 0.9,
+  },
   { path: "/hospitales", changeFrequency: "hourly" as const, priority: 0.9 },
   // Contenido ciudadano que cambia a diario mientras dure la emergencia.
   { path: "/mascotas", changeFrequency: "hourly" as const, priority: 0.8 },

@@ -676,6 +676,24 @@
 	}
 }
 
+@media (max-width: 430px) {
+	.e-nav__inner {
+		gap: 8px;
+	}
+
+	/* Conserva marca y acciones sin solaparlas en Android compactos. */
+	.e-nav__psych {
+		width: 44px;
+		padding-inline: 0;
+		gap: 0;
+		font-size: 0;
+	}
+
+	.e-nav__psych-caption {
+		display: none;
+	}
+}
+
 .e-nav__mobile-bar {
 	position: fixed;
 	left: 0;
@@ -699,7 +717,7 @@
 	max-width: 32rem;
 	margin-inline: auto;
 	display: grid;
-	grid-template-columns: repeat(4, 1fr);
+	grid-template-columns: repeat(5, 1fr);
 }
 
 .e-nav__mobile-bar-item {
@@ -2981,6 +2999,11 @@
 .e-footer__legal-meta a,
 .e-footer__legal-copy a {
 	color: var(--m-blue-100);
+}
+
+.e-footer__legal-copy a {
+	text-decoration: underline;
+	text-underline-offset: 2px;
 }
 
 .e-footer__legal-copy,

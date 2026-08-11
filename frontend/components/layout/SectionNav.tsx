@@ -26,6 +26,7 @@ const MOBILE_NAV_BOTTOM = "calc(3.25rem + env(safe-area-inset-bottom))";
 // destinos de primer nivel. Si añades uno, añadelo tambien a SECTION_LINKS o
 // quedara fuera del menu movil.
 const DESKTOP_HEADER_LINKS = [
+  { href: "/mapa-de-rescate", label: "Mapa de rescate" },
   { href: "#mapa", label: "Mapa" },
   { href: "#e-directory", label: "Personas" },
   { href: "/mascotas", label: "Mascotas" },
@@ -379,6 +380,8 @@ export function MobileStickyNav() {
               <a
                 key={link.href}
                 href={resolveHref(link.href, onHome)}
+                aria-label={link.label}
+                aria-current={pathname === link.href ? "page" : undefined}
                 onClick={(e) => handleBarClick(e, link)}
                 className="e-nav__mobile-bar-item"
               >

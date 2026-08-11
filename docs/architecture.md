@@ -88,6 +88,47 @@ backend con `mediaUrl()`.
 - `NEXT_PUBLIC_ASSET_PREFIX` puede apuntar a un CDN/object storage para
   `/_next/static` si despliegas más de una réplica del frontend.
 
+### Mapa de rescate y modo offline
+
+`/mapa-de-rescate` es una superficie pública map-first dentro del mismo
+frontend. Reutiliza el shell, la navegación, los tokens de diseño y la
+instalación existente de Leaflet/React Leaflet; no añade otro SDK de mapas ni
+un backend obligatorio.
+
+- El estado inicial se obtiene de dos JSON estáticos versionados en
+  `frontend/public/data/incidents/`: el incidente y la activación Copernicus
+  EMSR916. Los cuatro AOI se dibujan desde sus geometrías WKT. Esos polígonos
+  indican áreas de producción cartográfica, no límites confirmados de daños.
+- OpenStreetMap ofrece el contexto cartográfico y Esri World Imagery se usa
+  exclusivamente como referencia visual con fecha de captura no verificada.
+  La aplicación no almacena ni redistribuye tiles de terceros. Los modos
+  Antes/Después solo se habilitarán cuando el JSON publique imagery fechada,
+  licenciada y verificable.
+- El manifest específico
+  `frontend/public/mapa-de-rescate.webmanifest` abre directamente esta ruta
+  en modo standalone. `frontend/public/sw.js` precarga el shell, los assets
+  propios esenciales y los JSON operativos. Las respuestas de datos
+  recuperadas sin red llevan una marca interna de antigüedad para que la UI
+  muestre “Sin conexión” y la última actualización; nunca se presentan como
+  actuales.
+- IndexedDB conserva la última instantánea válida, la selección del usuario y
+  paquetes offline explícitos por AOI. El presupuesto inicial es de 8 MB. Un
+  paquete contiene solo geometrías y metadatos operativos propios; no contiene
+  tiles, imágenes Copernicus, BLP, PII ni ubicaciones personales exactas.
+  Las escrituras fallidas o sin cuota no dejan paquetes parciales.
+- Sin tiles, el canvas mantiene el epicentro, los AOI y una base vectorial
+  local ligera. Cuando una capa requiere red, la UI lo dice explícitamente.
+  Al recuperar conexión se actualizan los JSON en segundo plano y se conserva
+  el idioma, modo y AOI seleccionado.
+
+Los contratos públicos para futuras capas de necesidades verificadas y
+disponibilidad agregada de recursos/voluntarios viven en
+`frontend/lib/rescue-map.ts`. No contienen nombres, contacto ni ubicación en
+tiempo real. No existen registros de demostración, despacho automático ni
+algoritmo de asignación en esta fase. Una recomendación futura deberá ocurrir
+en infraestructura autenticada, tratar el estado de verificación como
+invariante y requerir revisión humana antes de cualquier despliegue.
+
 ## Backend API
 
 - Express monta los routers en `backend/src/routes/` y delega lógica a
