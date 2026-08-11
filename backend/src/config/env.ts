@@ -68,6 +68,13 @@ const schema = z.object({
   // sin TURNSTILE_SECRET_KEY el middleware requireHuman se desactiva (dev local).
   TURNSTILE_SECRET_KEY: z.string().optional(),
 
+  // Secreto compartido con el Apps Script del Google Forms de ayuda
+  // psicológica: autentica el callback onFormSubmit que incrementa el
+  // contador por ENVÍO de formulario (sin dedup por IP — las llamadas vienen
+  // de servidores de Google). OPCIONAL: sin él, el camino source:"form"
+  // responde 403 y solo cuenta el clic anónimo con dedup.
+  PSYCH_FORM_SUBMIT_SECRET: z.string().optional(),
+
   // Documentación OpenAPI (Swagger UI + /api/openapi.json). Expone TODA la
   // superficie de la API, así que en producción va CERRADA por defecto (evita
   // regalar el mapa de endpoints a un atacante). Se puede reabrir explícitamente

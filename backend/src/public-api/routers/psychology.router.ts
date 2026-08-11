@@ -12,6 +12,8 @@
 import { Router } from "express";
 import { asyncHandler, rateLimit } from "@/middleware";
 import { requireCapability } from "@/middleware/auth";
+import { serviceUnavailable } from "@/lib/errors";
+import { expectedFormTokens } from "@/services/psychology-help";
 
 export const psychologyRouter = Router();
 
@@ -38,5 +40,44 @@ psychologyRouter.get(
       user: { id: req.user!.id, email: req.user!.email },
       resources: [],
     });
+  }),
+);
+
+/**
+ * @swagger
+ * /api/public/psychology/form-callback:
+ *   get:
+ *     summary: Apps Script listo para pegar en el Google Forms (token embebido)
+ *     tags: [Psychology]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Script + URL del callback + token }
+ *       403: { description: Sin la capacidad psychology:access }
+ *       503: { description: No hay secreto base para derivar el token }
+ */
+psychologyRouter.get(
+  "/form-callback",
+  rateLimit({ scope: "psychology:form-callback", limit: 30 }),
+  requireCapability("psychology:access"),
+  asyncHandler(async (req, res) => {
+    // El token derivado del JWT_SECRET es el último de la lista (el override
+    // explícito, si existe, va primero y es el que manda).
+    const [token] = expectedFormTokens();
+    if (!token) {
+      throw serviceUnavailable("No hay secreto base para derivar el token del callback.");
+    }
+    const url = `${req.protocol}://${req.get("host")}/api/stats/psychology-help`;
+    const script = [
+      "function onFormSubmit() {",
+      `  UrlFetchApp.fetch("${url}", {`,
+      '    method: "post",',
+      '    contentType: "application/json",',
+      `    payload: JSON.stringify({ source: "form", token: "${token}" }),`,
+      "    muteHttpExceptions: true,",
+      "  });",
+      "}",
+    ].join("\n");
+    res.set("Cache-Control", "no-store");
+    res.json({ url, token, script });
   }),
 );

@@ -70,6 +70,7 @@ const CASES: Case[] = [
   { label: "deletion-requests list", method: "get", path: "/api/public/deletion-requests", cap: "deletion:read" },
   // --- Portal exclusivo de psicólogos (router a mano; psychology:access) ---
   { label: "psychology portal", method: "get", path: "/api/public/psychology", cap: "psychology:access" },
+  { label: "psychology form-callback", method: "get", path: "/api/public/psychology/form-callback", cap: "psychology:access" },
   {
     label: "deletion-requests edit",
     method: "patch",

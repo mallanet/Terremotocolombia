@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * Contador público de clics en "Ayuda psicológica" (backend:
- * /api/stats/psychology-help, dedup por hash de IP). La lectura es
- * ETag-cacheada; el POST devuelve el total resultante y se siembra en caché.
+ * Contador público de "Ayuda psicológica" (backend: /api/stats/psychology-help).
+ * Cuenta ENVÍOS del Google Forms (callback del Apps Script con secreto), no
+ * clics — por eso aquí solo hay lectura (ETag-cacheada, poll de 60s).
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiGet, apiSend } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
+import { apiGet } from "@/lib/api";
 
 const KEY = ["psych-help-clicks"] as const;
 
@@ -17,14 +17,5 @@ export function usePsychHelpClickCount() {
     refetchInterval: 60_000,
     queryFn: () => apiGet<{ count: number }>("/api/stats/psychology-help"),
     select: (d) => d.count,
-  });
-}
-
-export function usePsychHelpClick() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () =>
-      apiSend<{ count: number }>("POST", "/api/stats/psychology-help"),
-    onSuccess: (data) => qc.setQueryData(KEY, data),
   });
 }

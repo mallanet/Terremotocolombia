@@ -8,7 +8,7 @@ import TranslateWidget from "@/components/ui/TranslateWidget";
 import { SiteBrand } from "./HeroSection";
 import { toggleTheme } from "./ThemeProvider";
 import { useMissingStats } from "@/hooks/missing";
-import { usePsychHelpClick, usePsychHelpClickCount } from "@/hooks/psychology-help";
+import { usePsychHelpClickCount } from "@/hooks/psychology-help";
 import { trackPsychHelpClicked } from "@/lib/analytics";
 import { SITE_PRODUCT_NAME } from "@/lib/site";
 import {
@@ -130,8 +130,9 @@ function PsychNavLink({
   variant: "desktop" | "sheet";
   onNavigate?: () => void;
 }) {
+  // El contador cuenta ENVÍOS del formulario (callback del Apps Script con
+  // secreto), no clics — el clic solo se registra en OpenPanel.
   const { data: count } = usePsychHelpClickCount();
-  const registerClick = usePsychHelpClick();
   const className =
     variant === "desktop"
       ? "e-nav__psych"
@@ -143,7 +144,6 @@ function PsychNavLink({
       target="_blank"
       rel="noopener noreferrer"
       onClick={() => {
-        registerClick.mutate();
         trackPsychHelpClicked(variant === "desktop" ? "header" : "mobile_sheet");
         onNavigate?.();
       }}
