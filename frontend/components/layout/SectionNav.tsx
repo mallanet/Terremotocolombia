@@ -8,6 +8,7 @@ import TranslateWidget from "@/components/ui/TranslateWidget";
 import { SiteBrand } from "./HeroSection";
 import { toggleTheme } from "./ThemeProvider";
 import { useMissingStats } from "@/hooks/missing";
+import { usePsychHelpClick, usePsychHelpClickCount } from "@/hooks/psychology-help";
 import { trackPsychHelpClicked } from "@/lib/analytics";
 import { SITE_PRODUCT_NAME } from "@/lib/site";
 import {
@@ -116,9 +117,12 @@ function NavHeaderActions() {
   );
 }
 
-// Botón de ayuda psicológica → portal exclusivo de psicólogos (/psicologia).
-// Los datos de contacto directo (líneas de apoyo) llegan después; por ahora
-// el destino es el portal.
+// Botón de ayuda psicológica → formulario de registro de la red de salud
+// mental (Google Forms, dato entregado por el mantenedor). Externo: pestaña
+// nueva. El portal /psicologia (login) sigue existiendo como endpoint propio.
+const PSYCH_HELP_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSf7_hS5l381uI7ziedi0uMbpOuFmA6xZBMIztEvdCMl2LW7jA/viewform";
+
 function PsychNavLink({
   variant,
   onNavigate,
@@ -126,24 +130,57 @@ function PsychNavLink({
   variant: "desktop" | "sheet";
   onNavigate?: () => void;
 }) {
+  const { data: count } = usePsychHelpClickCount();
+  const registerClick = usePsychHelpClick();
   const className =
     variant === "desktop"
       ? "e-nav__psych"
       : "flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-950 transition hover:bg-blue-100";
 
-  return (
-    <Link
-      href="/psicologia"
+  const button = (
+    <a
+      href={PSYCH_HELP_FORM_URL}
+      target="_blank"
+      rel="noopener noreferrer"
       onClick={() => {
+        registerClick.mutate();
         trackPsychHelpClicked(variant === "desktop" ? "header" : "mobile_sheet");
         onNavigate?.();
       }}
       className={className}
-      aria-label="Ayuda psicológica y portal de psicólogos"
+      aria-label="Ayuda psicológica: formulario de la red de salud mental (se abre en pestaña nueva)"
     >
       <HeartHandshake aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
       Ayuda psicológica
-    </Link>
+    </a>
+  );
+
+  const caption = (
+    <span
+      className={
+        variant === "desktop"
+          ? "e-nav__psych-caption"
+          : "mt-2 block text-center text-xs text-slate-500"
+      }
+    >
+      Ayuda ofrecida ·{" "}
+      <strong>{count !== undefined ? count.toLocaleString("es") : "…"}</strong>
+    </span>
+  );
+
+  if (variant === "desktop") {
+    return (
+      <span className="e-nav__psych-wrap">
+        {button}
+        {caption}
+      </span>
+    );
+  }
+  return (
+    <span className="block">
+      {button}
+      {caption}
+    </span>
   );
 }
 
