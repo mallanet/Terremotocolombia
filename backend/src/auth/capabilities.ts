@@ -49,6 +49,19 @@ export const CROSS_CUTTING: { key: string; category: string; description: string
     category: "hospitals",
     description: "Importar pacientes hospitalarios (staging, validación y apply)",
   },
+  // Supresión de datos (Ley 1581): gestionar las solicitudes ciudadanas de
+  // eliminación. Dos claves (no CRUD completo): leerlas es sensible por sí
+  // mismo (PII de solicitantes) y resolverlas es una decisión operativa.
+  {
+    key: "deletion:read",
+    category: "privacy",
+    description: "Ver solicitudes de supresión de datos (Ley 1581)",
+  },
+  {
+    key: "deletion:edit",
+    category: "privacy",
+    description: "Resolver/rechazar solicitudes de supresión de datos",
+  },
   { key: "user:invite", category: "auth", description: "Invitar usuarios nuevos" },
   { key: "user:read", category: "auth", description: "Ver usuarios" },
   { key: "user:edit", category: "auth", description: "Editar usuarios (estado, rol)" },

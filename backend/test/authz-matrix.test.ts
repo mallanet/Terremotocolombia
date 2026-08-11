@@ -66,6 +66,15 @@ const CASES: Case[] = [
   { label: "patient-import detail", method: "get", path: "/api/public/patient-imports/none", cap: "patient:import" },
   { label: "patient-import rows", method: "get", path: "/api/public/patient-imports/none/rows", cap: "patient:import" },
   { label: "patient-import apply", method: "post", path: "/api/public/patient-imports/none/apply", cap: "patient:import" },
+  // --- Supresión de datos, Ley 1581 (router a mano; deletion:read/edit) ---
+  { label: "deletion-requests list", method: "get", path: "/api/public/deletion-requests", cap: "deletion:read" },
+  {
+    label: "deletion-requests edit",
+    method: "patch",
+    path: "/api/public/deletion-requests/none",
+    cap: "deletion:edit",
+    body: { status: "resolved" },
+  },
   // --- Insumos hospitalarios (router a mano; reutiliza capacidades hospital:*) ---
   { label: "hospital-supplies board", method: "get", path: "/api/public/hospital-supplies", cap: "hospital:read" },
   { label: "hospital-supplies snapshot", method: "get", path: "/api/public/hospital-supplies/none", cap: "hospital:read" },
