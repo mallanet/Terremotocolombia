@@ -8,9 +8,9 @@
  *   PATCH /:id    (deletion:edit)  resolver / rechazar / reabrir
  *
  * Escrito a mano (dos claves, no el cuarteto CRUD). La lista devuelve el
- * ARRAY pelado para encajar en el gateway genérico de modelos del panel.
- * Todas las rutas: rateLimit + requireCapability; la mutación además
- * writeAudit (gates que exige el ESLint del repo).
+ * envelope `{items}` de la fábrica CRUD — es lo que espera el gateway
+ * genérico de modelos del panel. Todas las rutas: rateLimit +
+ * requireCapability; la mutación además writeAudit (gates del ESLint).
  */
 import { Router } from "express";
 import { z } from "zod";
@@ -36,7 +36,7 @@ deletionRequestsRouter.get(
   rateLimit({ scope: "public:deletion:list", limit: 120 }),
   requireCapability("deletion:read"),
   asyncHandler(async (_req, res) => {
-    res.json(await listDeletionRequests());
+    res.json({ items: await listDeletionRequests() });
   }),
 );
 
