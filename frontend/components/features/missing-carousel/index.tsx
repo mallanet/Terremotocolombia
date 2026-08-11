@@ -134,8 +134,14 @@ export default function MissingCarousel() {
     return () => window.removeEventListener("hashchange", syncFromHash);
   }, []);
 
+  // `relative` en la sección es imprescindible: los <span> ancla de abajo son
+  // `absolute -top-24` y sin un ancestro posicionado se resuelven contra el
+  // documento, o sea quedan en el TOPE de la página — navegar a #mascotas u
+  // #hospitales scrolleaba arriba del todo en vez de al directorio. Va como
+  // clase de ESTA sección (no en la regla compartida .e-m-section) para no
+  // tocar el layout del resto del sitio.
   return (
-    <section id="e-directory" className="e-m-section scroll-mt-20">
+    <section id="e-directory" className="e-m-section scroll-mt-20 relative">
       <span
         id="hospitales"
         className="pointer-events-none absolute -top-24"

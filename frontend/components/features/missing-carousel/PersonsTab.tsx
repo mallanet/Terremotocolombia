@@ -76,7 +76,7 @@ export const PersonsTab = forwardRef<PersonsTabHandle>(function PersonsTab(
     pageSize,
     q: search.length >= MIN_SEARCH_LEN ? search : undefined,
   };
-  const { data, isPending } = useMissingList(listParams, network.pollIntervalMs);
+  const { data, isPending, isError } = useMissingList(listParams, network.pollIntervalMs);
   const stats = useMissingStats();
 
   const people = data?.people ?? [];
@@ -84,11 +84,12 @@ export const PersonsTab = forwardRef<PersonsTabHandle>(function PersonsTab(
   const totalPages = data?.totalPages ?? 1;
   const foundTotal = stats.data?.found ?? 0;
   // Sin datos todavía no se afirma "0": un cero mientras la lista viaja es una
-  // afirmación falsa sobre cuánta gente hay reportada.
-  const fmtCount = (n: number, pending: boolean) =>
-    pending ? "—" : n.toLocaleString("es");
-  const totalLabel = fmtCount(total, isPending);
-  const foundLabel = fmtCount(foundTotal, stats.isPending);
+  // afirmación falsa sobre cuánta gente hay reportada. Lo mismo si la petición
+  // FALLÓ: un error tampoco es un cero.
+  const fmtCount = (n: number, unknown: boolean) =>
+    unknown ? "—" : n.toLocaleString("es");
+  const totalLabel = fmtCount(total, isPending || isError);
+  const foundLabel = fmtCount(foundTotal, stats.isPending || stats.isError);
 
   const prefetchMissingPages = usePrefetchMissingPages();
   useEffect(() => {
@@ -211,6 +212,18 @@ export const PersonsTab = forwardRef<PersonsTabHandle>(function PersonsTab(
             rows={3}
             className="col-span-full"
           />
+        ) : isError ? (
+          // "Falló la petición" y "no hay reportes" NO son lo mismo. Sin esta
+          // rama, un error de la API se pinta como "Aún no hay reportes", que
+          // afirma algo falso: alguien buscando a un familiar concluiría que su
+          // reporte se perdió. Mismo patrón que PetsTab.
+          <div className="e-m-person-empty" role="listitem">
+            <p className="e-m-person-empty__title">No pudimos cargar las personas</p>
+            <p className="e-m-person-empty__desc">
+              Es un problema nuestro, no tuyo: los reportes siguen guardados.
+              Reintentamos solos en unos segundos.
+            </p>
+          </div>
         ) : people.length === 0 ? (
           <div className="e-m-person-empty" role="listitem">
             <p className="e-m-person-empty__title">

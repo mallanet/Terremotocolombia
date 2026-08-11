@@ -113,20 +113,44 @@ function isApiRequest(url) {
 
 async function cacheFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
+  // ignoreVary: las respuestas de foto llevan `Vary: Origin` (CORS del backend);
+  // sin esto, un match estricto puede fallar según qué cabeceras llevó el request.
+  const cached = await cache.match(request, { ignoreVary: true });
   if (cached) return cached;
   try {
-    const fresh = await fetch(request);
+    // Re-emitimos el request en modo CORS en vez de reenviarlo tal cual: las
+    // fotos se piden desde <img> cross-origin SIN `crossorigin`, y ese request
+    // no-cors produce una respuesta OPACA (status 0, ok false) aunque el backend
+    // devuelva 200. Gatear cache.put por `ok` con opacas dejaba photos-v7 vacío
+    // para siempre (medido: 0 entradas tras cargar 32 fotos) y mataba el modo
+    // offline de fotos. El backend ya responde con Access-Control-Allow-Origin
+    // (verificado en prod y staging), así que en modo CORS el status es visible:
+    // cacheamos SOLO 200s reales y jamás un error transitorio (una opaca cacheada
+    // de un 500 frío sería una foto rota permanente). Same-origin (_next/static,
+    // iconos) no cambia: mode cors ahí produce respuestas "basic" normales.
+    // Y con timeout, como TODAS las demás estrategias del fichero: un backend
+    // frío puede tardar >28s en la primera foto y sin límite el respondWith()
+    // queda colgado en vez de degradar.
+    const fresh = await fetchWithTimeout(
+      new Request(request.url, { mode: "cors" }),
+      API_TIMEOUT_MS,
+    );
     if (fresh.ok) cache.put(request, fresh.clone());
     return fresh;
   } catch {
-    // El fetch falló (red caída o, p.ej., un redirect de foto a un origen que
-    // `connect-src` no permite). NUNCA propagamos el throw: `respondWith` con una
-    // promesa rechazada genera "Uncaught (in promise): Failed to fetch" en consola
-    // y deja el recurso en error igual. Devolvemos una respuesta de error normal
-    // (503): el `<img>` queda roto (como sin SW) pero sin ruido ni rechazo suelto.
-    if (cached) return cached;
-    return new Response("", { status: 503, statusText: "sw-fetch-failed" });
+    // El fetch CORS falló: red caída, timeout, o un origen que no manda ACAO
+    // (p.ej. un redirect de foto a un CDN externo). Último intento con el
+    // request original no-cors — es lo que hacía siempre este SW: la opaca se
+    // devuelve SIN cachear (no podemos ver su status) pero el <img> la pinta.
+    try {
+      return await fetchWithTimeout(request, API_TIMEOUT_MS);
+    } catch {
+      // NUNCA propagamos el throw: `respondWith` con una promesa rechazada
+      // genera "Uncaught (in promise): Failed to fetch" en consola y deja el
+      // recurso en error igual. Devolvemos un 503 normal: el `<img>` queda roto
+      // (como sin SW) pero sin ruido ni rechazo suelto.
+      return new Response("", { status: 503, statusText: "sw-fetch-failed" });
+    }
   }
 }
 
