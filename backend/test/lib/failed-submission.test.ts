@@ -35,7 +35,7 @@ describe("captureFailedSubmission", () => {
 
     const ok = await captureFailedSubmission(
       "volunteers",
-      { name: "Nombre", contact: "+570000000", turnstileToken: "0.abc-secret" },
+      { name: "NOMBRE-PLACEHOLDER", contact: "CONTACTO-PLACEHOLDER", turnstileToken: "TOKEN-PLACEHOLDER" },
       drizzleErr,
     );
 
@@ -44,7 +44,10 @@ describe("captureFailedSubmission", () => {
     expect(values.form).toBe("volunteers");
     expect(values.errorCode).toBe("42703"); // desenvuelto desde `cause`
     // El dato de la persona SE GUARDA: es el objetivo del modulo.
-    expect(values.payload).toMatchObject({ name: "Nombre", contact: "+570000000" });
+    expect(values.payload).toMatchObject({
+      name: "NOMBRE-PLACEHOLDER",
+      contact: "CONTACTO-PLACEHOLDER",
+    });
     // La credencial NO.
     expect(values.payload).not.toHaveProperty("turnstileToken");
     expect(values.replayedAt).toBeNull();

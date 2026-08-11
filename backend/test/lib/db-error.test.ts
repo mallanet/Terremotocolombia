@@ -2,8 +2,8 @@
  * Lo delicado de src/lib/db-error.ts NO es que loguee, es QUE DEJA FUERA.
  *
  * Postgres mete los valores de la fila en `detail`/`where`/`hint`: un
- * unique_violation trae 'Key (contact)=(+57 300 ...) already exists.' y un
- * check_violation trae 'Failing row contains (uuid, Maria ..., +57 ...)'. Esta
+ * unique_violation trae 'Key (contact)=(<telefono real>) already exists.' y un
+ * check_violation trae 'Failing row contains (uuid, <nombre real>, ...)'. Esta
  * base guarda voluntarios y personas desaparecidas REALES, asi que esos campos
  * en un log de Cloudflare son una fuga de PII.
  *
@@ -42,17 +42,17 @@ describe("describeDbError", () => {
         message: 'duplicate key value violates unique constraint "volunteers_pkey"',
         constraint: "volunteers_pkey",
         table: "volunteers",
-        detail: "Key (contact)=(+57 300 000 0000) already exists.",
+        detail: "Key (contact)=(CONTACTO-PLACEHOLDER) already exists.",
         where: "PL/pgSQL function persist(text) line 4 at SQL statement",
-        hint: "Revisa el registro de Maria Gomez.",
+        hint: "Revisa el registro de NOMBRE-PLACEHOLDER.",
       }),
     );
     // Lo util si esta.
     expect(out).toContain("sqlstate=23505");
     expect(out).toContain("constraint=volunteers_pkey");
     // Lo que jamas puede aparecer.
-    expect(out).not.toContain("+57 300 000 0000");
-    expect(out).not.toContain("Maria Gomez");
+    expect(out).not.toContain("CONTACTO-PLACEHOLDER");
+    expect(out).not.toContain("NOMBRE-PLACEHOLDER");
     expect(out).not.toContain("PL/pgSQL");
     expect(out).not.toMatch(/detail|where|hint/i);
   });
@@ -65,7 +65,7 @@ describe("describeDbError", () => {
     const drizzleErr = new Error(
       'Failed query: insert into "volunteers" ("id", "name", "contact", "zone") ' +
         "values ($1, $2, $3, $4)\n" +
-        "params: 11111111-2222-3333-4444-555555555555,Nombre Apellido,+573000000000,Bogota",
+        "params: 11111111-2222-3333-4444-555555555555,NOMBRE-PLACEHOLDER,CONTACTO-PLACEHOLDER,CIUDAD-PLACEHOLDER",
     );
     // Drizzle deja el error del driver (con SQLSTATE) en `cause`.
     Object.assign(drizzleErr, {
@@ -81,17 +81,17 @@ describe("describeDbError", () => {
     // Se conserva lo que diagnostica.
     expect(out).toContain("sqlstate=42703");
     // Y NADA de la fila.
-    expect(out).not.toContain("Nombre Apellido");
-    expect(out).not.toContain("+573000000000");
-    expect(out).not.toContain("Bogota");
+    expect(out).not.toContain("NOMBRE-PLACEHOLDER");
+    expect(out).not.toContain("CONTACTO-PLACEHOLDER");
+    expect(out).not.toContain("CIUDAD-PLACEHOLDER");
     expect(out).not.toMatch(/params:/i);
   });
 
   it("si el message trae params pero no hay cause, igual los corta", () => {
     const out = describeDbError(
-      new Error('Failed query: insert into "x" values ($1)\nparams: Maria Gomez'),
+      new Error('Failed query: insert into "x" values ($1)\nparams: NOMBRE-PLACEHOLDER'),
     );
-    expect(out).not.toContain("Maria Gomez");
+    expect(out).not.toContain("NOMBRE-PLACEHOLDER");
     expect(out).toContain("[params omitidos]");
   });
 
