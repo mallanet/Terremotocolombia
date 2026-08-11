@@ -99,6 +99,10 @@ export const missingPersons = pgTable(
     photoExternalUrl: text("photo_external_url"),
     lat: doublePrecision("lat"),
     lng: doublePrecision("lng"),
+    // hashIp(req) del creador anónimo (como contact_messages / donations).
+    // Único rastro de responsabilidad del alta pública; NULL en filas previas
+    // y en altas de sync externo (allí la procedencia es source/external_id).
+    ipHash: text("ip_hash"),
     createdAt: epochMs("created_at").notNull(),
     // See reports.photoMigratedAt. Covers BOTH base64 `photo` and external
     // `photo_external_url` being moved onto R2. NULL = pending.
@@ -313,6 +317,12 @@ export const patientImports = pgTable(
     // Formato del payload de entrada. JSON se materializa directo; CSV/XLSX se
     // parsea en el worker; imagen OCR se extrae en el worker y queda en revisión.
     contentType: text("content_type").notNull().default("application/json"),
+    // Contexto OCR persistido en el ingest (antes se descartaba): sin esto,
+    // ocr_corrections no tiene provider/prompt que copiar y el editor de filas
+    // no tiene imagen que mostrar. NULL en lotes no-OCR.
+    ocrProvider: text("ocr_provider"),
+    ocrPromptVersion: text("ocr_prompt_version"),
+    sourceImageUrl: text("source_image_url"),
     // jobId de BullMQ del último job (process/apply) para trazabilidad.
     jobId: text("job_id"),
     // Hash SHA-256 del header Idempotency-Key. No guardamos la key cruda; el
@@ -392,6 +402,35 @@ export const patientImportRows = pgTable(
     // documento se resuelve en memoria durante `processImport` (no hay query por
     // esta combinación), así que el índice sería peso muerto.
   ],
+);
+
+/* ---------------------------------------------------------- ocr_corrections */
+// Log INMUTABLE de correcciones humanas sobre filas OCR: cada edición de un
+// campo extraído por OCR guarda el par (valor del modelo, valor corregido).
+// Es el activo de aprendizaje de la Fase 3 (eval sets, few-shot por layout) —
+// no hay path de UPDATE y no hay FK a las filas staging a propósito: el log
+// sobrevive a la limpieza de lotes. `id` es determinista (hash de fila+campo+
+// valores+updated_at previo) con ON CONFLICT DO NOTHING: un retry del mismo
+// PATCH colapsa a una fila; una re-edición posterior real es otro evento.
+export const ocrCorrections = pgTable(
+  "ocr_corrections",
+  {
+    id: text("id").primaryKey(),
+    importRowId: text("import_row_id").notNull(),
+    field: text("field").notNull(),
+    modelValue: text("model_value").notNull().default(""),
+    correctedValue: text("corrected_value").notNull().default(""),
+    // Referencia R2 del documento fuente (para re-evaluar la corrección).
+    documentR2Key: text("document_r2_key"),
+    // Cluster de layout (Fase 3). NULL hasta que exista el fingerprinting.
+    layoutClusterId: text("layout_cluster_id"),
+    provider: text("provider").notNull().default(""),
+    promptVersion: text("prompt_version").notNull().default(""),
+    // users.id del revisor. Atribución obligatoria (es una decisión humana).
+    correctedBy: text("corrected_by").notNull(),
+    correctedAt: epochMs("corrected_at").notNull(),
+  },
+  (t) => [index("idx_ocr_corrections_row").on(t.importRowId)],
 );
 
 /* ------------------------------------------------------- hospital_supplies */
