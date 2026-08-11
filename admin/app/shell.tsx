@@ -49,6 +49,13 @@ function AuthedShell({ children }: { children: ReactNode }) {
             {can("patient:import") && (
               <NavLink href="/patient-imports" label="Importar pacientes" pathname={pathname} />
             )}
+            {/* Family Search (U9/U11): cola de revisión de coincidencias +
+                ficha de identidad. person:search es la capacidad de lectura
+                mínima del contexto (person:review/person:merge gatean
+                acciones puntuales dentro de la pantalla). */}
+            {can("person:search") && (
+              <NavLink href="/family-search" label="Búsqueda de familias" pathname={pathname} />
+            )}
             {/* Insumos hospitalarios: agregado restringido sobre el modelo
                 hospital — misma capacidad de lectura que /hospitals. */}
             {can("hospital:read") && (
