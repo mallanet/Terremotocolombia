@@ -167,6 +167,7 @@ export interface StagingRow {
 	validationWarnings: unknown;
 	dedupCandidates: unknown;
 	patientId: string | null;
+	updatedAt: number;
 }
 
 export function toRowDTO(r: StagingRow): ImportRowDTO {
@@ -197,6 +198,7 @@ export function toRowDTO(r: StagingRow): ImportRowDTO {
 			: [],
 		dedupCandidates: candidates,
 		patientId: r.patientId,
+		updatedAt: r.updatedAt,
 	};
 }
 

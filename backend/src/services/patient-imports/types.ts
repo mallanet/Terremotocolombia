@@ -97,6 +97,10 @@ export interface ImportRowDTO {
 	validationWarnings: string[];
 	dedupCandidates: { patientId: string; name: string; reason?: string }[];
 	patientId: string | null;
+	// Baseline de concurrencia optimista: el cliente lo captura al renderizar
+	// el editor y lo devuelve como baselineUpdatedAt en el PATCH. Sin exponerlo
+	// aquí, el admin no tiene NINGÚN valor observable que usar de baseline.
+	updatedAt: number;
 }
 
 export interface CreateImportInput {
