@@ -64,6 +64,9 @@ const createBody = z.object({
   rescueTraining: z.boolean().optional(),
   fieldRole: z.string().trim().max(120).optional(),
   ownVehicle: z.boolean().optional(),
+  // De dónde llegó la persona (utm:*, referrer externo o "directo"). Lo arma
+  // el frontend; aquí solo acotamos longitud.
+  source: z.string().trim().max(500).optional(),
   turnstileToken: z.string().optional(),
 });
 
@@ -95,6 +98,7 @@ const createBody = z.object({
  *               rescueTraining: { type: boolean }
  *               fieldRole: { type: string }
  *               ownVehicle: { type: boolean }
+ *               source: { type: string, description: "Origen del registro (utm/referrer/directo)" }
  *     responses:
  *       200:
  *         description: Registro recibido
@@ -143,6 +147,7 @@ volunteersRouter.post(
         rescueTraining: body.rescueTraining,
         fieldRole: body.fieldRole,
         ownVehicle: body.ownVehicle,
+        source: body.source,
         ipHash: hashIp(req),
       });
       res.status(200).json({

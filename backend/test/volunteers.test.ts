@@ -28,6 +28,7 @@ interface FakeVolunteerRow {
   rescueTraining: boolean | null;
   fieldRole: string | null;
   ownVehicle: boolean | null;
+  source: string | null;
   status: string;
   notes: string | null;
   ipHash: string | null;
@@ -150,6 +151,24 @@ describe("POST /api/volunteers", () => {
     });
   });
 
+  it("persiste el origen (source) cuando el formulario lo envía", async () => {
+    const response = await request(app)
+      .post("/api/volunteers")
+      .send(validBody({ source: "utm:instagram/stories/llamado" }));
+
+    expect(response.status).toBe(200);
+    expect(dbMocks.insertedRows[0]).toMatchObject({
+      source: "utm:instagram/stories/llamado",
+    });
+  });
+
+  it("sin source el registro queda con source null (no inventa origen)", async () => {
+    const response = await request(app).post("/api/volunteers").send(validBody());
+
+    expect(response.status).toBe(200);
+    expect(dbMocks.insertedRows[0]!.source).toBeNull();
+  });
+
   it("rechaza offerTypes vacío (400) y no persiste nada", async () => {
     const response = await request(app)
       .post("/api/volunteers")
@@ -236,6 +255,7 @@ describe("service de voluntarios: mapeo a VolunteerDTO (allowlist, nunca ip_hash
       rescueTraining: null,
       fieldRole: null,
       ownVehicle: null,
+      source: null,
       status: "pending",
       notes: null,
       // Simula el peor caso: si la query alguna vez trajera la columna

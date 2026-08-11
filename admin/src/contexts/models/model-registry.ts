@@ -252,6 +252,7 @@ export const MODELS = [
       { key: "name", label: "Nombre" },
       { key: "contact", label: "Contacto" },
       { key: "zone", label: "Ciudad / país" },
+      { key: "source", label: "Origen" },
       { key: "status", label: "Estado" },
     ],
     // Sin createFields: los voluntarios ENTRAN por el formulario público

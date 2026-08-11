@@ -32,6 +32,7 @@ export interface VolunteerInput {
   rescueTraining?: boolean;
   fieldRole?: string;
   ownVehicle?: boolean;
+  source?: string; // de dónde llegó: utm:*, referrer externo o "directo"
   turnstileToken?: string; // prueba de humanidad (Turnstile) para el backend
 }
 

@@ -55,6 +55,7 @@ const CASES: Case[] = [
   { label: "donations list", method: "get", path: "/api/public/donations", cap: "donation:read" },
   { label: "chat list", method: "get", path: "/api/public/chat", cap: "chat:read" },
   { label: "contact list", method: "get", path: "/api/public/contact", cap: "contact:read" },
+  { label: "volunteers list", method: "get", path: "/api/public/volunteers", cap: "volunteer:read" },
   { label: "invite (user:invite)", method: "post", path: "/api/public/auth/invite", cap: "user:invite", body: { email: "x@y.z" } },
   {
     label: "patient-import create",
@@ -71,6 +72,14 @@ const CASES: Case[] = [
   // --- Portal exclusivo de psicólogos (router a mano; psychology:access) ---
   { label: "psychology portal", method: "get", path: "/api/public/psychology", cap: "psychology:access" },
   { label: "psychology form-callback", method: "get", path: "/api/public/psychology/form-callback", cap: "psychology:access" },
+  // --- Mensaje a voluntario desde el panel (router a mano; volunteer:edit) ---
+  {
+    label: "volunteers message",
+    method: "post",
+    path: "/api/public/volunteers/none/message",
+    cap: "volunteer:edit",
+    body: { subject: "Hola", message: "Mensaje de prueba" },
+  },
   {
     label: "deletion-requests edit",
     method: "patch",

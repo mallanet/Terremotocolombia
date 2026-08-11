@@ -49,6 +49,25 @@ function validateBranch(branch: BranchState): string | null {
   return null;
 }
 
+/**
+ * De dónde llegó la persona al formulario, para la columna "Origen" del
+ * panel: UTM si la URL los trae, si no el referrer EXTERNO, si no "directo".
+ * Solo se lee en el submit (cliente); el backend acota a 500 chars.
+ */
+function captureVolunteerSource(): string {
+  const params = new URLSearchParams(window.location.search);
+  const utm = ["utm_source", "utm_medium", "utm_campaign"]
+    .map((key) => params.get(key))
+    .filter(Boolean)
+    .join("/");
+  if (utm) return `utm:${utm}`.slice(0, 500);
+  const referrer = document.referrer;
+  if (referrer && !referrer.startsWith(window.location.origin)) {
+    return referrer.slice(0, 500);
+  }
+  return "directo";
+}
+
 export default function VolunteerForm() {
   const { ensureConsent } = usePrivacyConsent();
   const [name, setName] = useState("");
@@ -91,6 +110,7 @@ export default function VolunteerForm() {
       availability,
       offerTypes: branch.offerTypes,
       offer: branch.offer.trim() || undefined,
+      source: captureVolunteerSource(),
       turnstileToken: await turnstileGetToken(),
     };
     if (showPersona && branch.personaMode === "digital") {

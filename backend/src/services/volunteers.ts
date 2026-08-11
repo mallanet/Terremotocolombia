@@ -37,6 +37,7 @@ export interface VolunteerDTO {
   rescueTraining: boolean | null;
   fieldRole: string | null;
   ownVehicle: boolean | null;
+  source: string | null;
   status: VolunteerStatus;
   notes: string | null;
   createdAt: number;
@@ -62,6 +63,7 @@ export async function createVolunteer(input: {
   rescueTraining?: boolean;
   fieldRole?: string;
   ownVehicle?: boolean;
+  source?: string;
   ipHash?: string | null;
 }): Promise<{ id: string }> {
   const id = crypto.randomUUID();
@@ -81,6 +83,7 @@ export async function createVolunteer(input: {
     rescueTraining: input.rescueTraining ?? null,
     fieldRole: input.fieldRole ?? null,
     ownVehicle: input.ownVehicle ?? null,
+    source: input.source ?? null,
     status: "pending",
     ipHash: input.ipHash ?? null,
     createdAt: now,
@@ -107,6 +110,7 @@ export async function listVolunteers(): Promise<VolunteerDTO[]> {
       rescueTraining: volunteers.rescueTraining,
       fieldRole: volunteers.fieldRole,
       ownVehicle: volunteers.ownVehicle,
+      source: volunteers.source,
       status: volunteers.status,
       notes: volunteers.notes,
       createdAt: volunteers.createdAt,
@@ -135,6 +139,7 @@ export async function getVolunteerById(id: string): Promise<VolunteerDTO | null>
       rescueTraining: volunteers.rescueTraining,
       fieldRole: volunteers.fieldRole,
       ownVehicle: volunteers.ownVehicle,
+      source: volunteers.source,
       status: volunteers.status,
       notes: volunteers.notes,
       createdAt: volunteers.createdAt,
@@ -163,6 +168,20 @@ export async function updateVolunteer(
   if (patch.notes !== undefined) values.notes = patch.notes;
   await db.update(volunteers).set(values).where(eq(volunteers.id, id));
   return getVolunteerById(id);
+}
+
+/**
+ * Marca pending → contacted SOLO si sigue pending (claim condicional de una
+ * sentencia — sin transacción interactiva, invariante Workers). Se usa tras
+ * enviar el mensaje al voluntario desde el panel: si alguien ya lo movió de
+ * estado, no lo pisamos.
+ */
+export async function markVolunteerContacted(id: string): Promise<void> {
+  const db = await getDb();
+  await db
+    .update(volunteers)
+    .set({ status: "contacted", updatedAt: Date.now() })
+    .where(sql`${volunteers.id} = ${id} AND ${volunteers.status} = 'pending'`);
 }
 
 export async function getVolunteerStats(): Promise<VolunteerStats> {
@@ -197,6 +216,7 @@ function toDTO(r: {
   rescueTraining: boolean | null;
   fieldRole: string | null;
   ownVehicle: boolean | null;
+  source: string | null;
   status: string;
   notes: string | null;
   createdAt: number;
@@ -216,6 +236,7 @@ function toDTO(r: {
     rescueTraining: r.rescueTraining,
     fieldRole: r.fieldRole,
     ownVehicle: r.ownVehicle,
+    source: r.source,
     status: r.status as VolunteerStatus,
     notes: r.notes,
     createdAt: Number(r.createdAt),

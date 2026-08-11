@@ -29,6 +29,7 @@ const createSchema = z.object({
   rescueTraining: z.boolean().optional(),
   fieldRole: z.string().trim().max(120).optional(),
   ownVehicle: z.boolean().optional(),
+  source: z.string().trim().max(500).optional(),
 });
 
 // Campos editables: status y notes (internas, solo admin). Al menos uno.
@@ -55,6 +56,7 @@ const responseSchema = z.object({
   rescueTraining: z.boolean().nullable(),
   fieldRole: z.string().nullable(),
   ownVehicle: z.boolean().nullable(),
+  source: z.string().nullable(),
   status: statusEnum,
   notes: z.string().nullable(),
   createdAt: z.number(),

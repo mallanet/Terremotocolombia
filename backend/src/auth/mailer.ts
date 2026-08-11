@@ -59,6 +59,28 @@ export async function sendInvitationEmail(to: string, token: string): Promise<{ 
 }
 
 /**
+ * Mensaje del equipo a un voluntario (desde el panel admin). Texto plano a
+ * propósito: el cuerpo lo escribe una persona del equipo y NO se renderiza
+ * como HTML (evita inyección de markup en el correo). {sent:false} si no hay
+ * SMTP configurado — el caller decide el error visible.
+ */
+export async function sendVolunteerMessage(
+  to: string,
+  subject: string,
+  message: string,
+): Promise<{ sent: boolean }> {
+  const t = transport();
+  if (!t) return { sent: false };
+  await t.sendMail({
+    from: env.SMTP_FROM,
+    to,
+    subject: `[${PRODUCT_NAME}] ${subject}`,
+    text: `${message}\n\n— Equipo de ${PRODUCT_NAME}`,
+  });
+  return { sent: true };
+}
+
+/**
  * Manda el código OTP de recuperación de contraseña. {sent:false} si no hay SMTP
  * (dev) — el caller NO debe exponer el código en la respuesta (a diferencia del
  * invite link): un OTP en la respuesta anularía la prueba de posesión del email.

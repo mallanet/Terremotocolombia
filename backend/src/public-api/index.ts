@@ -33,6 +33,7 @@ import { hubCredentialsRouter } from "@/public-api/routers/hub-credentials.route
 import { hospitalSuppliesRouter } from "@/public-api/routers/hospital-supplies.router";
 import { deletionRequestsRouter } from "@/public-api/routers/deletion-requests.router";
 import { psychologyRouter } from "@/public-api/routers/psychology.router";
+import { volunteersActionsRouter } from "@/public-api/routers/volunteers-actions.router";
 
 /**
  * Registro path → CONFIG del recurso. Fuente de verdad ÚNICA: de aquí salen
@@ -81,4 +82,7 @@ export function mountPublicApi(app: Express): void {
   app.use("/api/public/hub-credentials", hubCredentialsRouter); // mirror:manage (super admin)
   // Portal de psicólogos (/psicologia): gateado por psychology:access.
   app.use("/api/public/psychology", psychologyRouter);
+  // Acciones de dominio sobre voluntarios (enviar mensaje): volunteer:edit.
+  // Junto al CRUD de la fábrica; no colisiona (POST /:id/message no existe ahí).
+  app.use("/api/public/volunteers", volunteersActionsRouter);
 }

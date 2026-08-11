@@ -654,6 +654,8 @@ export const volunteers = pgTable(
     rescueTraining: boolean("rescue_training"),
     fieldRole: text("field_role"),
     ownVehicle: boolean("own_vehicle"),
+    // De dónde llegó el registro: utm:*, referrer externo o "directo".
+    source: text("source"),
     status: text("status").notNull().default("pending"),
     notes: text("notes"),
     ipHash: text("ip_hash"),
