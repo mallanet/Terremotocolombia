@@ -19,6 +19,9 @@ interface ImportSummary {
   failedStage: string | null;
   errorSummary: string | null;
   counts: Record<string, number>;
+  // Imagen completa del lote OCR — null en lotes no-OCR (ver
+  // ImportSummaryDTO/toSummary).
+  sourceImageUrl: string | null;
 }
 
 const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
@@ -289,6 +292,7 @@ export function PatientImportsAdmin() {
                 ["processing", "applying"].includes(current.status) ||
                 (applyEnFlight && current.status !== "applied" && current.status !== "failed")
               }
+              sourceImageUrl={current.sourceImageUrl}
             />
           )}
         </section>

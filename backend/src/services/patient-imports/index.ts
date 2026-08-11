@@ -11,6 +11,13 @@ export type { OcrIngestDeps } from "./ingest";
 export { ingestFileImport, ingestOcrImport, stageFileRows } from "./ingest";
 export type { ProcessImportOptions } from "./process";
 export { processImport } from "./process";
+export type { DedupDecisionInput, EditImportRowInput } from "./rows";
+export {
+	confirmImportRow,
+	decideImportRowDedup,
+	editImportRow,
+	rejectImportRow,
+} from "./rows";
 export type {
 	CreateImportInput,
 	CreateImportResult,

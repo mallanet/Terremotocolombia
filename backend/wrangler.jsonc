@@ -17,10 +17,10 @@
   // Config NO secreta (versionada a proposito). Los secretos van por
   // `wrangler secret bulk` desde Doppler, nunca aqui.
   // Cron Triggers. Las expresiones son la FUENTE DE VERDAD en
-  // src/services/cron-jobs.ts (CRON_EARTHQUAKES / CRON_GEOCODE) y aqui se
-  // declaran identicas; test/cron-jobs.test.ts compara las dos listas para que
-  // editar una sin la otra rompa el build en vez de dejar un cron que no
-  // ejecuta nada.
+  // src/services/cron-jobs.ts (CRON_EARTHQUAKES / CRON_GEOCODE /
+  // CRON_PERSON_RECONCILE) y aqui se declaran identicas;
+  // test/cron-jobs.test.ts compara las dos listas para que editar una sin la
+  // otra rompa el build en vez de dejar un cron que no ejecuta nada.
   //
   // - "*/5 * * * *"    sismos. Cada 5 minutos: el feed del USGS se refresca
   //   cada minuto, pero el evento ya paso y los replicas entran con holgura;
@@ -29,10 +29,15 @@
   //   controller.cron es lo unico que distingue un trigger de otro, asi que dos
   //   expresiones iguales serian indistinguibles, y el desfase evita que las
   //   dos tareas compitan por el mismo presupuesto de invocacion.
+  // - "4-59/5 * * * *" reconciliacion de PRNs (U7, KTD8). Misma cadencia,
+  //   DESFASADA dos minutos mas que geocode (cuatro que sismos), por el mismo
+  //   motivo de arriba.
   //
   // A nivel superior a proposito: `triggers` se HEREDA en env.staging, asi que
   // los dos entornos sincronizan sin duplicar configuracion.
-  "triggers": { "crons": ["*/5 * * * *", "2-59/5 * * * *"] },
+  "triggers": {
+    "crons": ["*/5 * * * *", "2-59/5 * * * *", "4-59/5 * * * *"]
+  },
   // Cloudflare Queues (U2/U3 del plan de port de colas). El productor es el
   // seam de despacho (src/lib/job-dispatch.ts) via el binding NEEDS_QUEUE; el
   // consumidor es el handler `queue` de src/worker.ts, en este MISMO Worker.
@@ -45,10 +50,17 @@
   //
   // OJO: `queues` NO se hereda en env.staging (los nombres difieren por
   // entorno); cada bloque declara los suyos.
+  //
+  // terremotocolombia-matcher (U8): un mensaje `{ prn }` por registro
+  // recién estampado/editado — dispara la generación de candidatos
+  // deterministas. max_batch_size 10 (mensajes livianos, no hay motivo para
+  // procesar de a uno como imports) y mismos retries/retry_delay que imports
+  // (3 x 30s, un fallo aquí suele ser la DB, no un tercero externo lento).
   "queues": {
     "producers": [
       { "binding": "NEEDS_QUEUE", "queue": "terremotocolombia-needs" },
-      { "binding": "IMPORTS_QUEUE", "queue": "terremotocolombia-imports" }
+      { "binding": "IMPORTS_QUEUE", "queue": "terremotocolombia-imports" },
+      { "binding": "MATCHER_QUEUE", "queue": "terremotocolombia-matcher" }
     ],
     "consumers": [
       {
@@ -68,7 +80,15 @@
         "max_batch_size": 1,
         "dead_letter_queue": "terremotocolombia-imports-dlq"
       },
-      { "queue": "terremotocolombia-imports-dlq", "max_retries": 0 }
+      { "queue": "terremotocolombia-imports-dlq", "max_retries": 0 },
+      {
+        "queue": "terremotocolombia-matcher",
+        "max_retries": 3,
+        "retry_delay": 30,
+        "max_batch_size": 10,
+        "dead_letter_queue": "terremotocolombia-matcher-dlq"
+      },
+      { "queue": "terremotocolombia-matcher-dlq", "max_retries": 0 }
     ]
   },
   "vars": {
@@ -123,7 +143,8 @@
       "queues": {
         "producers": [
           { "binding": "NEEDS_QUEUE", "queue": "terremotocolombia-needs-staging" },
-          { "binding": "IMPORTS_QUEUE", "queue": "terremotocolombia-imports-staging" }
+          { "binding": "IMPORTS_QUEUE", "queue": "terremotocolombia-imports-staging" },
+          { "binding": "MATCHER_QUEUE", "queue": "terremotocolombia-matcher-staging" }
         ],
         "consumers": [
           {
@@ -141,7 +162,15 @@
             "max_batch_size": 1,
             "dead_letter_queue": "terremotocolombia-imports-dlq-staging"
           },
-          { "queue": "terremotocolombia-imports-dlq-staging", "max_retries": 0 }
+          { "queue": "terremotocolombia-imports-dlq-staging", "max_retries": 0 },
+          {
+            "queue": "terremotocolombia-matcher-staging",
+            "max_retries": 3,
+            "retry_delay": 30,
+            "max_batch_size": 10,
+            "dead_letter_queue": "terremotocolombia-matcher-dlq-staging"
+          },
+          { "queue": "terremotocolombia-matcher-dlq-staging", "max_retries": 0 }
         ]
       },
       "vars": {

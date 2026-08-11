@@ -6,6 +6,8 @@
  */
 import { desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db";
+import { logDbFailure } from "@/lib/db-error";
+import { purgeFailedSubmissionsByEmail } from "@/services/failed-submissions";
 
 const { dataDeletionRequests } = schema;
 
@@ -74,13 +76,20 @@ export type DeletionRequestStatus = (typeof DELETION_REQUEST_STATUSES)[number];
 
 /**
  * Cambia el estado de una solicitud (panel admin, Ley 1581). Devuelve el DTO
- * actualizado o null si no existe. La decisión queda además en audit_log
- * (lo escribe el router con writeAudit).
+ * actualizado (con cuántos envíos fallidos se purgaron) o null si no existe.
+ * La decisión queda además en audit_log (lo escribe el router con writeAudit).
+ *
+ * Al pasar a "resolved", además purga los `failed_submissions` cuyo payload
+ * contiene el email del solicitante: la supresión debe alcanzar también los
+ * envíos que nunca llegaron a su tabla destino (ver
+ * services/failed-submissions.ts). El purge es best-effort: si falla, la
+ * resolución NO se revierte (no hay transacciones en Workers) — se loguea y
+ * el drenaje de retención acaba borrando esas filas igualmente.
  */
 export async function updateDeletionRequestStatus(
   id: string,
   status: DeletionRequestStatus,
-): Promise<DeletionRequestDTO | null> {
+): Promise<{ item: DeletionRequestDTO; purgedFailedSubmissions: number } | null> {
   const db = await getDb();
   const rows = await db
     .update(dataDeletionRequests)
@@ -97,13 +106,28 @@ export async function updateDeletionRequestStatus(
     });
   const row = rows[0];
   if (!row) return null;
+
+  let purgedFailedSubmissions = 0;
+  if (status === "resolved") {
+    try {
+      purgedFailedSubmissions = await purgeFailedSubmissionsByEmail(row.email);
+    } catch (err) {
+      // Best-effort: la resolución ya está escrita y no se revierte. La
+      // retención (cron) acaba purgando estas filas aunque esto falle.
+      logDbFailure("data-deletion.purge-failed-submissions", err);
+    }
+  }
+
   return {
-    id: row.id,
-    name: row.name,
-    email: row.email,
-    details: row.details,
-    status: row.status,
-    createdAt: Number(row.createdAt),
-    updatedAt: Number(row.updatedAt),
+    item: {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      details: row.details,
+      status: row.status,
+      createdAt: Number(row.createdAt),
+      updatedAt: Number(row.updatedAt),
+    },
+    purgedFailedSubmissions,
   };
 }

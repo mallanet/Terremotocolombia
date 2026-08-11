@@ -2,10 +2,14 @@ import { createHash } from "node:crypto";
 import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { invalidate } from "@/lib/cache";
+import type { DedupCandidate } from "@/services/patient-import-logic";
 import type { PatientCondition, PatientStatus } from "@/services/patients";
+import { ensurePrn, enqueueMatcherSweep } from "@/services/person-records";
 import { getImport } from "./create";
 import { assertImportState, loadHeader, PATIENT_IMPORT_FAILED_STAGE } from "./internal";
 import {
+	DEDUP_ACCEPTED_REASON,
+	DEDUP_STATUS_ACCEPTED,
 	type ImportSummaryDTO,
 	PATIENT_CONDITION,
 	PATIENT_CONDITIONS,
@@ -42,6 +46,21 @@ interface ApplyableRow {
 	status: string | null;
 	hospitalId: string | null;
 	documentHash: string | null;
+	dedupStatus: string;
+	dedupCandidates: unknown;
+}
+
+/**
+ * Busca la marca de aceptación de dedup (U2, `POST .../dedup` accept:true) en
+ * `dedup_candidates`: un único candidato con `reason: DEDUP_ACCEPTED_REASON`.
+ * Ver `decideImportRowDedup` en rows.ts — es quien la escribe.
+ */
+function findAcceptedDedupPatientId(dedupCandidates: unknown): string | null {
+	if (!Array.isArray(dedupCandidates)) return null;
+	const accepted = (dedupCandidates as Partial<DedupCandidate>[]).find(
+		(c) => c?.reason === DEDUP_ACCEPTED_REASON,
+	);
+	return accepted?.patientId ?? null;
 }
 
 function normalizePatientCondition(value: string | null): PatientCondition {
@@ -68,11 +87,22 @@ export function deterministicPatientId(rowId: string): string {
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 
+/** Resultado de aplicar una fila: el paciente resultante y su PRN (si
+ *  `ensurePrn` lo alcanzó a estampar aquí mismo — best-effort, puede ser
+ *  `null`). `applyImport` acumula los PRN de TODAS las filas de la corrida y
+ *  hace un único `enqueueMatcherSweep` al final (AE2/U8), mismo idioma de
+ *  lote que `upsertExternalMissingBatch` en missing.ts. */
+interface ApplyRowResult {
+	patientId: string;
+	prn: string | null;
+}
+
 /**
  * Aplica UNA fila con claim + insert idempotente + marca. Devuelve el
- * patientId si la fila terminó aplicada, null si quedó duplicada o no aplica.
+ * paciente aplicado (id + PRN) si la fila terminó aplicada, null si quedó
+ * duplicada o no aplica.
  */
-async function applyOneRow(rowId: string): Promise<string | null> {
+async function applyOneRow(rowId: string): Promise<ApplyRowResult | null> {
 	const db = getDb();
 	const now = Date.now();
 
@@ -96,6 +126,8 @@ async function applyOneRow(rowId: string): Promise<string | null> {
 			status: patientImportRows.status,
 			hospitalId: patientImportRows.hospitalId,
 			documentHash: patientImportRows.documentHash,
+			dedupStatus: patientImportRows.dedupStatus,
+			dedupCandidates: patientImportRows.dedupCandidates,
 		});
 	const row = claimed[0] as ApplyableRow | undefined;
 	if (!row?.hospitalId || !row.name) {
@@ -108,6 +140,38 @@ async function applyOneRow(rowId: string): Promise<string | null> {
 				.where(eq(patientImportRows.id, rowId));
 		}
 		return null;
+	}
+
+	// --- Camino de ADJUNTAR (U2): la fila trae un candidato de dedup aceptado
+	// por un revisor humano (rows.ts, decideImportRowDedup). Se adjunta al
+	// paciente EXISTENTE — SIN insert nuevo, SIN pisar sus campos (conservador:
+	// el revisor eligió "es el mismo paciente", no "actualiza sus datos").
+	const acceptedPatientId = findAcceptedDedupPatientId(row.dedupCandidates);
+	if (row.dedupStatus === DEDUP_STATUS_ACCEPTED && acceptedPatientId) {
+		const existing = await db
+			.select({ id: hospitalPatients.id })
+			.from(hospitalPatients)
+			.where(eq(hospitalPatients.id, acceptedPatientId))
+			.limit(1);
+		if (!existing[0]) {
+			// El paciente aceptado ya no existe (borrado entre el accept y el
+			// apply) — no hay a qué adjuntar. Reintentar en bucle no lo arregla;
+			// se marca inválida de forma visible, igual que sin hospital/nombre.
+			await db
+				.update(patientImportRows)
+				.set({ rowStatus: "invalid", updatedAt: now })
+				.where(eq(patientImportRows.id, rowId));
+			return null;
+		}
+		await db
+			.update(patientImportRows)
+			.set({ patientId: acceptedPatientId, rowStatus: "applied", updatedAt: now })
+			.where(eq(patientImportRows.id, rowId));
+		// Capa de identidad: best-effort e idempotente (el paciente existente
+		// normalmente ya tiene PRN; ensurePrn nunca falla el apply). El sweep va
+		// en LOTE al final de applyImport, no aquí (ver ApplyRowResult).
+		const acceptedPrn = await ensurePrn("hospital_patient", acceptedPatientId);
+		return { patientId: acceptedPatientId, prn: acceptedPrn };
 	}
 
 	const patientId = deterministicPatientId(row.id);
@@ -152,7 +216,11 @@ async function applyOneRow(rowId: string): Promise<string | null> {
 		.update(patientImportRows)
 		.set({ patientId, rowStatus: "applied", updatedAt: now })
 		.where(eq(patientImportRows.id, rowId));
-	return patientId;
+	// Capa de identidad: cada fila aplicada entra al registro PRN y al barrido
+	// del matcher (AE2/U8, en lote al final de applyImport). Best-effort:
+	// nunca falla el apply.
+	const prn = await ensurePrn("hospital_patient", patientId);
+	return { patientId, prn };
 }
 
 export async function applyImport(
@@ -201,9 +269,15 @@ export async function applyImport(
 			),
 		)) as { id: string }[];
 
+	// AE2/U8: acumula los PRN de esta corrida y hace UN solo sweep al final —
+	// mismo idioma de lote que upsertExternalMissingBatch en missing.ts, en vez
+	// de un enqueueMatcherSweep por fila.
+	const sweepPrns: string[] = [];
 	for (const row of toApply) {
-		await applyOneRow(row.id);
+		const applied = await applyOneRow(row.id);
+		if (applied?.prn) sweepPrns.push(applied.prn);
 	}
+	if (sweepPrns.length > 0) enqueueMatcherSweep([...new Set(sweepPrns)]);
 
 	const now = Date.now();
 	const appliedCount = (await db

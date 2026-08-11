@@ -27,7 +27,9 @@ import { captureFailedSubmission } from "@/lib/failed-submission";
 import { badRequest, payloadTooLarge, notFound, serviceUnavailable } from "@/lib/errors";
 import { HttpError } from "@/lib/errors";
 import { writeAudit } from "@/auth/audit";
+import { hashIp } from "@/lib/client-ip";
 import * as service from "@/services/missing";
+import { tombstonePersonRecord } from "@/services/person-records";
 
 export const missingRouter = Router();
 
@@ -152,8 +154,9 @@ missingRouter.post(
         throw payloadTooLarge("La foto es demasiado grande. Usa una imagen más liviana.");
       }
     }
+    let person: service.MissingDTO;
     try {
-      const person = await service.addMissing({
+      person = await service.addMissing({
         name: body.name,
         age: body.age,
         nationality: body.nationality,
@@ -162,8 +165,8 @@ missingRouter.post(
         contact: body.contact,
         photo: body.photo,
         reportType: body.reportType,
+        ipHash: hashIp(req),
       });
-      res.status(201).json({ person }); // person ya es DTO
     } catch (err) {
       logDbFailure("missing.create", err);
       // Red de durabilidad: el 503 sigue igual, pero el envio de la
@@ -173,6 +176,14 @@ missingRouter.post(
         "No se pudo guardar el reporte. Revisa tu conexión e inténtalo de nuevo.",
       );
     }
+    // writeAudit nunca lanza (falla a stderr); único rastro de responsabilidad
+    // de esta alta anónima (actor null a propósito, hashIp la deja trazable).
+    await writeAudit(req, {
+      action: "missing.create",
+      targetType: "missing_person",
+      targetId: person.id,
+    });
+    res.status(201).json({ person }); // person ya es DTO
   }),
 );
 
@@ -309,6 +320,13 @@ missingRouter.delete(
   validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const { id } = req.params as z.infer<typeof idParams>;
+    // U10 (R21/AE3): tombstone de identidad ANTES del borrado físico —
+    // insert-before-mutate, mismo orden que las suppressions de
+    // service.removeMissing. Best-effort (nunca lanza): un hiccup de la capa
+    // de identidad no debe bloquear este borrado.
+    // req.user NO existe en esta superficie legacy (requireAdmin = token
+    // compartido x-admin-token, no sesión JWT) — 'admin' es la atribución.
+    const tombstone = await tombstonePersonRecord("missing_report", id, req.user?.id ?? "admin");
     const removed = await service.removeMissing(id);
     if (!removed) throw notFound("No encontrado");
     await writeAudit(req, {
@@ -316,6 +334,13 @@ missingRouter.delete(
       targetType: "missing_person",
       targetId: id,
     });
+    if (tombstone.prn) {
+      await writeAudit(req, {
+        action: "person.purge",
+        targetType: "person_record",
+        targetId: tombstone.prn,
+      });
+    }
     res.status(200).json({ ok: true });
   }),
 );

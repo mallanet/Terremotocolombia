@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import {
 	getMinimaxOcrConfig,
+	PROMPT_VERSION,
 	type MinimaxOcrConfig,
 } from "@/services/ocr/minimax-config";
 import {
@@ -96,6 +97,20 @@ export async function ingestOcrImport(
 	const extract = deps.extract ?? extractPatientRowsFromImageUrl;
 	const result = await extract(config, imageUrl, { fetch: deps.fetch });
 
+	// Contexto OCR en el header ANTES de materializar staging: sin esto,
+	// `ocr_corrections` (escrito por el editor de filas) no tiene provider/
+	// prompt_version que copiar, y no hay imagen de referencia para el
+	// revisor. NULL en lotes no-OCR — este código solo corre en el camino OCR.
+	await getDb()
+		.update(patientImports)
+		.set({
+			ocrProvider: result.model,
+			ocrPromptVersion: PROMPT_VERSION,
+			sourceImageUrl: imageUrl,
+			updatedAt: Date.now(),
+		})
+		.where(eq(patientImports.id, importId));
+
 	await replaceStagingRows(importId, result.rows);
 	return processImport(importId);
 }
@@ -106,7 +121,6 @@ export async function ingestFileImport(
 	fileBase64: string,
 	defaultHospitalId?: string,
 ): Promise<ImportSummaryDTO> {
-	const rows = parseImportFile(contentType, fileBase64);
-	await replaceStagingRows(importId, rows, defaultHospitalId);
+	await stageFileRows(importId, contentType, fileBase64, defaultHospitalId);
 	return processImport(importId);
 }

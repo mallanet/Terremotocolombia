@@ -24,6 +24,17 @@ export interface MinimaxEnvSource {
 	MINIMAX_OCR_PROMPT?: string;
 }
 
+/**
+ * Versión del prompt OCR persistida en `patient_imports.ocr_prompt_version`
+ * junto a cada corrección humana (`ocr_corrections.prompt_version`). Es el eje
+ * de agrupación de la Fase 3 (eval sets, few-shot por layout): sin esto no se
+ * puede saber qué correcciones corresponden a qué versión del prompt al
+ * comparar aciertos entre iteraciones. Súbela a mano cada vez que cambie
+ * `DEFAULT_OCR_PROMPT` (o `MINIMAX_OCR_PROMPT` en producción) de forma que
+ * afecte la extracción.
+ */
+export const PROMPT_VERSION = "minimax-ocr-prompt-v1";
+
 export const DEFAULT_OCR_PROMPT = [
 	"You extract structured patient data from a scanned hospital document image.",
 	"Return ONLY a JSON array (no prose, no code fences). Each element is an object",

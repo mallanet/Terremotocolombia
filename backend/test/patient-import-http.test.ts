@@ -60,10 +60,13 @@ describe("createImport — HTTP", () => {
 
 	it("valida contentType", async () => {
 		const { token } = await makeUserWithCaps(["patient:import"]);
+		// application/zip no tiene ruta de procesamiento: 415 (Content-Type no
+		// soportado), no 400 — ver describe("createImport — PDF rechazado con
+		// 415…") para la cobertura dedicada de ese status con PDF.
 		expect(
 			(await postImport(token, { contentType: "application/zip", rows: demoRows }))
 				.status,
-		).toBe(400);
+		).toBe(415);
 		expect(
 			(await postImport(token, { contentType: "text/csv", rows: demoRows }))
 				.status,
@@ -142,34 +145,61 @@ describe("createImport — OCR deshabilitado → 501", () => {
 	beforeAll(async () => {
 		app = await loadApp();
 	});
-	it("rechaza imagen/PDF sin proveedor", async () => {
+	it("rechaza imagen sin proveedor", async () => {
 		const { token } = await makeUserWithCaps(["patient:import"]);
-		for (const contentType of [
-			"application/pdf",
-			"image/png",
-			"image/jpeg",
-		] as const) {
+		for (const contentType of ["image/png", "image/jpeg"] as const) {
 			const res = await postImport(token, { contentType, rows: demoRows });
 			expect(res.status).toBe(501);
 		}
+	});
+});
+
+describe("createImport — PDF rechazado con 415 (R6, sin contradicción aceptar-luego-501)", () => {
+	beforeAll(async () => {
+		app = await loadApp();
+	});
+	const EXPECTED_MESSAGE_FRAGMENT = "Formato no soportado";
+
+	it("PDF con rows → 415, con el mensaje esperado (formatos soportados + sugerencia de foto)", async () => {
+		const { token } = await makeUserWithCaps(["patient:import"]);
+		const res = await postImport(token, {
+			contentType: "application/pdf",
+			rows: demoRows,
+		});
+		expect(res.status).toBe(415);
+		expect(res.body.error).toContain(EXPECTED_MESSAGE_FRAGMENT);
+		expect(res.body.error).toContain("JSON");
+		expect(res.body.error).toContain("CSV");
+		expect(res.body.error).toContain("XLSX");
+		expect(res.body.error.toLowerCase()).toContain("pdf");
+	});
+
+	it("PDF con fileBase64 → 415, sin filtrar el contenido del archivo", async () => {
+		const { token } = await makeUserWithCaps(["patient:import"]);
 		const raw = Buffer.from("RAW-OCR-IMAGE-BYTES-DEMO").toString("base64");
 		const res = await postImport(token, {
 			contentType: "application/pdf",
 			fileBase64: raw,
 		});
-		expect(res.status).toBe(501);
+		expect(res.status).toBe(415);
 		expect(JSON.stringify(res.body)).not.toContain(raw);
 	});
 
-	it("no persiste lote ni auditoría en 501", async () => {
+	it("PDF sin rows ni fileBase64 → 415 igual (se rechaza antes de mirar el resto del body)", async () => {
+		const { token } = await makeUserWithCaps(["patient:import"]);
+		const res = await postImport(token, { contentType: "application/pdf" });
+		expect(res.status).toBe(415);
+	});
+
+	it("no persiste lote ni auditoría en 415", async () => {
 		const user = await makeUserWithCaps(["patient:import"]);
-		const source = `demo-ocr-no-persist-${randomUUID()}`;
+		const source = `demo-pdf-no-persist-${randomUUID()}`;
 		const res = await postImport(
 			user.token,
 			{ contentType: "application/pdf", source, rows: demoRows },
 			{ "Idempotency-Key": `demo-idem-${randomUUID()}` },
 		);
-		expect(res.status).toBe(501);
+		expect(res.status).toBe(415);
 		const { getDb, schema } = await import("@/db");
 		const { and, eq } = await import("drizzle-orm");
 		const db = getDb();
@@ -235,12 +265,15 @@ describe("createImport — OCR con proveedor", () => {
 		expect(res.status).toBe(400);
 	});
 
-	it("PDF sigue 501; imageUrl en JSON → 400", async () => {
+	it("PDF sigue 415 aun con proveedor OCR configurado; imageUrl en JSON → 400", async () => {
+		// El rechazo de PDF es incondicional (415 en rejectUnsupportedContentType,
+		// ANTES de mirar getMinimaxOcrConfig()) — tener el proveedor de OCR
+		// habilitado no lo vuelve un content-type soportado.
 		const { token } = await makeUserWithCaps(["patient:import"]);
 		expect(
 			(await postImport(token, { contentType: "application/pdf", rows: demoRows }))
 				.status,
-		).toBe(501);
+		).toBe(415);
 		expect(
 			(
 				await postImport(token, {

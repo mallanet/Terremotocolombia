@@ -5,15 +5,19 @@
  * inválido o para revisar — con errores y candidatos de dedupe visibles ANTES
  * de aplicar. Los datos vienen del BFF (/api/admin/patient-imports/:id/rows).
  */
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { adminFetch } from "@/src/shared/http/admin-fetch";
+import { Button } from "@/src/ui";
+import { RowEditor } from "./row-editor";
 
 export interface ImportRow {
   id: string;
   rowIndex: number;
   name: string | null;
   age: number | null;
+  condition: string | null;
+  status: string | null;
   sourceHospital: string;
   hospitalId: string | null;
   rowStatus: string;
@@ -22,6 +26,9 @@ export interface ImportRow {
   validationWarnings: string[];
   dedupCandidates: { patientId: string; name: string; reason: string }[];
   patientId: string | null;
+  // `updated_at` de la fila — token de concurrencia optimista real que el
+  // editor reenvía como `baselineUpdatedAt` en el PATCH (ver row-editor.tsx).
+  updatedAt: number;
 }
 
 // OJO: el backend emite "needs_review" (process.ts), no "review".
@@ -59,12 +66,18 @@ async function fetchRows(importId: string): Promise<ImportRow[]> {
 export function ImportRowsTable({
   importId,
   live = false,
+  sourceImageUrl,
 }: {
   importId: string;
   /** Refetch periódico mientras el lote sigue en movimiento (apply en vuelo). */
   live?: boolean;
+  /** Imagen completa del lote OCR (header.sourceImageUrl), si la hay — se
+   * pasa al editor de la fila expandida (vista completa; Phase 3 recorta por
+   * región). */
+  sourceImageUrl?: string | null;
 }) {
   const [filter, setFilter] = useState<string>("todas");
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const rows = useQuery({
     queryKey: ["patient-import-rows", importId],
     queryFn: () => fetchRows(importId),
@@ -113,44 +126,70 @@ export function ImportRowsTable({
               <th className="px-3 py-2">Hospital (fuente)</th>
               <th className="px-3 py-2">Estado</th>
               <th className="px-3 py-2">Detalle</th>
+              <th className="px-3 py-2">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {visible.map((row) => (
-              <tr key={row.id} className="border-t align-top">
-                <td className="px-3 py-2">{row.rowIndex + 1}</td>
-                <td className="px-3 py-2 font-medium">{row.name ?? "—"}</td>
-                <td className="px-3 py-2">
-                  {row.sourceHospital || "—"}
-                  {!row.hospitalId && row.rowStatus === "invalid" && (
-                    <span className="block text-xs text-red-600">sin hospital reconocido</span>
+            {visible.map((row) => {
+              const isExpanded = expandedRowId === row.id;
+              return (
+                <Fragment key={row.id}>
+                  <tr className="border-t align-top">
+                    <td className="px-3 py-2">{row.rowIndex + 1}</td>
+                    <td className="px-3 py-2 font-medium">{row.name ?? "—"}</td>
+                    <td className="px-3 py-2">
+                      {row.sourceHospital || "—"}
+                      {!row.hospitalId && row.rowStatus === "invalid" && (
+                        <span className="block text-xs text-red-600">sin hospital reconocido</span>
+                      )}
+                    </td>
+                    <td className={`px-3 py-2 ${ROW_STATUS_COLOR[row.rowStatus] ?? ""}`}>
+                      {ROW_STATUS_LABELS[row.rowStatus] ?? row.rowStatus}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-gray-600">
+                      {row.validationErrors.map((error) => (
+                        <span key={error} className="block text-red-600">
+                          {error}
+                        </span>
+                      ))}
+                      {row.validationWarnings.map((warning) => (
+                        <span key={warning} className="block text-amber-700">
+                          {warning}
+                        </span>
+                      ))}
+                      {row.dedupCandidates.map((candidate) => (
+                        <span key={candidate.patientId} className="block">
+                          posible duplicado de <strong>{candidate.name}</strong> ({candidate.reason})
+                        </span>
+                      ))}
+                    </td>
+                    <td className="px-3 py-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setExpandedRowId(isExpanded ? null : row.id)}
+                      >
+                        {isExpanded ? "Cerrar" : "Editar"}
+                      </Button>
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                    <tr className="border-t">
+                      <td colSpan={6} className="px-3 py-3">
+                        {/* La capacidad se chequea DENTRO de RowEditor (la
+                            "superficie de acción"): sin ella se sigue viendo
+                            el estado/imagen fuente en modo lectura, pero sin
+                            formulario ni botones. */}
+                        <RowEditor importId={importId} row={row} sourceImageUrl={sourceImageUrl} />
+                      </td>
+                    </tr>
                   )}
-                </td>
-                <td className={`px-3 py-2 ${ROW_STATUS_COLOR[row.rowStatus] ?? ""}`}>
-                  {ROW_STATUS_LABELS[row.rowStatus] ?? row.rowStatus}
-                </td>
-                <td className="px-3 py-2 text-xs text-gray-600">
-                  {row.validationErrors.map((error) => (
-                    <span key={error} className="block text-red-600">
-                      {error}
-                    </span>
-                  ))}
-                  {row.validationWarnings.map((warning) => (
-                    <span key={warning} className="block text-amber-700">
-                      {warning}
-                    </span>
-                  ))}
-                  {row.dedupCandidates.map((candidate) => (
-                    <span key={candidate.patientId} className="block">
-                      posible duplicado de <strong>{candidate.name}</strong> ({candidate.reason})
-                    </span>
-                  ))}
-                </td>
-              </tr>
-            ))}
+                </Fragment>
+              );
+            })}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-4 text-gray-500">
+                <td colSpan={6} className="px-3 py-4 text-gray-500">
                   Sin filas con ese estado.
                 </td>
               </tr>

@@ -13,6 +13,7 @@ import {
   CRON_EARTHQUAKES,
   CRON_EXPRESSIONS,
   CRON_GEOCODE,
+  CRON_PERSON_RECONCILE,
   dispatchCron,
 } from "@/services/cron-jobs";
 
@@ -46,6 +47,23 @@ describe("dispatchCron", () => {
 
     expect(geocode).toHaveBeenCalledOnce();
     expect(sismos).not.toHaveBeenCalled();
+  });
+
+  it("enruta la expresión de reconciliación de PRNs a su handler y a ningún otro", async () => {
+    const sismos = vi.fn(async () => {});
+    const geocode = vi.fn(async () => {});
+    const reconcile = vi.fn(async () => {});
+
+    await dispatchCron(CRON_PERSON_RECONCILE, 1_700_000_000_000, {
+      [CRON_EARTHQUAKES]: sismos,
+      [CRON_GEOCODE]: geocode,
+      [CRON_PERSON_RECONCILE]: reconcile,
+    });
+
+    expect(reconcile).toHaveBeenCalledOnce();
+    expect(reconcile).toHaveBeenCalledWith(1_700_000_000_000);
+    expect(sismos).not.toHaveBeenCalled();
+    expect(geocode).not.toHaveBeenCalled();
   });
 
   it("una expresión desconocida avisa y vuelve, sin lanzar", async () => {

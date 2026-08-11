@@ -62,10 +62,11 @@ export function getDb(): Db {
     // consulta. Es lo único que encaja con el modelo de isolates.
     //
     // LIMITACIÓN CONOCIDA: no admite transacciones interactivas
-    // (`db.transaction(async (tx) => ...)`). Hoy eso solo afecta a
-    // services/roles.ts y services/patient-imports/* — administración e
-    // importación, no la superficie pública del sitio. Esas rutas fallarán en
-    // Workers hasta que se migren a `db.batch()` o se muevan a un runtime Node.
+    // (`db.transaction(async (tx) => ...)`). El código vivo ya no las usa:
+    // services/roles.ts y services/patient-imports/* se reescribieron como
+    // máquinas de estado idempotentes (claim condicional + id determinista +
+    // ON CONFLICT). Cualquier escritura multi-paso nueva sigue ese idioma —
+    // nunca db.transaction(), que aquí falla en runtime.
     //
     // `fetchFunction` es GLOBAL en el driver: se fija aqui, junto a la unica
     // construccion del cliente HTTP, para que no haya forma de crear un cliente
