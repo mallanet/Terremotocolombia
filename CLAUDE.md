@@ -122,14 +122,17 @@ el runner.
   el fallo aborta el deploy **después** de subir el código y **antes** de promover
   la versión: el Worker se queda sirviendo la build anterior y el comando parece
   casi correcto.
-- **El worker de colas no está desplegado** (el `admin/` sí, desde 2026-08-10).
-  El worker no es cosmético: sin él no corren el sync de sismos, la publicación
-  de necesidades, la importación de pacientes (manual **y** OCR: las dos pasan
-  por `enqueuePatientImport`) ni la federación de hub. Consecuencia directa en
-  el panel: la pantalla "Importar pacientes" encola lotes que **nunca se
-  procesan** en Workers — la carga de datos hospitalarios hoy va por los CRUD
-  directos (hospitales, pacientes, insumos), no por importación en lote. Ver
-  `docs/architecture.md` → "Workers y colas".
+- **Los jobs de fondo están a medio portar a Cloudflare** (plan en
+  `docs/plans/2026-08-10-002-…`, estado por unidad en `docs/runbook-fase0.md`).
+  Ya corren en Workers: sync de sismos y geocode (Cron Triggers) y el seam de
+  despacho de colas. Con código listo pendiente de verificación/cutover:
+  publicación de necesidades por Cloudflare Queues + DLQ persistido en
+  `audit_log`. Siguen inertes: sync de fuentes (U5) y, **a propósito**, la
+  importación de pacientes (manual y OCR usan transacciones interactivas que
+  fallan en Workers; tendrá su propio plan). Consecuencia en el panel: la
+  pantalla "Importar pacientes" encola lotes que **no se procesan** — la carga
+  de datos hospitalarios va por los CRUD directos (hospitales, pacientes,
+  insumos). El worker BullMQ de compose queda intacto para el camino VPS.
 - **Hay bindings de Hyperdrive y una base D1 creados pero SIN USAR.**
   `backend/wrangler.jsonc` declara un binding de Hyperdrive que hoy no se lee.
   Se intentó y fue contraproducente: el driver de Workers es el HTTP de Neon,

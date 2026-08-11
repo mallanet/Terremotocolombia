@@ -25,6 +25,13 @@ import {
   dispatchCron,
 } from "./services/cron-jobs.js";
 import { registerJobBindings } from "./lib/job-dispatch.js";
+import {
+  classifyQueue,
+  consumeDlqBatch,
+  consumeNeedsBatch,
+  persistDeadLetter,
+  type IncomingQueueBatch,
+} from "./lib/queue-consumer.js";
 
 // El servidor se crea en ambito de modulo y NO se mueve dentro de fetch():
 // hacerlo daba 500/503 intermitentes porque cada isolate levantaba el suyo y la
@@ -148,5 +155,40 @@ export default {
         });
       })(),
     );
+  },
+
+  /**
+   * Consumidor de Cloudflare Queues (U2/U3 del plan de port de colas). Tercer
+   * handler hermano de fetch/scheduled — el shape ya probado en produccion
+   * (KTD2). La logica vive en lib/queue-consumer.ts para ser testeable; aqui
+   * solo el cableado, con bridgeEnv ANTES de cualquier codigo que lea
+   * process.env, igual que scheduled.
+   */
+  async queue(batch: IncomingQueueBatch, env: WorkerEnv, _ctx: Ctx): Promise<void> {
+    bridgeEnv(env);
+    registerJobBindings(env);
+    const kind = classifyQueue(batch.queue);
+    if (kind === "needs") {
+      await consumeNeedsBatch(batch, {
+        publish: async (job) => {
+          // Import perezoso, como hacia el processor de BullMQ: el modulo de
+          // needs (composition root) no entra en el arranque del isolate.
+          const { publishNeed } = await import("./modules/needs/needs-module.js");
+          return job.location
+            ? publishNeed.executeAtLocation(job.need, job.location)
+            : publishNeed.execute(job.need);
+        },
+      });
+      return;
+    }
+    if (kind === "needs-dlq") {
+      await consumeDlqBatch(batch, persistDeadLetter);
+      return;
+    }
+    // Cola desconocida: ack para no envenenar la entrega. El fallo real
+    // (config y codigo desincronizados) no se arregla reintentando — mismo
+    // criterio que dispatchCron con una expresion no reconocida.
+    console.warn(`[queue] cola no reconocida: "${batch.queue}" — se hace ack sin procesar.`);
+    for (const message of batch.messages) message.ack();
   },
 };
