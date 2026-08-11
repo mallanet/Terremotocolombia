@@ -54,6 +54,16 @@ parece a producción no prueba nada. El panel admin sigue el mismo patrón
 (`admin/wrangler.jsonc`); su Worker no lleva secretos de runtime — el BFF solo
 conoce `EMERGENCY_API_URL` y la sesión es el JWT del backend en cookie httpOnly.
 
+El panel de **producción** está además detrás de **Cloudflare Access** (org
+`terremotocolombia.cloudflareaccess.com`, OTP por email contra una allowlist
+de correos del equipo): nadie llega ni al login del panel sin pasar el borde.
+Hay una app de **bypass solo para `/api/health`**, para que el smoke check de
+`deploy-admin.yml` siga viendo 200 — no la quites. Access se gestiona por su
+API con un token dedicado (`CLOUDFLARE_ACCESS_API_TOKEN` en Doppler `prd`),
+FUERA del módulo OpenTofu. Alta de un teammate = añadir su email a la política
+de la app + invitarlo desde /users del panel. `admin-staging` NO lleva Access
+(lo protege solo el login propio del panel, y su base es la rama staging).
+
 | Pieza | Estado |
 | --- | --- |
 | Admin | **desplegado** en ambos entornos (desde 2026-08-10) |

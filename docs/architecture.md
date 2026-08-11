@@ -27,7 +27,9 @@ infraestructura compartida:
   `admin-staging.terremotocolombia.co`), vía `@opennextjs/cloudflare` igual que
   el frontend (`admin/wrangler.jsonc`, sin secretos de runtime). Deploy: staging
   automático en `deploy-staging.yml`; producción manual con confirmación
-  (`deploy-admin.yml`). OJO: la pantalla "Importar pacientes" depende del worker
+  (`deploy-admin.yml`). Producción va detrás de **Cloudflare Access** (OTP por
+  email + allowlist del equipo; bypass solo para `/api/health` por el smoke
+  check) — ver `CLAUDE.md` → "Dónde corre esto de verdad". OJO: la pantalla "Importar pacientes" depende del worker
   de colas, que sigue SIN desplegar — en Workers los lotes se encolan y no se
   procesan; la carga de datos hospitalarios va por los CRUD directos.
 - `infra/db/`: esquema Drizzle y migraciones SQL.
