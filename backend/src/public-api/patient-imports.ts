@@ -209,8 +209,14 @@ const editRowBodySchema = z
 		status: z.string().trim().max(60).optional(),
 		sourceHospital: z.string().trim().max(200).optional(),
 		hospitalId: z.string().trim().min(1).max(120).optional(),
+		// updated_at de la fila tal como la vio el cliente (concurrencia
+		// optimista real: sin esto, dos revisores con la fila abierta se pisan).
+		baselineUpdatedAt: z.number().int().positive().optional(),
 	})
-	.refine((o) => Object.keys(o).length > 0, "Envía al menos un campo a editar.");
+	.refine(
+		(o) => Object.keys(o).filter((k) => k !== "baselineUpdatedAt").length > 0,
+		"Envía al menos un campo a editar.",
+	);
 
 const dedupDecisionSchema = z
 	.object({
@@ -541,7 +547,7 @@ patientImportsRouter.patch(
 			action: "patient-import.row.edit",
 			targetType: "patient-import-row",
 			targetId: rowId,
-			metadata: { importId: id, fields: Object.keys(edits) },
+			metadata: { importId: id, fields: Object.keys(edits).filter((k) => k !== "baselineUpdatedAt") },
 		});
 		res.json({ row });
 	}),

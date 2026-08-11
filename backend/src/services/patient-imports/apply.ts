@@ -4,6 +4,7 @@ import { getDb, schema } from "@/db";
 import { invalidate } from "@/lib/cache";
 import type { DedupCandidate } from "@/services/patient-import-logic";
 import type { PatientCondition, PatientStatus } from "@/services/patients";
+import { ensurePrn } from "@/services/person-records";
 import { getImport } from "./create";
 import { assertImportState, loadHeader, PATIENT_IMPORT_FAILED_STAGE } from "./internal";
 import {
@@ -155,6 +156,9 @@ async function applyOneRow(rowId: string): Promise<string | null> {
 			.update(patientImportRows)
 			.set({ patientId: acceptedPatientId, rowStatus: "applied", updatedAt: now })
 			.where(eq(patientImportRows.id, rowId));
+		// Capa de identidad: best-effort e idempotente (el paciente existente
+		// normalmente ya tiene PRN; ensurePrn nunca falla el apply).
+		await ensurePrn("hospital_patient", acceptedPatientId);
 		return acceptedPatientId;
 	}
 
@@ -200,6 +204,10 @@ async function applyOneRow(rowId: string): Promise<string | null> {
 		.update(patientImportRows)
 		.set({ patientId, rowStatus: "applied", updatedAt: now })
 		.where(eq(patientImportRows.id, rowId));
+	// Capa de identidad: cada fila aplicada entra al registro PRN y (cuando
+	// U8 conecte la cola) al barrido del matcher. Best-effort: nunca falla
+	// el apply.
+	await ensurePrn("hospital_patient", patientId);
 	return patientId;
 }
 
