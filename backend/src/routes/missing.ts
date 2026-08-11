@@ -25,6 +25,7 @@ import { cached } from "@/lib/cache";
 import { badRequest, payloadTooLarge, notFound, serviceUnavailable } from "@/lib/errors";
 import { HttpError } from "@/lib/errors";
 import { writeAudit } from "@/auth/audit";
+import { hashIp } from "@/lib/client-ip";
 import * as service from "@/services/missing";
 
 export const missingRouter = Router();
@@ -150,8 +151,9 @@ missingRouter.post(
         throw payloadTooLarge("La foto es demasiado grande. Usa una imagen más liviana.");
       }
     }
+    let person: service.MissingDTO;
     try {
-      const person = await service.addMissing({
+      person = await service.addMissing({
         name: body.name,
         age: body.age,
         nationality: body.nationality,
@@ -160,13 +162,21 @@ missingRouter.post(
         contact: body.contact,
         photo: body.photo,
         reportType: body.reportType,
+        ipHash: hashIp(req),
       });
-      res.status(201).json({ person }); // person ya es DTO
     } catch {
       throw serviceUnavailable(
         "No se pudo guardar el reporte. Revisa tu conexión e inténtalo de nuevo.",
       );
     }
+    // writeAudit nunca lanza (falla a stderr); único rastro de responsabilidad
+    // de esta alta anónima (actor null a propósito, hashIp la deja trazable).
+    await writeAudit(req, {
+      action: "missing.create",
+      targetType: "missing_person",
+      targetId: person.id,
+    });
+    res.status(201).json({ person }); // person ya es DTO
   }),
 );
 

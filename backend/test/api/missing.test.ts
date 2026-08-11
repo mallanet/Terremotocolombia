@@ -8,7 +8,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import "../helpers";
 import { SYNTHETIC_PNG_DATA_URL, expectNoSensitiveFields } from "../helpers";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import request from "supertest";
 import { getDb, schema } from "@/db";
 import * as missingService from "@/services/missing";
@@ -56,6 +56,55 @@ describe("POST /api/missing", () => {
     const res = await request(app).post("/api/missing").send({ name: "" });
     expect(res.status).toBe(400);
     expect(typeof res.body.error).toBe("string");
+  });
+});
+
+// Regresión (R7): el alta anónima de un reporte no dejaba NINGÚN rastro de
+// responsabilidad (ni ip_hash en la fila, ni entrada de auditoría). Ahora
+// persiste hashIp(req) y escribe missing.create — igual que contact/donations.
+describe("POST /api/missing — responsabilidad del alta anónima", () => {
+  it("persiste ip_hash (hash sha256, nunca la IP cruda) y jamás lo expone en la respuesta", async () => {
+    const rawIp = "203.0.113.77"; // TEST-NET-3 (RFC 5737): IP de documentación, no real
+    const person = syntheticPerson();
+    const res = await request(app)
+      .post("/api/missing")
+      .set("cf-connecting-ip", rawIp)
+      .send(person);
+    expect(res.status).toBe(201);
+    expectNoSensitiveFields(res.body); // ip_hash/ipHash nunca en el DTO público
+    const id = res.body.person.id as string;
+
+    const db = await getDb();
+    const [row] = await db
+      .select({ ipHash: schema.missingPersons.ipHash })
+      .from(schema.missingPersons)
+      .where(eq(schema.missingPersons.id, id));
+    expect(row?.ipHash).not.toBeNull();
+    expect(row?.ipHash).not.toBe(rawIp);
+    expect(row?.ipHash).not.toContain(rawIp);
+    expect(row?.ipHash).toMatch(/^[0-9a-f]{64}$/); // sha256 hex
+  });
+
+  it("escribe una entrada missing.create en audit_log con actor null e ip_hash no nulo", async () => {
+    const person = syntheticPerson();
+    const res = await request(app)
+      .post("/api/missing")
+      .set("cf-connecting-ip", "203.0.113.78") // TEST-NET-3, no real
+      .send(person);
+    expect(res.status).toBe(201);
+    const id = res.body.person.id as string;
+
+    const db = await getDb();
+    const rows = await db
+      .select()
+      .from(schema.auditLog)
+      .where(and(eq(schema.auditLog.action, "missing.create"), eq(schema.auditLog.targetId, id)));
+    expect(rows).toHaveLength(1);
+    const entry = rows[0]!;
+    expect(entry.actorUserId).toBeNull(); // alta pública: sin usuario autenticado
+    expect(entry.targetType).toBe("missing_person");
+    expect(entry.ipHash).not.toBeNull();
+    expect(entry.ipHash).toMatch(/^[0-9a-f]{64}$/);
   });
 });
 
