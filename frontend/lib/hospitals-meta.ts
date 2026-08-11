@@ -6,7 +6,8 @@ export type HospitalFacilityType =
   | "hospital_militar"
   | "hospital_pediatrico"
   | "maternidad"
-  | "cdi";
+  | "cdi"
+  | "refugio";
 
 export type HospitalLevel = "I" | "II" | "III" | "IV" | "militar" | null;
 
@@ -27,7 +28,12 @@ export interface Hospital {
   supplySummary?: PublicHospitalSupplySummary;
 }
 
-export type PatientStatus = "hospitalized" | "discharged" | "transferred" | "deceased";
+export type PatientStatus =
+  | "hospitalized"
+  | "sheltered"
+  | "discharged"
+  | "transferred"
+  | "deceased";
 
 export type PatientCondition = "stable" | "serious" | "critical" | "recovering" | "unknown";
 
@@ -78,6 +84,7 @@ export const HOSPITAL_FACILITY_TYPES: ReadonlySet<HospitalFacilityType> = new Se
   "hospital_pediatrico",
   "maternidad",
   "cdi",
+  "refugio",
 ]);
 
 export const PRIORITY_ZONES: ReadonlySet<HospitalPriorityZone> = new Set([
@@ -89,6 +96,7 @@ export const PRIORITY_ZONES: ReadonlySet<HospitalPriorityZone> = new Set([
 
 export const PATIENT_STATUSES: ReadonlySet<PatientStatus> = new Set([
   "hospitalized",
+  "sheltered",
   "discharged",
   "transferred",
   "deceased",
@@ -142,6 +150,7 @@ export const FACILITY_TYPE_META: Record<
   hospital_pediatrico: { label: "Hospital pediátrico", emoji: "🧒" },
   maternidad: { label: "Maternidad / materno-infantil", emoji: "👶" },
   cdi: { label: "CDI", emoji: "🏨" },
+  refugio: { label: "Refugio / centro de acopio", emoji: "🏕️" },
 };
 
 export const PATIENT_CONDITION_META: Record<
@@ -160,6 +169,7 @@ export const PATIENT_STATUS_META: Record<
   { label: string; color: string }
 > = {
   hospitalized: { label: "Hospitalizado", color: "#1d4ed8" },
+  sheltered: { label: "En refugio", color: "#0d9488" },
   discharged: { label: "Dado de alta", color: "#16a34a" },
   transferred: { label: "Transferido", color: "#7c3aed" },
   deceased: { label: "Fallecido", color: "#334155" },
@@ -330,14 +340,14 @@ export const HOSPITAL_SUPPLY_CATEGORY_META: Record<
     shortLabel: "Medicamentos",
     description: "Medicamentos críticos, por tipo o familia terapéutica.",
     staleAfterHours: 6,
-    color: "#CE1126",
+    color: "#C41A1A",
   },
   iv_fluids: {
     label: "Líquidos IV / sueros",
     shortLabel: "Sueros",
     description: "Solución fisiológica, Ringer lactato, dextrosa u otros.",
     staleAfterHours: 6,
-    color: "#4080f2",
+    color: "#2B51F0",
   },
   medical_supplies: {
     label: "Insumos médicos",
@@ -407,7 +417,7 @@ export const HOSPITAL_SUPPLY_STATUS_META: Record<
   red: {
     label: "Rojo",
     description: "Necesidad urgente activa.",
-    color: "#CE1126",
+    color: "#C41A1A",
   },
   unknown: {
     label: "Sin confirmar",
@@ -420,7 +430,7 @@ export const HOSPITAL_SUPPLY_NEED_STATUS_META: Record<
   HospitalSupplyNeedStatus,
   { label: string; color: string }
 > = {
-  active: { label: "Activa", color: "#CE1126" },
+  active: { label: "Activa", color: "#C41A1A" },
   partially_covered: { label: "Parcialmente cubierta", color: "#EAB308" },
   covered: { label: "Cubierta", color: "#16A34A" },
   cancelled: { label: "Cancelada", color: "#64748B" },
@@ -431,7 +441,7 @@ export const HOSPITAL_SUPPLY_HELP_STATUS_META: Record<
   HospitalSupplyHelpStatus,
   { label: string; color: string }
 > = {
-  open: { label: "Abierta", color: "#CE1126" },
+  open: { label: "Abierta", color: "#C41A1A" },
   contacting: { label: "Contactando", color: "#EAB308" },
   resolved: { label: "Resuelta", color: "#16A34A" },
   closed: { label: "Cerrada", color: "#64748B" },
