@@ -297,13 +297,28 @@ while IFS= read -r f; do
 done < "$FILELIST_TMP"
 
 # ===========================================================================
-# 2c. Git history sanity: a freshly-templated repo should have a small,
-#     recent history. Warn (as a reportable finding) if that stops being
-#     true — it usually means the original project's history leaked in.
+# 2c. Git history sanity: right after templating a fresh fork, the history
+#     should be small and recent — a big/old history usually means the
+#     original project's history (or some other repo's) leaked in.
+#
+#     This only runs ONCE per repo, gated on a marker file
+#     (scripts/content-audit/.content-audit-fresh). Why: a commit-count
+#     check has no sensible threshold that works both "right after forking"
+#     AND "months into a real deployment" — a live deployment's OWN history
+#     legitimately grows past any fixed number, so a check that runs
+#     forever eventually trips on every run and gets ignored, right when it
+#     might actually catch something. This repo's history (all its own,
+#     post-standup) was human-verified and the always-on check retired by
+#     maintainer decision on 2026-08-11; no marker file exists here, so the
+#     check skips. The upstream template ships the marker so every fresh
+#     fork still gets its one-time pass.
 # ===========================================================================
 CUTOFF_DATE="2026-07-10"
+FRESH_MARKER="$SCRIPT_DIR/.content-audit-fresh"
 
-if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+if [ ! -f "$FRESH_MARKER" ]; then
+  echo "content-audit: scripts/content-audit/.content-audit-fresh not present; skipped the one-time git-history sanity check (already run, or this checkout predates the marker)." >&2
+elif git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   commit_count="$(git rev-list --all --count 2>/dev/null || echo 0)"
 
   if [ "${commit_count:-0}" -gt 50 ] 2>/dev/null; then
@@ -327,9 +342,14 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
       echo "[git-history] could not determine cutoff epoch for $CUTOFF_DATE on this system; skipped the pre-$CUTOFF_DATE commit check" >&2
     fi
   fi
+
+  rm -f "$FRESH_MARKER"
+  echo "content-audit: one-time git-history check ran; removed scripts/content-audit/.content-audit-fresh from the working tree. Commit that removal (git add -A && git commit) so future runs — local and CI — stop running this check." >&2
 else
-  # Not a git checkout at all (e.g. an extracted zip) — nothing to sanity
-  # check, and that by itself isn't a content-security finding.
+  # Marker present, but not a git checkout at all (e.g. an extracted zip) —
+  # nothing to sanity check, and that by itself isn't a content-security
+  # finding. Leave the marker in place: there was no git history to check,
+  # so this wasn't a real "first pass".
   echo "[git-history] not inside a git working tree; skipped the history sanity check" >&2
 fi
 

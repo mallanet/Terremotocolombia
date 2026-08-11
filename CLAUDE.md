@@ -183,11 +183,15 @@ exactamente por qué.
 | `disaster-deploy-vps` | **no usado** — se desplegó en Cloudflare Workers |
 | `disaster-content-audit` | ver abajo |
 
-**Decisión abierta:** el job `content audit` de CI está en rojo. Prohíbe `.png` y
-SVGs fuera de `frontend/public|app`, pero el repo ahora lleva legítimamente los
-assets de marca de Mallanet en `brand/` y `docs/design/brand/`. La regla se
-escribió cuando esto era una plantilla genérica que no debía llevar la identidad
-de nadie. **No la ablandes por tu cuenta**: es decisión del mantenedor.
+**Resuelto (2026-08-11):** el job `content audit` de CI está en verde. Las dos
+causas del rojo histórico se cerraron con decisión del mantenedor: los assets de
+marca de Mallanet ya estaban allowlisteados, y el chequeo de historial git
+(>50 commits, pensado para un fork recién plantillado) se retiró tras verificar
+a mano que el historial es todo propio — ahora está gateado por un marcador
+(`scripts/content-audit/.content-audit-fresh`) que este repo no tiene, así que
+se salta solo. Las reglas de PII/secretos/crisis previa siguen activas y un
+hallazgo nuevo del audit sigue siendo bloqueante: investígalo, no lo
+allowlistees sin el mantenedor.
 
 ## GEO / SEO (buscadores de IA)
 
