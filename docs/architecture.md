@@ -307,9 +307,10 @@ Turnstile + rate-limit).
 - **Consecuencia:** sin transacciones interactivas (los 8 `db.transaction` de
   `services/roles.ts` y `services/patient-imports/*` fallan aquí), sin colas
   BullMQ/Valkey y sin `admin/` desplegado.
-- Despliegue: `.github/workflows/deploy-frontend.yml` (automático en push a
-  `main`, filtrado por rutas) y `.github/workflows/deploy-backend.yml` (manual,
-  con confirmación). Las migraciones **no** las corre CI.
+- Despliegue: `deploy-frontend.yml`, `deploy-backend.yml` y `deploy-admin.yml`,
+  todos automáticos en push a `main` con filtro de rutas (backend y admin eran
+  manuales hasta 2026-08-11). Las migraciones **no** las corre CI ni ningún
+  deploy.
 - La zona de Cloudflare (DNS, anti-suplantación, TLS, WAF, cache, rate limit) se
   gestiona con un módulo de OpenTofu **fuera de este repo**.
 

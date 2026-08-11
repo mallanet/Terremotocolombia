@@ -233,8 +233,8 @@ nunca probado es una suposición, no una garantía.
 ## Actualizar un despliegue existente
 
 > Aplica **solo si ya existe** un stack VPS/compose corriendo. Para Terremoto
-> Colombia no hay ninguno: actualizar producción es `git push` a `main` (el
-> frontend se despliega solo) o disparar `deploy-backend.yml` a mano.
+> Colombia no hay ninguno: actualizar producción es `git push` a `main`
+> (frontend, backend y admin se despliegan solos, con filtro de rutas).
 
 ```bash
 cd app
