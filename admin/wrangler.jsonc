@@ -1,0 +1,45 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "terremotocolombia-admin",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // El dominio propio (admin.terremotocolombia.co) se adjunta por la API de
+  // cuenta (/accounts/{id}/workers/domains), IGUAL que web y api.
+  //
+  // NO declarar `routes` aquí: con `routes`, wrangler llama además a
+  // /zones/{id}/workers/routes, para lo que el token de cuenta no tiene
+  // permiso, y el fallo aborta el deploy DESPUÉS de subir el código y ANTES de
+  // promover la versión (el Worker se queda sirviendo la build anterior).
+  "observability": {
+    "enabled": true
+  },
+  // El BFF solo necesita saber dónde vive la API; no hay secretos de runtime
+  // (la sesión es el JWT del backend en cookie httpOnly, firmado por la API).
+  "vars": {
+    "EMERGENCY_API_URL": "https://api.terremotocolombia.co"
+  },
+  // Staging: Worker aparte, dominio aparte (admin-staging), API de staging.
+  // Mismo fichero a propósito — ver frontend/wrangler.jsonc.
+  "env": {
+    "staging": {
+      "name": "terremotocolombia-admin-staging",
+      "compatibility_date": "2026-08-01",
+      "compatibility_flags": ["nodejs_compat"],
+      "assets": {
+        "directory": ".open-next/assets",
+        "binding": "ASSETS"
+      },
+      "observability": {
+        "enabled": true
+      },
+      "vars": {
+        "EMERGENCY_API_URL": "https://api-staging.terremotocolombia.co"
+      }
+    }
+  }
+}

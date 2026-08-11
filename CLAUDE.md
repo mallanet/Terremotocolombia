@@ -38,20 +38,25 @@ comparte base de datos con lo que ya está sirviendo.
 | --- | --- | --- |
 | Web | terremotocolombia.co | staging.terremotocolombia.co |
 | API | api.terremotocolombia.co | api-staging.terremotocolombia.co |
+| Admin | admin.terremotocolombia.co | admin-staging.terremotocolombia.co |
 | Worker web | `terremotocolombia-web` | `terremotocolombia-web-staging` |
 | Worker API | `terremotocolombia-api` | `terremotocolombia-api-staging` |
+| Worker admin | `terremotocolombia-admin` | `terremotocolombia-admin-staging` |
 | Base de datos | rama Neon `production` | rama Neon `staging` |
 | Secretos | Doppler config `prd` | Doppler config `stg` |
 | Despliegue frontend | automático al pushear | automático al pushear |
 | Despliegue backend | **manual + confirmación** | automático |
+| Despliegue admin | **manual + confirmación** (`deploy-admin.yml`) | automático |
 
 Ambos entornos comparten `wrangler.jsonc` (bloque `env.staging`) a propósito: si
 se configuran en sitios distintos dejan de parecerse, y un staging que no se
-parece a producción no prueba nada.
+parece a producción no prueba nada. El panel admin sigue el mismo patrón
+(`admin/wrangler.jsonc`); su Worker no lleva secretos de runtime — el BFF solo
+conoce `EMERGENCY_API_URL` y la sesión es el JWT del backend en cookie httpOnly.
 
 | Pieza | Estado |
 | --- | --- |
-| Admin | construido en CI, **sin desplegar** en ningún entorno |
+| Admin | **desplegado** en ambos entornos (desde 2026-08-10) |
 | Worker de colas (BullMQ/Valkey) | **sin desplegar** en ningún entorno |
 
 `backend/src/worker.ts` envuelve la app de Express con `httpServerHandler` de
@@ -107,11 +112,14 @@ el runner.
   el fallo aborta el deploy **después** de subir el código y **antes** de promover
   la versión: el Worker se queda sirviendo la build anterior y el comando parece
   casi correcto.
-- **`admin/` y el worker de colas no están desplegados.** El worker no es
-  cosmético: sin él no corren el sync de sismos, la publicación de necesidades,
-  la importación de pacientes (manual **y** OCR: las dos pasan por
-  `enqueuePatientImport`) ni la federación de hub. Ver `docs/architecture.md` →
-  "Workers y colas".
+- **El worker de colas no está desplegado** (el `admin/` sí, desde 2026-08-10).
+  El worker no es cosmético: sin él no corren el sync de sismos, la publicación
+  de necesidades, la importación de pacientes (manual **y** OCR: las dos pasan
+  por `enqueuePatientImport`) ni la federación de hub. Consecuencia directa en
+  el panel: la pantalla "Importar pacientes" encola lotes que **nunca se
+  procesan** en Workers — la carga de datos hospitalarios hoy va por los CRUD
+  directos (hospitales, pacientes, insumos), no por importación en lote. Ver
+  `docs/architecture.md` → "Workers y colas".
 - **Hay bindings de Hyperdrive y una base D1 creados pero SIN USAR.**
   `backend/wrangler.jsonc` declara un binding de Hyperdrive que hoy no se lee.
   Se intentó y fue contraproducente: el driver de Workers es el HTTP de Neon,
@@ -190,9 +198,12 @@ backend/wrangler.jsonc           Config del Worker de la API (alias, nodejs_comp
 backend/src/worker.ts            Envoltura de Express para Workers
 backend/src/db/index.ts          Driver según runtime (Neon HTTP vs node-postgres)
 backend/src/shims/               Sustitutos de módulos que no corren en Workers
+admin/wrangler.jsonc             Config del Worker del panel admin (sin secretos)
+admin/open-next.config.ts        Adaptador Next -> Workers del panel
 
 .github/workflows/deploy-frontend.yml   Automático en push a main (con filtro de rutas)
 .github/workflows/deploy-backend.yml    MANUAL, con confirmación
+.github/workflows/deploy-admin.yml      MANUAL, con confirmación
 .github/workflows/ci.yml                typecheck + build + content audit
 
 docker-compose.prod.yml          Camino ALTERNATIVO (VPS). No es producción hoy.
