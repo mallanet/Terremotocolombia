@@ -78,8 +78,9 @@ Orden natural en el panel:
 
 - **Staging**: automático en cada push a `staging` (job `admin` de
   `deploy-staging.yml`).
-- **Producción**: manual con confirmación —
-  `gh workflow run deploy-admin.yml -f confirmar=desplegar`.
+- **Producción**: automático en cada push a `main` que toque `admin/**`
+  (`deploy-admin.yml`; era manual hasta 2026-08-11). Redeploy a mano:
+  `gh workflow run deploy-admin.yml`.
 - El smoke check de producción pega a `/api/health`, que tiene un **bypass**
   de Access a propósito. No quitar ese bypass.
 
