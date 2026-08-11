@@ -49,22 +49,60 @@ const str = (v: unknown): string | undefined =>
   typeof v === "string" && v.length > 0 ? v : undefined;
 
 /**
+ * TERCERA puerta por la que se cuelan los valores de la fila, y la que de verdad
+ * mordio: Drizzle NO propaga el error del driver tal cual. Lo envuelve en un
+ * `DrizzleQueryError` cuyo `message` es la sentencia SQL **mas los parametros
+ * ligados**:
+ *
+ *   Failed query: insert into "volunteers" (...) values ($1, $2, ...)
+ *   params: <uuid>,<nombre real>,<telefono real>,...,<ciudad>
+ *
+ * El SQL es informacion de esquema y es justo lo que se quiere ver; los params
+ * son PII de una persona real. Se corta en el marcador.
+ *
+ * (Esto se detecto en produccion el 2026-08-11: la primera version de este
+ * modulo blindaba `detail`/`where` de Postgres y aun asi filtro nombre, telefono
+ * y ciudad de un voluntario, porque el error nunca llego con forma de error de
+ * Postgres — llego envuelto por el ORM.)
+ */
+function withoutBoundParams(message: string): string {
+  const cut = message.search(/\n?\s*params:/i);
+  return cut === -1 ? message : `${message.slice(0, cut).trimEnd()} [params omitidos]`;
+}
+
+/**
+ * Desenvuelve la cadena de `cause` hasta el error que SI trae SQLSTATE. Drizzle
+ * pone el error del driver (NeonDbError, con `code`) en `cause`, asi que mirar
+ * solo el error de arriba pierde justo el dato que diagnostica el fallo.
+ */
+function rootPgError(err: Error): PgLikeError {
+  let cur: unknown = err;
+  for (let i = 0; i < 5 && cur instanceof Error; i++) {
+    if (str((cur as unknown as PgLikeError).code)) return cur as unknown as PgLikeError;
+    cur = (cur as { cause?: unknown }).cause;
+  }
+  return err as unknown as PgLikeError;
+}
+
+/**
  * Proyeccion PII-safe de un error de base: solo campos que describen el
  * ESQUEMA, nunca los datos de la fila. Ver el allowlist del encabezado.
  */
 export function describeDbError(err: unknown): string {
   if (!(err instanceof Error)) return `non-error thrown (${typeof err})`;
-  const e = err as unknown as PgLikeError;
+  // El SQLSTATE vive en el error del driver, que Drizzle deja en `cause`.
+  const e = rootPgError(err);
+  const message = str(e.message) ?? str(err.message);
   const parts = [
     str(e.name) ?? "Error",
     str(e.code) && `sqlstate=${str(e.code)}`,
     str(e.table) && `table=${str(e.table)}`,
     str(e.column) && `column=${str(e.column)}`,
     str(e.constraint) && `constraint=${str(e.constraint)}`,
-    // `message` va el ULTIMO y es el unico campo en prosa que se admite:
-    // describe el objeto del esquema, no los valores. `detail`/`where`/`hint`
-    // quedan fuera a proposito.
-    str(e.message) && `msg=${str(e.message)}`,
+    // `message` va el ULTIMO y es el unico campo en prosa que se admite, y aun
+    // asi pasa por `withoutBoundParams`: describe el objeto del esquema, nunca
+    // los valores. `detail`/`where`/`hint` quedan fuera a proposito.
+    message && `msg=${withoutBoundParams(message)}`,
   ];
   return parts.filter(Boolean).join(" ");
 }

@@ -57,6 +57,44 @@ describe("describeDbError", () => {
     expect(out).not.toMatch(/detail|where|hint/i);
   });
 
+  it("corta los params ligados que Drizzle mete en el message (fuga real de prod)", () => {
+    // Forma EXACTA de un DrizzleQueryError observado en produccion el
+    // 2026-08-11. La primera version de este modulo lo dejo pasar entero y
+    // publico nombre, telefono y ciudad de un voluntario en los logs.
+    // Los valores de aqui son inventados, pero la ESTRUCTURA es la real.
+    const drizzleErr = new Error(
+      'Failed query: insert into "volunteers" ("id", "name", "contact", "zone") ' +
+        "values ($1, $2, $3, $4)\n" +
+        "params: 11111111-2222-3333-4444-555555555555,Nombre Apellido,+573000000000,Bogota",
+    );
+    // Drizzle deja el error del driver (con SQLSTATE) en `cause`.
+    Object.assign(drizzleErr, {
+      cause: pgError({
+        name: "NeonDbError",
+        code: "42703",
+        message: 'column "source" of relation "volunteers" does not exist',
+      }),
+    });
+
+    const out = describeDbError(drizzleErr);
+
+    // Se conserva lo que diagnostica.
+    expect(out).toContain("sqlstate=42703");
+    // Y NADA de la fila.
+    expect(out).not.toContain("Nombre Apellido");
+    expect(out).not.toContain("+573000000000");
+    expect(out).not.toContain("Bogota");
+    expect(out).not.toMatch(/params:/i);
+  });
+
+  it("si el message trae params pero no hay cause, igual los corta", () => {
+    const out = describeDbError(
+      new Error('Failed query: insert into "x" values ($1)\nparams: Maria Gomez'),
+    );
+    expect(out).not.toContain("Maria Gomez");
+    expect(out).toContain("[params omitidos]");
+  });
+
   it("aguanta un throw que no es Error sin reventar el handler", () => {
     expect(describeDbError("string suelto")).toBe("non-error thrown (string)");
     expect(describeDbError(undefined)).toBe("non-error thrown (undefined)");
