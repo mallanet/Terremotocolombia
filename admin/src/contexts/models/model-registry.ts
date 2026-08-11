@@ -20,7 +20,16 @@ export interface ModelColumn {
 export interface ModelField {
   key: string;
   label: string;
-  type?: "text" | "number";
+  /**
+   * `select-model`: un <select> poblado con las filas de otro modelo del
+   * registro (p.ej. elegir hospital al crear un paciente, en vez de pegar un
+   * UUID a mano). El value es el `id` de la fila elegida.
+   */
+  type?: "text" | "number" | "select-model";
+  /** Para select-model: path del modelo que da las opciones. */
+  optionsModel?: string;
+  /** Para select-model: campo visible de la opción (default: name). */
+  optionLabelKey?: string;
   required?: boolean;
 }
 
@@ -139,7 +148,14 @@ export const MODELS = [
       { key: "status", label: "Estado" },
     ],
     createFields: [
-      { key: "hospitalId", label: "Hospital ID", required: true },
+      {
+        key: "hospitalId",
+        label: "Hospital",
+        type: "select-model",
+        optionsModel: "hospitals",
+        optionLabelKey: "name",
+        required: true,
+      },
       { key: "name", label: "Nombre", required: true },
       { key: "age", label: "Edad", type: "number" },
       { key: "condition", label: "Condición" },

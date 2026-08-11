@@ -1,0 +1,45 @@
+name: Verificación nocturna de jobs
+
+# Corre scripts/verify-jobs.sh contra los dos entornos cada noche: frescura
+# del cron de sismos, API viva y conteo de cartas muertas. Un fallo pone el
+# workflow en rojo — es la señal de "un cron dejó de correr" o "hay cartas
+# muertas que investigar en la Auditoría del panel". No escribe nada.
+on:
+  schedule:
+    # 07:00 UTC = 02:00 Colombia.
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging:
+    name: Jobs de staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dopplerhq/cli-action@v3
+      - name: Instalar pg (para el conteo de cartas muertas)
+        working-directory: backend
+        run: npm ci --omit=dev --ignore-scripts
+      - name: verify-jobs staging
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN_STAGING }}
+        run: ./scripts/verify-jobs.sh staging
+
+  production:
+    name: Jobs de producción
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dopplerhq/cli-action@v3
+      - name: Instalar pg (para el conteo de cartas muertas)
+        working-directory: backend
+        run: npm ci --omit=dev --ignore-scripts
+      - name: verify-jobs production
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+        run: ./scripts/verify-jobs.sh production
