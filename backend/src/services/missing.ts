@@ -20,6 +20,7 @@ import {
 } from "@/lib/r2";
 import { isAllowedImageDataUrl, parseImageDataUri } from "@/lib/image";
 import { invalidate } from "@/lib/cache";
+import { ensurePrn } from "@/services/person-records";
 
 const { missingPersons, missingPersonSuppressions } = schema;
 
@@ -387,6 +388,12 @@ export async function addMissing(input: CreateInput): Promise<MissingDTO> {
     resolvedAt,
   });
   invalidate();
+
+  // Best-effort (U7/R8): nunca debe tumbar esta creación ya confirmada —
+  // ensurePrn loguea y devuelve null ante cualquier fallo, nunca lanza. Si
+  // esto queda sin estampar (p.ej. una caída a mitad), el cron de
+  // reconciliación (KTD8) lo recoge en su próxima corrida.
+  await ensurePrn("missing_report", id);
 
   return {
     id,

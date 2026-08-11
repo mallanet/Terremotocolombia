@@ -17,10 +17,10 @@
   // Config NO secreta (versionada a proposito). Los secretos van por
   // `wrangler secret bulk` desde Doppler, nunca aqui.
   // Cron Triggers. Las expresiones son la FUENTE DE VERDAD en
-  // src/services/cron-jobs.ts (CRON_EARTHQUAKES / CRON_GEOCODE) y aqui se
-  // declaran identicas; test/cron-jobs.test.ts compara las dos listas para que
-  // editar una sin la otra rompa el build en vez de dejar un cron que no
-  // ejecuta nada.
+  // src/services/cron-jobs.ts (CRON_EARTHQUAKES / CRON_GEOCODE /
+  // CRON_PERSON_RECONCILE) y aqui se declaran identicas;
+  // test/cron-jobs.test.ts compara las dos listas para que editar una sin la
+  // otra rompa el build en vez de dejar un cron que no ejecuta nada.
   //
   // - "*/5 * * * *"    sismos. Cada 5 minutos: el feed del USGS se refresca
   //   cada minuto, pero el evento ya paso y los replicas entran con holgura;
@@ -29,10 +29,15 @@
   //   controller.cron es lo unico que distingue un trigger de otro, asi que dos
   //   expresiones iguales serian indistinguibles, y el desfase evita que las
   //   dos tareas compitan por el mismo presupuesto de invocacion.
+  // - "4-59/5 * * * *" reconciliacion de PRNs (U7, KTD8). Misma cadencia,
+  //   DESFASADA dos minutos mas que geocode (cuatro que sismos), por el mismo
+  //   motivo de arriba.
   //
   // A nivel superior a proposito: `triggers` se HEREDA en env.staging, asi que
   // los dos entornos sincronizan sin duplicar configuracion.
-  "triggers": { "crons": ["*/5 * * * *", "2-59/5 * * * *"] },
+  "triggers": {
+    "crons": ["*/5 * * * *", "2-59/5 * * * *", "4-59/5 * * * *"]
+  },
   // Cloudflare Queues (U2/U3 del plan de port de colas). El productor es el
   // seam de despacho (src/lib/job-dispatch.ts) via el binding NEEDS_QUEUE; el
   // consumidor es el handler `queue` de src/worker.ts, en este MISMO Worker.
