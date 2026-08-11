@@ -306,8 +306,11 @@ describe("reconcilePersonRecords — cron de reconciliación", () => {
   });
 });
 
-describe("runClusterInvariantChecks (TODO-U9)", () => {
-  it("es un no-op que no lanza — el cron lo llama en cada corrida", async () => {
+describe("runClusterInvariantChecks (KTD8)", () => {
+  // Los casos de reparación (endpoint dividido, status sin decisión) viven en
+  // person-links.test.ts; aquí solo el smoke: corre limpio contra el estado
+  // actual de la DB compartida, que es como lo invoca el cron.
+  it("corre sin lanzar sobre el estado real de la DB", async () => {
     await expect(service.runClusterInvariantChecks()).resolves.toBeUndefined();
   });
 });
