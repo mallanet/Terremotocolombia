@@ -100,6 +100,38 @@ async function loadLatestDecision(linkId: string): Promise<typeof personLinkDeci
   return rows[0] ?? null;
 }
 
+/**
+ * Inserta UNA fila de `person_link_decisions` (append-only, atribuida) —
+ * mismo shape de `evidenceSnapshot` en los tres call sites que escriben una
+ * decisión (`decideLink`, `unmergeLink`, `rescindLiveLink`): congela
+ * score/evidence/evidenceClass/matcherVersion del link TAL COMO ESTABA en el
+ * momento de la decisión.
+ */
+async function insertLinkDecision(
+  linkId: string,
+  decision: string,
+  note: string,
+  row: typeof personLinks.$inferSelect,
+  actorId: string,
+): Promise<void> {
+  await getDb()
+    .insert(personLinkDecisions)
+    .values({
+      id: randomUUID(),
+      linkId,
+      decision,
+      note,
+      evidenceSnapshot: {
+        score: row.score,
+        evidence: row.evidence,
+        evidenceClass: row.evidenceClass,
+        matcherVersion: row.matcherVersion,
+      },
+      decidedBy: actorId,
+      decidedAt: Date.now(),
+    });
+}
+
 // ----------------------------------------------------- error de escalación ---
 
 /**
@@ -232,22 +264,7 @@ export async function decideLink(input: DecideLinkInput): Promise<DecideLinkResu
     }
   }
 
-  await getDb()
-    .insert(personLinkDecisions)
-    .values({
-      id: randomUUID(),
-      linkId: input.linkId,
-      decision: targetStatus,
-      note: input.note ?? "",
-      evidenceSnapshot: {
-        score: row.score,
-        evidence: row.evidence,
-        evidenceClass: row.evidenceClass,
-        matcherVersion: row.matcherVersion,
-      },
-      decidedBy: input.actorId,
-      decidedAt: Date.now(),
-    });
+  await insertLinkDecision(input.linkId, targetStatus, input.note ?? "", row, input.actorId);
 
   if (input.decision === "confirmar") {
     await recomputeClusterFor(row.prnA);
@@ -422,20 +439,7 @@ export async function unmergeLink(input: UnmergeInput): Promise<UnmergeResult> {
     throw conflict("El vínculo cambió de estado antes de poder deshacerlo; recárgalo e inténtalo de nuevo.");
   }
 
-  await db.insert(personLinkDecisions).values({
-    id: randomUUID(),
-    linkId: input.linkId,
-    decision: "rescinded",
-    note: input.note ?? "",
-    evidenceSnapshot: {
-      score: row.score,
-      evidence: row.evidence,
-      evidenceClass: row.evidenceClass,
-      matcherVersion: row.matcherVersion,
-    },
-    decidedBy: input.actorId,
-    decidedAt: Date.now(),
-  });
+  await insertLinkDecision(input.linkId, "rescinded", input.note ?? "", row, input.actorId);
 
   await recomputeClusterFor(row.prnA);
   await recomputeClusterFor(row.prnB);
@@ -497,20 +501,7 @@ export async function rescindLiveLink(
   }
   if (!claimed) return null;
 
-  await db.insert(personLinkDecisions).values({
-    id: randomUUID(),
-    linkId,
-    decision: "rescinded",
-    note,
-    evidenceSnapshot: {
-      score: claimed.score,
-      evidence: claimed.evidence,
-      evidenceClass: claimed.evidenceClass,
-      matcherVersion: claimed.matcherVersion,
-    },
-    decidedBy: actorId,
-    decidedAt: Date.now(),
-  });
+  await insertLinkDecision(linkId, "rescinded", note, claimed, actorId);
 
   return { row: claimed };
 }

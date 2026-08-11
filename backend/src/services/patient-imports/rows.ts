@@ -6,6 +6,7 @@ import { getHospital } from "@/services/hospitals";
 import {
 	classifyDedup,
 	type DedupCandidate,
+	type DedupStatus,
 	mapCondition,
 	mapStatus,
 	nameKey,
@@ -80,6 +81,16 @@ function toDTOFromRecord(
 	overrides: Partial<RowRecord>,
 ): ImportRowDTO {
 	return toRowDTO({ ...base, ...overrides });
+}
+
+/**
+ * `rowStatus` que corresponde a un veredicto de dedup: 'unique' se traduce a
+ * 'valid' (nombres distintos porque 'unique' es un concepto de dedup, no del
+ * ciclo de vida de la fila); 'duplicate'/'needs_review' se quedan igual.
+ * Mismo mapeo en `decideImportRowDedup` (accept:false) y `editImportRow`.
+ */
+function rowStatusForDedupVerdict(status: DedupStatus): "valid" | DedupStatus {
+	return status === "unique" ? "valid" : status;
 }
 
 /**
@@ -406,12 +417,7 @@ export async function decideImportRowDedup(
 		warnings: [],
 	};
 	const verdict = classifyDedup(normRow, []);
-	const nextRowStatus =
-		verdict.status === "unique"
-			? "valid"
-			: verdict.status === "duplicate"
-				? "duplicate"
-				: "needs_review";
+	const nextRowStatus = rowStatusForDedupVerdict(verdict.status);
 
 	const updated = await db
 		.update(patientImportRows)
@@ -613,12 +619,7 @@ export async function editImportRow(
 		nextDedupStatus = verdict.status;
 		nextDedupCandidates = verdict.candidates;
 		nextConfidence = verdict.confidence;
-		nextRowStatus =
-			verdict.status === "unique"
-				? "valid"
-				: verdict.status === "duplicate"
-					? "duplicate"
-					: "needs_review";
+		nextRowStatus = rowStatusForDedupVerdict(verdict.status);
 	}
 
 	// --- Correcciones OCR (solo lotes OCR; ver ingest.ts) — ANTES de la

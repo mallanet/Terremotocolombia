@@ -121,7 +121,6 @@ export async function ingestFileImport(
 	fileBase64: string,
 	defaultHospitalId?: string,
 ): Promise<ImportSummaryDTO> {
-	const rows = parseImportFile(contentType, fileBase64);
-	await replaceStagingRows(importId, rows, defaultHospitalId);
+	await stageFileRows(importId, contentType, fileBase64, defaultHospitalId);
 	return processImport(importId);
 }

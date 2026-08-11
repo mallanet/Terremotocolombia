@@ -22,6 +22,27 @@ import type {
 
 const { patientImports, patientImportRows } = schema;
 
+/** Lote ya creado con esta Idempotency-Key por este actor, o `null`. Mismo
+ *  lookup en el pre-check de `createImport` y en su catch de carrera (colisión
+ *  del índice único sobre `(created_by, idempotency_key_hash)`). */
+async function findByIdempotencyKey(
+	actorId: string,
+	idempotencyKeyHash: string,
+): Promise<ImportHeaderRow | null> {
+	const db = getDb();
+	const existing = await db
+		.select()
+		.from(patientImports)
+		.where(
+			and(
+				eq(patientImports.createdBy, actorId),
+				eq(patientImports.idempotencyKeyHash, idempotencyKeyHash),
+			),
+		)
+		.limit(1);
+	return (existing[0] as ImportHeaderRow | undefined) ?? null;
+}
+
 export async function createImport(
 	input: CreateImportInput,
 	actorId: string | null,
@@ -32,18 +53,8 @@ export async function createImport(
 	const idempotencyKeyHash = hashIdempotencyKey(input.idempotencyKey);
 
 	if (idempotencyKeyHash && actorId) {
-		const existing = await db
-			.select()
-			.from(patientImports)
-			.where(
-				and(
-					eq(patientImports.createdBy, actorId),
-					eq(patientImports.idempotencyKeyHash, idempotencyKeyHash),
-				),
-			)
-			.limit(1);
-		if (existing[0])
-			return toCreateImportResult(existing[0] as ImportHeaderRow, true);
+		const existing = await findByIdempotencyKey(actorId, idempotencyKeyHash);
+		if (existing) return toCreateImportResult(existing, true);
 	}
 
 	try {
@@ -87,18 +98,8 @@ export async function createImport(
 		}
 	} catch (err) {
 		if (!isUniqueViolation(err) || !idempotencyKeyHash || !actorId) throw err;
-		const existing = await db
-			.select()
-			.from(patientImports)
-			.where(
-				and(
-					eq(patientImports.createdBy, actorId),
-					eq(patientImports.idempotencyKeyHash, idempotencyKeyHash),
-				),
-			)
-			.limit(1);
-		if (existing[0])
-			return toCreateImportResult(existing[0] as ImportHeaderRow, true);
+		const existing = await findByIdempotencyKey(actorId, idempotencyKeyHash);
+		if (existing) return toCreateImportResult(existing, true);
 		throw err;
 	}
 
