@@ -68,10 +68,7 @@ patientsRouter.get(
   rateLimit({ scope: "patsearch", limit: 30 }),
   validate({ query: searchQuery }),
   asyncHandler(async (req, res) => {
-    // Re-parse local: bajo Express 5 req.query es un getter perezoso y los
-    // DEFAULTS de zod aplicados en validate() no sobreviven hasta aquí — sin
-    // esto, /search sin `limit` hacía `LIMIT NaN` y respondía 500.
-    const { q, limit } = searchQuery.parse(req.query);
+    const { q, limit } = req.query as unknown as z.infer<typeof searchQuery>;
     const rows = await cached(`patients:search:${q}:${limit}`, 5_000, () =>
       service.searchPatients(q, limit + 1, { publicSafe: true }),
     );

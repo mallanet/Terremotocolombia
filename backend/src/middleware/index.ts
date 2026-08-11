@@ -103,17 +103,44 @@ export const requireCron: RequestHandler = (req, _res, next) => {
   next(unauthorized("Se requiere secreto de cron o token de administrador."));
 };
 
-/** Validación zod de body/query/params. Reemplaza los datos por los parseados. */
+/**
+ * Validación zod de body/query/params. Reemplaza los datos por los parseados.
+ *
+ * OJO Express 5: `req.query` ya no es una propiedad, es un getter del prototipo
+ * que re-parsea la URL en CADA acceso y devuelve un objeto NUEVO. Mutar ese
+ * objeto (Object.assign) se descarta antes de llegar al handler, y los
+ * .default()/.coerce de zod se pierden — así fue el `LIMIT NaN` → 500 de
+ * /api/patients/search sin ?limit. La salida parseada se fija como propiedad
+ * PROPIA del request (sombrea el getter), de modo que el handler lee exactamente
+ * lo validado. Efecto deliberado: las claves de query fuera del esquema dejan
+ * de llegar al handler (zod las descarta al parsear).
+ *
+ * `req.params` sí es una propiedad de datos estable dentro del route layer,
+ * pero se fija igual (propiedad propia, mezclando sobre los params originales
+ * para no perder claves de ruta fuera del esquema) para no depender de ese
+ * detalle interno del router — la misma suposición que ya se rompió con query.
+ */
 export function validate(schemas: {
   body?: ZodType;
   query?: ZodType;
   params?: ZodType;
 }): RequestHandler {
+  const ownProperty = (value: unknown): PropertyDescriptor => ({
+    value,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
   return (req, _res, next) => {
     try {
       if (schemas.body) req.body = schemas.body.parse(req.body);
-      if (schemas.query) Object.assign(req.query, schemas.query.parse(req.query));
-      if (schemas.params) Object.assign(req.params, schemas.params.parse(req.params));
+      if (schemas.query) {
+        Object.defineProperty(req, "query", ownProperty(schemas.query.parse(req.query)));
+      }
+      if (schemas.params) {
+        const parsed = schemas.params.parse(req.params) as Record<string, unknown>;
+        Object.defineProperty(req, "params", ownProperty({ ...req.params, ...parsed }));
+      }
       next();
     } catch (e) {
       const msg = e instanceof Error && "issues" in e
