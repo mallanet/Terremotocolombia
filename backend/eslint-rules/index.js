@@ -11,6 +11,11 @@
  *   no-turnstile-in-public-api       — la superficie máquina NO lleva requireHuman.
  *   user-facing-mutation-needs-guard — mutaciones de src/routes/** llevan
  *                                      requireHuman O un gate (capability/admin/cron).
+ *   no-blind-catch                   — `catch {}` sin binding tira el error y deja el
+ *                                      5xx sin diagnostico (caida de voluntarios, 2026-08-11).
+ *   no-interactive-transaction       — db.transaction(...) en src/** revienta SOLO en
+ *                                      produccion (driver HTTP de Neon). Aplica a TODO
+ *                                      src/**, no solo a rutas.
  *
  * Modelo de detección: las rutas se montan con `router.<verbo>("path", ...mw,
  * handler)`. Inspeccionamos esa CallExpression y miramos los nombres de los
@@ -187,11 +192,83 @@ const userFacingMutationNeedsGuard = {
   },
 };
 
+const noBlindCatch = {
+  meta: {
+    type: "problem",
+    docs: {
+      description:
+        "Un `catch` sin binding en un route TIRA el error. El cliente debe seguir viendo un " +
+        "5xx generico, pero el log del Worker tiene que quedarse con el SQLSTATE.",
+    },
+    schema: [],
+    messages: {
+      blind:
+        "`catch {}` sin binding: el error se pierde y el 5xx queda sin diagnostico. Usa " +
+        "`catch (err) { logDbFailure(\"<contexto>\", err); ... }` (lib/db-error, PII-safe).",
+    },
+  },
+  create(context) {
+    const file = context.filename || context.getFilename();
+    if (
+      !file.includes("/routes/") &&
+      !file.includes("/public-api/") &&
+      !file.includes("/modules/")
+    )
+      return {};
+    return {
+      // `catch {}` (sin parametro) es un nodo distinto de `catch (e) {}`: el
+      // param es null. No hace falta heuristica, lo dice el AST.
+      CatchClause(node) {
+        if (node.param === null) context.report({ node, messageId: "blind" });
+      },
+    };
+  },
+};
+
+const noInteractiveTransaction = {
+  meta: {
+    type: "problem",
+    docs: {
+      description:
+        "`db.transaction(async tx => ...)` NO existe en el driver HTTP de Neon. En src/** " +
+        "(codigo alcanzable desde el Worker) compila, pasa los tests locales con " +
+        "node-postgres y revienta SOLO en produccion.",
+    },
+    schema: [],
+    messages: {
+      forbidden:
+        "Transaccion interactiva en codigo del Worker: el driver HTTP de Neon no la soporta y " +
+        "esto solo falla en PRODUCCION. Usa el idioma idempotente del repo (claim condicional + " +
+        "id determinista + ON CONFLICT). Ver AGENTS.md.",
+    },
+  },
+  create(context) {
+    const file = context.filename || context.getFilename();
+    // Solo src/**: worker/** (BullMQ, migrate, backfills) corre bajo Node, donde
+    // las transacciones interactivas SI funcionan y son correctas.
+    if (!file.includes("/src/")) return {};
+    return {
+      CallExpression(node) {
+        const cal = node.callee;
+        if (
+          cal.type === "MemberExpression" &&
+          cal.property.type === "Identifier" &&
+          cal.property.name === "transaction"
+        ) {
+          context.report({ node, messageId: "forbidden" });
+        }
+      },
+    };
+  },
+};
+
 export default {
   rules: {
     "require-rate-limit": requireRateLimit,
     "require-capability-in-public-api": requireCapabilityInPublicApi,
     "no-turnstile-in-public-api": noTurnstileInPublicApi,
     "user-facing-mutation-needs-guard": userFacingMutationNeedsGuard,
+    "no-blind-catch": noBlindCatch,
+    "no-interactive-transaction": noInteractiveTransaction,
   },
 };

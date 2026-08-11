@@ -265,8 +265,9 @@ export const MODELS = [
     columns: [
       { key: "id", label: "ID" },
       { key: "name", label: "Nombre" },
-      { key: "phone", label: "Teléfono" },
-      { key: "zone", label: "Zona" },
+      { key: "contact", label: "Contacto" },
+      { key: "zone", label: "Ciudad / país" },
+      { key: "source", label: "Origen" },
       { key: "status", label: "Estado" },
     ],
     // Sin createFields: los voluntarios ENTRAN por el formulario público

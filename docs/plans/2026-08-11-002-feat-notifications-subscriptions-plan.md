@@ -403,8 +403,10 @@ delivery log visible in the panel; `verify-notifications.sh production` green;
 2. **Digest interval.** 15 min? 30? Hourly? Wants one real crisis of data to
    answer honestly. Start at 30 min, make it config not code.
 3. ~~**Who is on the `configured_list` for Ley 1581?**~~ **Decided 2026-08-11 by
-   the maintainer: Eduardo Muth Martínez (`e.muth.martinez@gmail.com`) and
-   Marian (`mmbtc90@gmail.com`).** Both are `active` admin accounts today, so
+   the maintainer: Eduardo Muth Martínez y Marian.** Sus cuentas son las dos
+   `active` en /users del panel (ahí están los correos; NO se copian aquí — este
+   repo puede hacerse público y el content-audit lo bloquea). Ambos pueden abrir
+   y resolver una solicitud, así que
    both can actually open and resolve a request — no provisioning needed and
    nothing blocks implementation. Christian Ríos was the maintainer's first
    choice and was set aside for now because he has no account (see note below);
@@ -445,8 +447,8 @@ Creating accounts, editing the Access allowlist and sending invitations are
 access-provisioning and outward-facing actions — maintainer's call, per
 `CLAUDE.md`, not an agent's.
 
-**Unrelated but found the same day:** `mockraw@gmail.com` and
-`mariopulice21@gmail.com` are both still `invited` — the invitations were never
+**Unrelated but found the same day:** dos cuentas más (ver /users, filtro
+`invited`) siguen sin activar — las invitaciones nunca se
 activated (Mario's was issued 2026-08-11 with a 72 h expiry, so it has likely
 lapsed). Two teammates may believe they have panel access and not have it.
 

@@ -26,9 +26,18 @@ export type VolunteerStatus = "pending" | "contacted" | "active" | "declined";
 export interface VolunteerDTO {
   id: string;
   name: string;
-  phone: string;
+  contact: string;
   offer: string;
   zone: string;
+  availability: string | null;
+  offerTypes: string[] | null;
+  digitalSkills: string[] | null;
+  crisisExperience: boolean | null;
+  fieldCity: string | null;
+  rescueTraining: boolean | null;
+  fieldRole: string | null;
+  ownVehicle: boolean | null;
+  source: string | null;
   status: VolunteerStatus;
   notes: string | null;
   createdAt: number;
@@ -43,9 +52,18 @@ export interface VolunteerStats {
 
 export async function createVolunteer(input: {
   name: string;
-  phone: string;
+  contact: string;
   offer: string;
   zone: string;
+  availability: string;
+  offerTypes: string[];
+  digitalSkills?: string[];
+  crisisExperience?: boolean;
+  fieldCity?: string;
+  rescueTraining?: boolean;
+  fieldRole?: string;
+  ownVehicle?: boolean;
+  source?: string;
   ipHash?: string | null;
 }): Promise<{ id: string }> {
   const id = crypto.randomUUID();
@@ -54,9 +72,18 @@ export async function createVolunteer(input: {
   await db.insert(volunteers).values({
     id,
     name: input.name,
-    phone: input.phone,
+    contact: input.contact,
     offer: input.offer,
     zone: input.zone,
+    availability: input.availability,
+    offerTypes: input.offerTypes,
+    digitalSkills: input.digitalSkills ?? null,
+    crisisExperience: input.crisisExperience ?? null,
+    fieldCity: input.fieldCity ?? null,
+    rescueTraining: input.rescueTraining ?? null,
+    fieldRole: input.fieldRole ?? null,
+    ownVehicle: input.ownVehicle ?? null,
+    source: input.source ?? null,
     status: "pending",
     ipHash: input.ipHash ?? null,
     createdAt: now,
@@ -72,9 +99,18 @@ export async function listVolunteers(): Promise<VolunteerDTO[]> {
     .select({
       id: volunteers.id,
       name: volunteers.name,
-      phone: volunteers.phone,
+      contact: volunteers.contact,
       offer: volunteers.offer,
       zone: volunteers.zone,
+      availability: volunteers.availability,
+      offerTypes: volunteers.offerTypes,
+      digitalSkills: volunteers.digitalSkills,
+      crisisExperience: volunteers.crisisExperience,
+      fieldCity: volunteers.fieldCity,
+      rescueTraining: volunteers.rescueTraining,
+      fieldRole: volunteers.fieldRole,
+      ownVehicle: volunteers.ownVehicle,
+      source: volunteers.source,
       status: volunteers.status,
       notes: volunteers.notes,
       createdAt: volunteers.createdAt,
@@ -92,9 +128,18 @@ export async function getVolunteerById(id: string): Promise<VolunteerDTO | null>
     .select({
       id: volunteers.id,
       name: volunteers.name,
-      phone: volunteers.phone,
+      contact: volunteers.contact,
       offer: volunteers.offer,
       zone: volunteers.zone,
+      availability: volunteers.availability,
+      offerTypes: volunteers.offerTypes,
+      digitalSkills: volunteers.digitalSkills,
+      crisisExperience: volunteers.crisisExperience,
+      fieldCity: volunteers.fieldCity,
+      rescueTraining: volunteers.rescueTraining,
+      fieldRole: volunteers.fieldRole,
+      ownVehicle: volunteers.ownVehicle,
+      source: volunteers.source,
       status: volunteers.status,
       notes: volunteers.notes,
       createdAt: volunteers.createdAt,
@@ -125,6 +170,20 @@ export async function updateVolunteer(
   return getVolunteerById(id);
 }
 
+/**
+ * Marca pending → contacted SOLO si sigue pending (claim condicional de una
+ * sentencia — sin transacción interactiva, invariante Workers). Se usa tras
+ * enviar el mensaje al voluntario desde el panel: si alguien ya lo movió de
+ * estado, no lo pisamos.
+ */
+export async function markVolunteerContacted(id: string): Promise<void> {
+  const db = await getDb();
+  await db
+    .update(volunteers)
+    .set({ status: "contacted", updatedAt: Date.now() })
+    .where(sql`${volunteers.id} = ${id} AND ${volunteers.status} = 'pending'`);
+}
+
 export async function getVolunteerStats(): Promise<VolunteerStats> {
   const db = await getDb();
   const cutoff = Date.now() - DAY_MS;
@@ -146,9 +205,18 @@ export async function getVolunteerStats(): Promise<VolunteerStats> {
 function toDTO(r: {
   id: string;
   name: string;
-  phone: string;
+  contact: string;
   offer: string;
   zone: string;
+  availability: string | null;
+  offerTypes: string[] | null;
+  digitalSkills: string[] | null;
+  crisisExperience: boolean | null;
+  fieldCity: string | null;
+  rescueTraining: boolean | null;
+  fieldRole: string | null;
+  ownVehicle: boolean | null;
+  source: string | null;
   status: string;
   notes: string | null;
   createdAt: number;
@@ -157,9 +225,18 @@ function toDTO(r: {
   return {
     id: r.id,
     name: r.name,
-    phone: r.phone,
+    contact: r.contact,
     offer: r.offer,
     zone: r.zone,
+    availability: r.availability,
+    offerTypes: r.offerTypes,
+    digitalSkills: r.digitalSkills,
+    crisisExperience: r.crisisExperience,
+    fieldCity: r.fieldCity,
+    rescueTraining: r.rescueTraining,
+    fieldRole: r.fieldRole,
+    ownVehicle: r.ownVehicle,
+    source: r.source,
     status: r.status as VolunteerStatus,
     notes: r.notes,
     createdAt: Number(r.createdAt),

@@ -542,6 +542,7 @@
 
 .e-nav__support,
 .e-nav__language,
+.e-nav__psych,
 .e-nav__donate {
 	display: inline-flex;
 	flex-shrink: 0;
@@ -596,6 +597,35 @@
 	border-color: var(--brand-blue-dark);
 	background: var(--brand-blue-dark);
 	color: #fff;
+}
+
+/* Ayuda psicológica: outline de marca, hermana discreta del botón Donar. */
+.e-nav__psych {
+	border: 1px solid var(--brand-blue);
+	background: #fff;
+	color: var(--brand-blue-dark);
+}
+
+.e-nav__psych:hover {
+	border-color: var(--brand-blue-dark);
+	background: var(--brand-blue);
+	color: #fff;
+}
+
+/* Botón + leyenda "Ayuda ofrecida · N" apilados en la barra desktop. */
+.e-nav__psych-wrap {
+	display: inline-flex;
+	flex-shrink: 0;
+	flex-direction: column;
+	align-items: center;
+	gap: 1px;
+}
+
+.e-nav__psych-caption {
+	font-size: 0.625rem;
+	line-height: 1.1;
+	white-space: nowrap;
+	color: var(--brand-blue-dark);
 }
 
 @media (max-width: 980px) {

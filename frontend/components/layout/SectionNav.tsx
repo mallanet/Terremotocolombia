@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { HandCoins, MapPinned } from "lucide-react";
+import { HandCoins, HeartHandshake, MapPinned } from "lucide-react";
 import TranslateWidget from "@/components/ui/TranslateWidget";
 import { SiteBrand } from "./HeroSection";
 import { toggleTheme } from "./ThemeProvider";
 import { useMissingStats } from "@/hooks/missing";
+import { usePsychHelpClickCount } from "@/hooks/psychology-help";
+import { trackPsychHelpClicked } from "@/lib/analytics";
 import { SITE_PRODUCT_NAME } from "@/lib/site";
 import {
   MOBILE_BAR_LINKS,
@@ -109,8 +111,76 @@ function NavHeaderActions() {
   return (
     <div className="e-nav__actions">
       <TranslateWidget variant="header" />
+      <PsychNavLink variant="desktop" />
       <DonateNavLink variant="desktop" />
     </div>
+  );
+}
+
+// Botón de ayuda psicológica → formulario de registro de la red de salud
+// mental (Google Forms, dato entregado por el mantenedor). Externo: pestaña
+// nueva. El portal /psicologia (login) sigue existiendo como endpoint propio.
+const PSYCH_HELP_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSf7_hS5l381uI7ziedi0uMbpOuFmA6xZBMIztEvdCMl2LW7jA/viewform";
+
+function PsychNavLink({
+  variant,
+  onNavigate,
+}: {
+  variant: "desktop" | "sheet";
+  onNavigate?: () => void;
+}) {
+  // El contador cuenta ENVÍOS del formulario (callback del Apps Script con
+  // secreto), no clics — el clic solo se registra en OpenPanel.
+  const { data: count } = usePsychHelpClickCount();
+  const className =
+    variant === "desktop"
+      ? "e-nav__psych"
+      : "flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-950 transition hover:bg-blue-100";
+
+  const button = (
+    <a
+      href={PSYCH_HELP_FORM_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => {
+        trackPsychHelpClicked(variant === "desktop" ? "header" : "mobile_sheet");
+        onNavigate?.();
+      }}
+      className={className}
+      aria-label="Ayuda psicológica: formulario de la red de salud mental (se abre en pestaña nueva)"
+    >
+      <HeartHandshake aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+      Ayuda psicológica
+    </a>
+  );
+
+  const caption = (
+    <span
+      className={
+        variant === "desktop"
+          ? "e-nav__psych-caption"
+          : "mt-2 block text-center text-xs text-slate-500"
+      }
+    >
+      Ayuda ofrecida ·{" "}
+      <strong>{count !== undefined ? count.toLocaleString("es") : "…"}</strong>
+    </span>
+  );
+
+  if (variant === "desktop") {
+    return (
+      <span className="e-nav__psych-wrap">
+        {button}
+        {caption}
+      </span>
+    );
+  }
+  return (
+    <span className="block">
+      {button}
+      {caption}
+    </span>
   );
 }
 
@@ -406,6 +476,9 @@ export function MobileStickyNav() {
                   </span>
                   Cambiar tema claro/oscuro
                 </button>
+              </li>
+              <li className="e-nav__sheet-section">
+                <PsychNavLink variant="sheet" onNavigate={closeSheet} />
               </li>
               <li className="e-nav__sheet-section">
                 <DonateNavLink variant="sheet" onNavigate={closeSheet} />

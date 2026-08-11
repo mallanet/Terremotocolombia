@@ -17,9 +17,18 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 interface FakeVolunteerRow {
   id: string;
   name: string;
-  phone: string;
+  contact: string;
   offer: string;
   zone: string;
+  availability: string | null;
+  offerTypes: string[] | null;
+  digitalSkills: string[] | null;
+  crisisExperience: boolean | null;
+  fieldCity: string | null;
+  rescueTraining: boolean | null;
+  fieldRole: string | null;
+  ownVehicle: boolean | null;
+  source: string | null;
   status: string;
   notes: string | null;
   ipHash: string | null;
@@ -85,9 +94,12 @@ beforeEach(() => {
 function validBody(overrides: Record<string, unknown> = {}) {
   return {
     name: "DEMO-Voluntario Uno",
-    phone: "DEMO-3000000000",
-    offer: "DEMO-Puedo ayudar con logística y transporte",
-    zone: "DEMO-Zona Norte",
+    contact: "DEMO-3000000000",
+    zone: "DEMO-Bogotá, Colombia",
+    availability: "DEMO-10 horas por semana",
+    offerTypes: ["persona"],
+    digitalSkills: ["Verificación de datos"],
+    crisisExperience: false,
     ...overrides,
   };
 }
@@ -104,9 +116,83 @@ describe("POST /api/volunteers", () => {
     expect(dbMocks.insertedRows[0]).toMatchObject({
       id: response.body.id,
       name: "DEMO-Voluntario Uno",
-      phone: "DEMO-3000000000",
+      contact: "DEMO-3000000000",
+      offerTypes: ["persona"],
+      digitalSkills: ["Verificación de datos"],
+      crisisExperience: false,
       status: "pending",
     });
+  });
+
+  it("persiste la rama de terreno (ciudad, entrenamiento, rol, vehículo)", async () => {
+    const response = await request(app)
+      .post("/api/volunteers")
+      .send(
+        validBody({
+          offerTypes: ["persona", "transporte"],
+          digitalSkills: undefined,
+          crisisExperience: undefined,
+          fieldCity: "DEMO-Quibdó",
+          rescueTraining: false,
+          fieldRole: "Logística",
+          ownVehicle: true,
+          offer: "DEMO-Camioneta disponible entre semana",
+        }),
+      );
+
+    expect(response.status).toBe(200);
+    expect(dbMocks.insertedRows[0]).toMatchObject({
+      offerTypes: ["persona", "transporte"],
+      fieldCity: "DEMO-Quibdó",
+      rescueTraining: false,
+      fieldRole: "Logística",
+      ownVehicle: true,
+      offer: "DEMO-Camioneta disponible entre semana",
+    });
+  });
+
+  it("persiste el origen (source) cuando el formulario lo envía", async () => {
+    const response = await request(app)
+      .post("/api/volunteers")
+      .send(validBody({ source: "utm:instagram/stories/llamado" }));
+
+    expect(response.status).toBe(200);
+    expect(dbMocks.insertedRows[0]).toMatchObject({
+      source: "utm:instagram/stories/llamado",
+    });
+  });
+
+  it("sin source el registro queda con source null (no inventa origen)", async () => {
+    const response = await request(app).post("/api/volunteers").send(validBody());
+
+    expect(response.status).toBe(200);
+    expect(dbMocks.insertedRows[0]!.source).toBeNull();
+  });
+
+  it("rechaza offerTypes vacío (400) y no persiste nada", async () => {
+    const response = await request(app)
+      .post("/api/volunteers")
+      .send(validBody({ offerTypes: [] }));
+
+    expect(response.status).toBe(400);
+    expect(dbMocks.insertedRows).toHaveLength(0);
+  });
+
+  it("rechaza offerTypes con valor fuera de catálogo (400)", async () => {
+    const response = await request(app)
+      .post("/api/volunteers")
+      .send(validBody({ offerTypes: ["magia"] }));
+
+    expect(response.status).toBe(400);
+    expect(dbMocks.insertedRows).toHaveLength(0);
+  });
+
+  it("rechaza availability faltante (400) y no persiste nada", async () => {
+    const { availability: _omit, ...body } = validBody();
+    const response = await request(app).post("/api/volunteers").send(body);
+
+    expect(response.status).toBe(400);
+    expect(dbMocks.insertedRows).toHaveLength(0);
   });
 
   it("rechaza name faltante (400) y no persiste nada", async () => {
@@ -117,8 +203,8 @@ describe("POST /api/volunteers", () => {
     expect(dbMocks.insertedRows).toHaveLength(0);
   });
 
-  it("rechaza phone faltante (400) y no persiste nada", async () => {
-    const { phone: _omit, ...body } = validBody();
+  it("rechaza contact faltante (400) y no persiste nada", async () => {
+    const { contact: _omit, ...body } = validBody();
     const response = await request(app).post("/api/volunteers").send(body);
 
     expect(response.status).toBe(400);
@@ -158,9 +244,18 @@ describe("service de voluntarios: mapeo a VolunteerDTO (allowlist, nunca ip_hash
     return {
       id: "demo-vol-1",
       name: "DEMO-Nombre Admin",
-      phone: "DEMO-3000000001",
+      contact: "DEMO-3000000001",
       offer: "DEMO-oferta",
       zone: "DEMO-zona",
+      availability: "DEMO-puntual",
+      offerTypes: ["persona"],
+      digitalSkills: null,
+      crisisExperience: null,
+      fieldCity: null,
+      rescueTraining: null,
+      fieldRole: null,
+      ownVehicle: null,
+      source: null,
       status: "pending",
       notes: null,
       // Simula el peor caso: si la query alguna vez trajera la columna

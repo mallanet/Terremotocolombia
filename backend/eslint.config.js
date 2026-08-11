@@ -54,6 +54,23 @@ export default tseslint.config(
       "local/require-capability-in-public-api": "error",
       "local/no-turnstile-in-public-api": "error",
       "local/user-facing-mutation-needs-guard": "error",
+      // El 503 ciego de /api/volunteers (2026-08-11) duro 6h porque el `catch {}`
+      // del route tiraba el SQLSTATE. La diagnosticabilidad se gatea, no se
+      // recuerda.
+      "local/no-blind-catch": "error",
+    },
+  },
+  {
+    // Invariante de RUNTIME, no de arquitectura de rutas: aplica a TODO src/**,
+    // porque cualquier cosa alcanzable desde el Worker puede caer en ella.
+    // `db.transaction(...)` compila, pasa los tests locales (node-postgres sí
+    // las soporta) y falla SOLO en producción con el driver HTTP de Neon — así
+    // estuvo roto el create/edit de roles del panel. worker/** queda fuera a
+    // propósito: corre bajo Node, donde las transacciones son correctas.
+    files: ["src/**/*.ts"],
+    plugins: { local },
+    rules: {
+      "local/no-interactive-transaction": "error",
     },
   },
   {

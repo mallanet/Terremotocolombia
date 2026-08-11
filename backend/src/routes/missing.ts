@@ -22,6 +22,8 @@ import { z } from "zod";
 import { asyncHandler, rateLimit, requireHuman, requireAdmin, setPublicPhotoHeaders, validate } from "@/middleware";
 import { jsonWithEtag } from "@/lib/http";
 import { cached } from "@/lib/cache";
+import { logDbFailure } from "@/lib/db-error";
+import { captureFailedSubmission } from "@/lib/failed-submission";
 import { badRequest, payloadTooLarge, notFound, serviceUnavailable } from "@/lib/errors";
 import { HttpError } from "@/lib/errors";
 import { writeAudit } from "@/auth/audit";
@@ -165,7 +167,11 @@ missingRouter.post(
         reportType: body.reportType,
         ipHash: hashIp(req),
       });
-    } catch {
+    } catch (err) {
+      logDbFailure("missing.create", err);
+      // Red de durabilidad: el 503 sigue igual, pero el envio de la
+      // persona no se tira. Ver lib/failed-submission (nunca lanza).
+      await captureFailedSubmission("missing", body, err);
       throw serviceUnavailable(
         "No se pudo guardar el reporte. Revisa tu conexión e inténtalo de nuevo.",
       );

@@ -1,0 +1,34 @@
+-- MIGRACION DE RECONCILIACION — a proposito NO HACE NADA en la base.
+--
+-- Existe para arreglar el SNAPSHOT de drizzle, que se habia desincronizado del
+-- esquema real. No hay ninguna sentencia que ejecutar: produccion y staging ya
+-- estan en el estado que describe meta/0005_snapshot.json.
+--
+-- QUE SE HABIA ROTO
+--
+--   * `a81e17c` (0003_volunteers_contact_branch) commiteo un
+--     meta/0003_snapshot.json que NO contenia su propio cambio: seguia diciendo
+--     `phone`, sin `contact` ni las 8 columnas nuevas.
+--   * `8fdf13f` (0004_volunteers_source) no commiteo snapshot NINGUNO.
+--
+-- POR QUE IMPORTA: drizzle-kit no lee la base para generar una migracion, la
+-- diffea contra el ultimo snapshot. Con el snapshot parado en `phone`, el
+-- siguiente `npm run db:generate` de CUALQUIER feature generaba, ademas de su
+-- propio cambio, esto:
+--
+--     ALTER TABLE "volunteers" ADD COLUMN "contact" text NOT NULL;
+--     ... las 8 columnas otra vez ...
+--     ALTER TABLE "volunteers" DROP COLUMN IF EXISTS "phone";
+--
+-- Aplicar eso contra produccion revienta en la primera sentencia (`contact` ya
+-- existe) y deja la migracion a medias. Es decir: el repo estaba a un
+-- `db:generate` de repetir la caida del 2026-08-11, esta vez desde el otro lado.
+--
+-- COMO SE ARREGLO: se regenero el snapshot desde `infra/db/schema.ts` (que si
+-- coincide con la realidad — verificado con `npm run check:schema-drift` contra
+-- prod y staging: 44 tablas, 478 columnas, sin deriva) y se vacio el .sql, que
+-- solo contenia cambios YA aplicados.
+--
+-- A partir de aqui la cadena de snapshots vuelve a ser fiable y
+-- `check:migration-journal` verifica que cada migracion trae el suyo.
+SELECT 1;

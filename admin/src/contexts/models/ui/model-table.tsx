@@ -6,6 +6,7 @@ import { useModelList, useModelMutation } from "./use-model-list";
 import type { ModelConfig, ModelField } from "../model-registry";
 import type { ModelRow } from "../application/models-gateway";
 import { useAdminSessionContext } from "../../../shared/auth/admin-session-context";
+import { VolunteerMessageForm } from "../../volunteers/volunteer-message-form";
 
 function renderCell(value: unknown): string {
   if (value === null || value === undefined) return "—";
@@ -37,10 +38,13 @@ export function ModelTable({ model }: { model: ModelConfig }) {
   const { can } = useAdminSessionContext();
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<ModelRow | null>(null);
+  const [messaging, setMessaging] = useState<ModelRow | null>(null);
   const canCreate = Boolean(model.createFields && can(`${model.capabilityRoot}:create`));
   const canEdit = Boolean(model.editFields && can(`${model.capabilityRoot}:edit`));
   const canDelete = Boolean(model.canDelete && can(`${model.capabilityRoot}:delete`));
-  const hasActions = canEdit || canDelete;
+  // Acción de dominio única de volunteers: enviar correo desde el panel.
+  const canMessage = model.path === "volunteers" && canEdit;
+  const hasActions = canEdit || canDelete || canMessage;
 
   const rows = useMemo(
     () => (data ?? []).filter((r) => matchesQuery(r, query)),
@@ -116,6 +120,11 @@ export function ModelTable({ model }: { model: ModelConfig }) {
                           Editar
                         </Button>
                       )}
+                      {canMessage && (
+                        <Button type="button" variant="ghost" onClick={() => setMessaging(row)}>
+                          Contactar
+                        </Button>
+                      )}
                       {canDelete && (
                         <Button
                           type="button"
@@ -148,6 +157,13 @@ export function ModelTable({ model }: { model: ModelConfig }) {
               { onSuccess: () => setEditing(null) },
             )
           }
+        />
+      )}
+      {messaging && (
+        <VolunteerMessageForm
+          id={renderCell(messaging.id)}
+          contact={renderCell(messaging.contact)}
+          onClose={() => setMessaging(null)}
         />
       )}
     </div>

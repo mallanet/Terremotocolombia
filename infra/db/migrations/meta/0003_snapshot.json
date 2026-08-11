@@ -1,5 +1,5 @@
 {
-  "id": "51633fcd-cf74-4b35-aed2-f2f55dc5874e",
+  "id": "c7646a7e-3637-40e7-9448-018bb3227efd",
   "prevId": "3222722f-9d51-4d26-aa94-463e5b25377b",
   "version": "7",
   "dialect": "postgresql",
@@ -173,9 +173,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_api_keys_user": {
           "name": "idx_api_keys_user",
@@ -188,9 +188,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -265,9 +265,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_audit_actor": {
           "name": "idx_audit_actor",
@@ -280,9 +280,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_audit_target": {
           "name": "idx_audit_target",
@@ -301,9 +301,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -419,9 +419,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_chat_reply": {
           "name": "idx_chat_reply",
@@ -434,9 +434,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -577,9 +577,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "contact_messages_unread_idx": {
           "name": "contact_messages_unread_idx",
@@ -598,9 +598,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -780,9 +780,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "ddr_status_idx": {
           "name": "ddr_status_idx",
@@ -801,9 +801,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -873,9 +873,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -975,9 +975,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_earthquakes_geo": {
           "name": "idx_earthquakes_geo",
@@ -996,9 +996,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -1151,9 +1151,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hospital_patients_document_hash": {
           "name": "idx_hospital_patients_document_hash",
@@ -1172,10 +1172,10 @@
             }
           ],
           "isUnique": false,
-          "where": "document_hash IS NOT NULL",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "document_hash IS NOT NULL",
+          "concurrently": false
         },
         "idx_hospital_patients_document_hash_unique": {
           "name": "idx_hospital_patients_document_hash_unique",
@@ -1188,25 +1188,25 @@
             }
           ],
           "isUnique": true,
-          "where": "document_hash IS NOT NULL",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "document_hash IS NOT NULL",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "hospital_patients_hospital_id_hospitals_id_fk": {
           "name": "hospital_patients_hospital_id_hospitals_id_fk",
           "tableFrom": "hospital_patients",
-          "tableTo": "hospitals",
           "columnsFrom": [
             "hospital_id"
           ],
+          "tableTo": "hospitals",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1297,9 +1297,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hospital_poc_assignments_token": {
           "name": "idx_hospital_poc_assignments_token",
@@ -1324,24 +1324,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "hospital_poc_assignments_hospital_id_hospitals_id_fk": {
           "name": "hospital_poc_assignments_hospital_id_hospitals_id_fk",
           "tableFrom": "hospital_poc_assignments",
-          "tableTo": "hospitals",
           "columnsFrom": [
             "hospital_id"
           ],
+          "tableTo": "hospitals",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1436,9 +1436,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hospital_supply_events_entity": {
           "name": "idx_hospital_supply_events_entity",
@@ -1457,24 +1457,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "hospital_supply_events_hospital_id_hospitals_id_fk": {
           "name": "hospital_supply_events_hospital_id_hospitals_id_fk",
           "tableFrom": "hospital_supply_events",
-          "tableTo": "hospitals",
           "columnsFrom": [
             "hospital_id"
           ],
+          "tableTo": "hospitals",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1584,9 +1584,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hospital_supply_help_hospital": {
           "name": "idx_hospital_supply_help_hospital",
@@ -1599,24 +1599,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "hospital_supply_help_requests_hospital_id_hospitals_id_fk": {
           "name": "hospital_supply_help_requests_hospital_id_hospitals_id_fk",
           "tableFrom": "hospital_supply_help_requests",
-          "tableTo": "hospitals",
           "columnsFrom": [
             "hospital_id"
           ],
+          "tableTo": "hospitals",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1757,9 +1757,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hospital_supply_needs_category": {
           "name": "idx_hospital_supply_needs_category",
@@ -1778,24 +1778,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "hospital_supply_needs_hospital_id_hospitals_id_fk": {
           "name": "hospital_supply_needs_hospital_id_hospitals_id_fk",
           "tableFrom": "hospital_supply_needs",
-          "tableTo": "hospitals",
           "columnsFrom": [
             "hospital_id"
           ],
+          "tableTo": "hospitals",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1905,9 +1905,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hospital_supply_status_stale": {
           "name": "idx_hospital_supply_status_stale",
@@ -1932,9 +1932,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hospital_supply_status_hospital": {
           "name": "idx_hospital_supply_status_hospital",
@@ -1947,24 +1947,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "hospital_supply_statuses_hospital_id_hospitals_id_fk": {
           "name": "hospital_supply_statuses_hospital_id_hospitals_id_fk",
           "tableFrom": "hospital_supply_statuses",
-          "tableTo": "hospitals",
           "columnsFrom": [
             "hospital_id"
           ],
+          "tableTo": "hospitals",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -2062,10 +2062,10 @@
             }
           ],
           "isUnique": true,
-          "where": "external_id IS NOT NULL",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "external_id IS NOT NULL",
+          "concurrently": false
         },
         "idx_hospitals_state": {
           "name": "idx_hospitals_state",
@@ -2090,9 +2090,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -2230,9 +2230,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hub_checkins_source": {
           "name": "idx_hub_checkins_source",
@@ -2245,9 +2245,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -2334,9 +2334,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hub_credentials_active": {
           "name": "idx_hub_credentials_active",
@@ -2349,9 +2349,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -2488,9 +2488,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hub_damaged_source": {
           "name": "idx_hub_damaged_source",
@@ -2503,9 +2503,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -2617,9 +2617,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hub_helpoffer_source": {
           "name": "idx_hub_helpoffer_source",
@@ -2632,9 +2632,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -2752,9 +2752,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hub_helpreq_source": {
           "name": "idx_hub_helpreq_source",
@@ -2767,9 +2767,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -2907,9 +2907,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hub_missing_source": {
           "name": "idx_hub_missing_source",
@@ -2922,9 +2922,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_hub_missing_photo_pending": {
           "name": "idx_hub_missing_photo_pending",
@@ -2937,10 +2937,10 @@
             }
           ],
           "isUnique": false,
-          "where": "photo_migrated_at IS NULL AND photo_external_url IS NOT NULL",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "photo_migrated_at IS NULL AND photo_external_url IS NOT NULL",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -3058,24 +3058,24 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_invitations_email": {
           "name": "idx_invitations_email",
           "columns": [
             {
               "expression": "lower(\"email\")",
-              "asc": true,
               "isExpression": true,
+              "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -3138,10 +3138,10 @@
             }
           ],
           "isUnique": true,
-          "where": "source IS NOT NULL AND external_id IS NOT NULL",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "source IS NOT NULL AND external_id IS NOT NULL",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -3268,12 +3268,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "ip_hash": {
-          "name": "ip_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "bigint",
@@ -3305,9 +3299,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_missing_map_coords": {
           "name": "idx_missing_map_coords",
@@ -3326,9 +3320,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_missing_photo_pending": {
           "name": "idx_missing_photo_pending",
@@ -3341,10 +3335,10 @@
             }
           ],
           "isUnique": false,
-          "where": "photo_migrated_at IS NULL AND (photo IS NOT NULL OR photo_external_url IS NOT NULL)",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "photo_migrated_at IS NULL AND (photo IS NOT NULL OR photo_external_url IS NOT NULL)",
+          "concurrently": false
         },
         "missing_persons_source_external_id_idx": {
           "name": "missing_persons_source_external_id_idx",
@@ -3363,10 +3357,10 @@
             }
           ],
           "isUnique": true,
-          "where": "external_id IS NOT NULL",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "external_id IS NOT NULL",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -3527,9 +3521,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_pets_map_coords": {
           "name": "idx_pets_map_coords",
@@ -3548,108 +3542,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ocr_corrections": {
-      "name": "ocr_corrections",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "import_row_id": {
-          "name": "import_row_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "field": {
-          "name": "field",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "model_value": {
-          "name": "model_value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "corrected_value": {
-          "name": "corrected_value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "document_r2_key": {
-          "name": "document_r2_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "layout_cluster_id": {
-          "name": "layout_cluster_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "provider": {
-          "name": "provider",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "prompt_version": {
-          "name": "prompt_version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "corrected_by": {
-          "name": "corrected_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "corrected_at": {
-          "name": "corrected_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "idx_ocr_corrections_row": {
-          "name": "idx_ocr_corrections_row",
-          "columns": [
-            {
-              "expression": "import_row_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -3719,9 +3614,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_pwreset_expires": {
           "name": "idx_pwreset_expires",
@@ -3734,9 +3629,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -3905,9 +3800,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_patient_import_rows_status": {
           "name": "idx_patient_import_rows_status",
@@ -3926,24 +3821,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "patient_import_rows_import_id_patient_imports_id_fk": {
           "name": "patient_import_rows_import_id_patient_imports_id_fk",
           "tableFrom": "patient_import_rows",
-          "tableTo": "patient_imports",
           "columnsFrom": [
             "import_id"
           ],
+          "tableTo": "patient_imports",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -4000,24 +3895,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'application/json'"
-        },
-        "ocr_provider": {
-          "name": "ocr_provider",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ocr_prompt_version": {
-          "name": "ocr_prompt_version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_image_url": {
-          "name": "source_image_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "job_id": {
           "name": "job_id",
@@ -4128,9 +4005,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_patient_imports_actor_idempotency": {
           "name": "idx_patient_imports_actor_idempotency",
@@ -4149,10 +4026,10 @@
             }
           ],
           "isUnique": true,
-          "where": "idempotency_key_hash IS NOT NULL",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "idempotency_key_hash IS NOT NULL",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4264,9 +4141,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_grants_user": {
           "name": "idx_grants_user",
@@ -4279,9 +4156,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_grants_role": {
           "name": "idx_grants_role",
@@ -4294,9 +4171,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4334,15 +4211,15 @@
         "report_confirmations_report_id_reports_id_fk": {
           "name": "report_confirmations_report_id_reports_id_fk",
           "tableFrom": "report_confirmations",
-          "tableTo": "reports",
           "columnsFrom": [
             "report_id"
           ],
+          "tableTo": "reports",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -4445,9 +4322,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_reports_photo_pending": {
           "name": "idx_reports_photo_pending",
@@ -4460,10 +4337,10 @@
             }
           ],
           "isUnique": false,
-          "where": "photo_migrated_at IS NULL AND photo IS NOT NULL",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "photo_migrated_at IS NULL AND photo IS NOT NULL",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4502,9 +4379,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4589,10 +4466,10 @@
             }
           ],
           "isUnique": true,
-          "where": "org_id IS NULL",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "org_id IS NULL",
+          "concurrently": false
         },
         "idx_roles_name_org": {
           "name": "idx_roles_name_org",
@@ -4611,10 +4488,10 @@
             }
           ],
           "isUnique": true,
-          "where": "org_id IS NOT NULL",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "org_id IS NOT NULL",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4749,9 +4626,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4965,15 +4842,15 @@
           "columns": [
             {
               "expression": "lower(\"email\")",
-              "asc": true,
               "isExpression": true,
+              "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "idx_users_role": {
           "name": "idx_users_role",
@@ -4986,9 +4863,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -5076,9 +4953,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "volunteers_status_idx": {
           "name": "volunteers_status_idx",
@@ -5097,9 +4974,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -5112,10 +4989,10 @@
   },
   "enums": {},
   "schemas": {},
+  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

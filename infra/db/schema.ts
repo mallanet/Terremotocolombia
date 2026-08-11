@@ -693,9 +693,19 @@ export const volunteers = pgTable(
   {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
-    phone: text("phone").notNull(),
+    contact: text("contact").notNull(),
     offer: text("offer").notNull(),
     zone: text("zone").notNull(),
+    availability: text("availability"),
+    offerTypes: jsonb("offer_types").$type<string[]>(),
+    digitalSkills: jsonb("digital_skills").$type<string[]>(),
+    crisisExperience: boolean("crisis_experience"),
+    fieldCity: text("field_city"),
+    rescueTraining: boolean("rescue_training"),
+    fieldRole: text("field_role"),
+    ownVehicle: boolean("own_vehicle"),
+    // De dónde llegó el registro: utm:*, referrer externo o "directo".
+    source: text("source"),
     status: text("status").notNull().default("pending"),
     notes: text("notes"),
     ipHash: text("ip_hash"),
@@ -1331,4 +1341,48 @@ export const recordStatusSignals = pgTable(
       .where(sql`status = 'pending'`),
     index("idx_record_status_signals_queue").on(t.status, t.createdAt),
   ],
+);
+
+/* ----------------------------------------------- failed_submissions */
+// RED DE SEGURIDAD de durabilidad para los formularios públicos.
+//
+// El 2026-08-11 el registro de voluntarios estuvo 6h devolviendo 503 por una
+// migración sin aplicar y ~44 inscripciones de personas afectadas por el
+// terremoto se perdieron para siempre: nunca llegaron a la base, no había nada
+// que reproducir. Los gates nuevos (deriva de esquema en el deploy, monitor
+// horario) hacen eso mucho menos probable; esta tabla hace que, cuando vuelva a
+// pasar, el dato de la persona NO se tire a la basura.
+//
+// FORMA DELIBERADAMENTE MÍNIMA Y CONGELADA. Es la tabla que tiene que seguir
+// funcionando justo cuando OTRA tabla está derivada, así que no debe crecer
+// columnas: el cuerpo entero va en un `jsonb`. Añadirle campos la vuelve tan
+// frágil como lo que protege.
+//
+// ALCANCE HONESTO: cubre el fallo de escritura sobre una tabla concreta (deriva
+// de esquema, constraint, tipo). NO cubre que la base entera esté caída — ahí
+// este insert falla también. Es la mejora barata sobre "se pierde", no una cola
+// durable de verdad.
+//
+// PRIVACIDAD: `payload` lleva datos personales (nombre, contacto) porque ese es
+// exactamente el dato que no queremos perder — la persona lo envió para que lo
+// guardáramos. Vive en la MISMA base y bajo las mismas protecciones que la tabla
+// destino: no se relocaliza PII a KV ni a una cola externa. `turnstileToken` se
+// quita antes de persistir. PENDIENTE: el flujo de supresión (Ley 1581,
+// routes/data-deletion.ts) tiene que mirar también aquí.
+export const failedSubmissions = pgTable(
+  "failed_submissions",
+  {
+    id: text("id").primaryKey(),
+    // Formulario de origen ("volunteers", "missing", ...). Texto y no enum a
+    // propósito: un valor nuevo no debe requerir migrar esta tabla.
+    form: text("form").notNull(),
+    payload: jsonb("payload").notNull(),
+    // SQLSTATE del fallo (42703, 23505...). Nunca el mensaje: puede arrastrar
+    // los valores de la fila. Ver lib/db-error.ts.
+    errorCode: text("error_code"),
+    createdAt: epochMs("created_at").notNull(),
+    // NULL = pendiente de reinyectar. Se sella al reprocesar.
+    replayedAt: epochMs("replayed_at"),
+  },
+  (t) => [index("idx_failed_submissions_pending").on(t.replayedAt, t.createdAt)],
 );

@@ -21,6 +21,7 @@ import {
 	MAX_IMPORT_ROWS,
 } from "@/services/patient-import-parse";
 import * as service from "@/services/patient-imports";
+import { logUpstreamFailure } from "@/lib/db-error";
 
 export const patientImportsRouter = Router();
 
@@ -303,7 +304,8 @@ patientImportsRouter.post(
 					mode: "ocr",
 					imageUrl: parsed.imageUrl,
 				});
-			} catch {
+			} catch (err) {
+				logUpstreamFailure("patient-imports.enqueue-ocr", err);
 				await service.markImportFailed(
 					summary.id,
 					"No se pudo encolar el OCR/ICR.",
@@ -377,7 +379,8 @@ patientImportsRouter.post(
 						}
 					: { importId: summary.id, mode: "process" },
 			);
-		} catch {
+		} catch (err) {
+			logUpstreamFailure("patient-imports.enqueue-process", err);
 			await service.markImportFailed(
 				summary.id,
 				"No se pudo encolar el procesamiento.",
@@ -502,7 +505,8 @@ patientImportsRouter.post(
 				mode: "apply",
 				actorId: req.user?.id ?? null,
 			});
-		} catch {
+		} catch (err) {
+			logUpstreamFailure("patient-imports.enqueue-apply", err);
 			throw serviceUnavailable(
 				"No se pudo encolar el apply. Inténtalo de nuevo.",
 			);

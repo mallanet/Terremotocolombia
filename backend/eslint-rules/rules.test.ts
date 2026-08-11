@@ -101,3 +101,53 @@ describe("user-facing-mutation-needs-guard", () => {
     });
   });
 });
+
+describe("no-blind-catch", () => {
+  it("exige binding del error en routes; fuera de routes no aplica", () => {
+    ruleTester.run("no-blind-catch", plugin.rules["no-blind-catch"], {
+      valid: [
+        { code: `try { a() } catch (err) { logDbFailure("x", err); throw e }`, filename: ROUTES },
+        // Fuera de la superficie de rutas la regla no opina.
+        { code: `try { a() } catch { fallback() }`, filename: "/repo/backend/src/lib/cache.ts" },
+      ],
+      invalid: [
+        {
+          // El fallo real del 2026-08-11: el SQLSTATE se perdia aqui.
+          code: `try { await createVolunteer() } catch { throw serviceUnavailable("nope") }`,
+          filename: ROUTES,
+          errors: [{ messageId: "blind" }],
+        },
+        {
+          code: `try { await enqueue() } catch { markFailed() }`,
+          filename: PUBLIC_API,
+          errors: [{ messageId: "blind" }],
+        },
+      ],
+    });
+  });
+});
+
+describe("no-interactive-transaction", () => {
+  it("prohibe db.transaction en src/**; worker/** queda fuera", () => {
+    const SERVICE = "/repo/backend/src/services/roles.ts";
+    ruleTester.run("no-interactive-transaction", plugin.rules["no-interactive-transaction"], {
+      valid: [
+        // El idioma correcto en Workers: sentencia unica + ON CONFLICT.
+        { code: `await db.insert(t).values(v).onConflictDoNothing()`, filename: SERVICE },
+        // worker/** corre bajo Node: ahi las transacciones SI valen.
+        {
+          code: `await db.transaction(async (tx) => { await tx.insert(t) })`,
+          filename: "/repo/backend/worker/backfill.ts",
+        },
+      ],
+      invalid: [
+        {
+          // Compila, pasa los tests locales, y revienta solo en produccion.
+          code: `await db.transaction(async (tx) => { await tx.insert(t) })`,
+          filename: SERVICE,
+          errors: [{ messageId: "forbidden" }],
+        },
+      ],
+    });
+  });
+});

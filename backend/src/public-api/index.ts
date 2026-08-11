@@ -35,6 +35,8 @@ import { deletionRequestsRouter } from "@/public-api/routers/deletion-requests.r
 import { partnerSyncRouter } from "@/public-api/routers/partner-sync.router";
 import { personLinksRouter } from "@/public-api/routers/person-links.router";
 import { recordSignalsRouter } from "@/public-api/routers/record-signals.router";
+import { psychologyRouter } from "@/public-api/routers/psychology.router";
+import { volunteersActionsRouter } from "@/public-api/routers/volunteers-actions.router";
 
 /**
  * Registro path → CONFIG del recurso. Fuente de verdad ÚNICA: de aquí salen
@@ -92,4 +94,9 @@ export function mountPublicApi(app: Express): void {
   app.use("/api/public/capabilities", capabilitiesRouter); // role:read (catálogo p/ UI)
   app.use("/api/public/api-keys", apiKeysRouter); // apikey:manage (self-service)
   app.use("/api/public/hub-credentials", hubCredentialsRouter); // mirror:manage (super admin)
+  // Portal de psicólogos (/psicologia): gateado por psychology:access.
+  app.use("/api/public/psychology", psychologyRouter);
+  // Acciones de dominio sobre voluntarios (enviar mensaje): volunteer:edit.
+  // Junto al CRUD de la fábrica; no colisiona (POST /:id/message no existe ahí).
+  app.use("/api/public/volunteers", volunteersActionsRouter);
 }

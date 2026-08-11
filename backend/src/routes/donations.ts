@@ -13,6 +13,7 @@ import { z } from "zod";
 import { asyncHandler, rateLimit, requireHuman, validate } from "@/middleware";
 import { jsonWithEtag } from "@/lib/http";
 import { hashIp } from "@/lib/client-ip";
+import { logDbFailure } from "@/lib/db-error";
 import { serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/donations";
 
@@ -117,7 +118,8 @@ donationsRouter.get(
         service.listRecentDonations(30),
       ]);
       jsonWithEtag(req, res, { stats, monthly, recent }, CACHE_HEADERS);
-    } catch {
+    } catch (err) {
+      logDbFailure("donations.list", err);
       throw serviceUnavailable("No se pudieron consultar las donaciones.");
     }
   }),
@@ -141,7 +143,8 @@ donationsRouter.post(
         id: donation.id,
         paypalUrl: service.PAYPAL_DONATION_URL,
       });
-    } catch {
+    } catch (err) {
+      logDbFailure("donations.create", err);
       throw serviceUnavailable("No se pudo registrar la donación.");
     }
   }),
