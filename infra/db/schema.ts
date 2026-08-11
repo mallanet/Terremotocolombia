@@ -103,6 +103,13 @@ export const missingPersons = pgTable(
     // Único rastro de responsabilidad del alta pública; NULL en filas previas
     // y en altas de sync externo (allí la procedencia es source/external_id).
     ipHash: text("ip_hash"),
+    // Cédula SOLO como huella: tipo + HMAC (mismo secreto y normalización que
+    // hospital_patients.document_hash, así los hashes son joinables). El número
+    // crudo jamás se guarda. SIN índice único a propósito: dos reportes con la
+    // misma cédula son señal legítima de duplicado (propuesta del matcher),
+    // no un conflicto. tipo ∈ {CC,TI,CE,PA,RC,NUIP,sin_documento}.
+    tipoDocumento: text("tipo_documento"),
+    documentHash: text("document_hash"),
     createdAt: epochMs("created_at").notNull(),
     // See reports.photoMigratedAt. Covers BOTH base64 `photo` and external
     // `photo_external_url` being moved onto R2. NULL = pending.
@@ -122,6 +129,10 @@ export const missingPersons = pgTable(
     uniqueIndex("missing_persons_source_external_id_idx")
       .on(t.source, t.externalId)
       .where(sql`external_id IS NOT NULL`),
+    // NO-único (ver comentario de tipo_documento): lookup del matcher.
+    index("idx_missing_document_hash")
+      .on(t.documentHash)
+      .where(sql`document_hash IS NOT NULL`),
   ],
 );
 
@@ -1171,5 +1182,153 @@ export const hubCredentials = pgTable(
   (t) => [
     uniqueIndex("idx_hub_credentials_role").on(t.pgRole), // un rol por credencial
     index("idx_hub_credentials_active").on(t.revokedAt),
+  ],
+);
+
+/* ==================================================== capa de identidad ==== */
+// Family Search (plan 2026-08-11-001). Registro overlay: las tablas fuente
+// (missing_persons, hospital_patients, unidentified_persons) NUNCA aprenden de
+// esta capa — sin FKs hacia ellas a propósito; el cron de reconciliación es el
+// que detecta referencias huérfanas. Escrituras multi-fila = máquina de estados
+// idempotente (claim condicional + ON CONFLICT), jamás db.transaction().
+
+/* ------------------------------------------------------------ person_records */
+// Un PRN (TC-XXXXXXXXC, Crockford base32 + carácter de control) por registro
+// fuente. El PRN identifica un REGISTRO; la "persona" es el cluster.
+export const personRecords = pgTable(
+  "person_records",
+  {
+    prn: text("prn").primaryKey(),
+    // 'missing_report' | 'hospital_patient' | 'unidentified_person' | ...
+    recordType: text("record_type").notNull(),
+    recordId: text("record_id").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+    // Tombstone (U10): el registro fuente fue borrado; el PRN se conserva y
+    // resuelve a "registro eliminado" en vez de a un 500.
+    removedAt: epochMs("removed_at"),
+  },
+  (t) => [
+    uniqueIndex("idx_person_records_record").on(t.recordType, t.recordId),
+  ],
+);
+
+/* -------------------------------------------------------------- person_links */
+// Una fila por PAR no ordenado (prn_a < prn_b, CHECK estructural — sin él, un
+// insert invertido resucitaría un par rechazado como fila nueva). El estado es
+// la última decisión; la historia vive en person_link_decisions (append-only).
+export const personLinks = pgTable(
+  "person_links",
+  {
+    id: text("id").primaryKey(),
+    prnA: text("prn_a").notNull(),
+    prnB: text("prn_b").notNull(),
+    // 'proposed' | 'confirmed' | 'rejected' | 'unsure'
+    status: text("status").notNull().default("proposed"),
+    score: doublePrecision("score"),
+    // SOLO tokens de resultado por campo (p.ej. {"documento":"exact"}).
+    // Jamás valores crudos — invariante testeado.
+    evidence: jsonb("evidence").notNull().default({}),
+    // Ranking de re-propuesta: 'document_hash_exact' > 'name_age_exact'.
+    evidenceClass: text("evidence_class").notNull(),
+    // 'deterministic' | 'manual' (probabilistic llega en fase 2)
+    method: text("method").notNull(),
+    matcherVersion: text("matcher_version"),
+    proposedAt: epochMs("proposed_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("idx_person_links_pair").on(t.prnA, t.prnB),
+    index("idx_person_links_queue").on(t.status, t.proposedAt),
+    // CHECK (prn_a < prn_b) vive en el SQL de la migración (0004): drizzle-kit
+    // 0.27 no sabe serializar check() y aborta el diff. Si se sube drizzle-kit
+    // (>=0.30), mover el CHECK aquí como check("person_links_pair_ordered").
+  ],
+);
+
+/* ----------------------------------------------------- person_link_decisions */
+// Append-only: NUNCA se actualiza una decisión. evidence_snapshot congela lo
+// que el revisor vio (una re-propuesta sobreescribe person_links, no esto).
+export const personLinkDecisions = pgTable(
+  "person_link_decisions",
+  {
+    id: text("id").primaryKey(),
+    linkId: text("link_id")
+      .notNull()
+      .references(() => personLinks.id),
+    // 'confirmed' | 'rejected' | 'unsure' | 'rescinded' (unmerge/borrado)
+    decision: text("decision").notNull(),
+    note: text("note").notNull().default(""),
+    evidenceSnapshot: jsonb("evidence_snapshot").notNull().default({}),
+    // users.id — atribución obligatoria (R12).
+    decidedBy: text("decided_by").notNull(),
+    decidedAt: epochMs("decided_at").notNull(),
+  },
+  (t) => [index("idx_person_link_decisions_link").on(t.linkId, t.decidedAt)],
+);
+
+/* ------------------------------------------------------------ person_clusters */
+// La "persona": componente conexo sobre links CONFIRMADOS (solo). La membresía
+// materializada la converge recomputeClusterFor (5 sub-pasos, KTD3 del plan);
+// el cron de reconciliación verifica conectividad y repara divergencias.
+export const personClusters = pgTable("person_clusters", {
+  id: text("id").primaryKey(),
+  // Derivado: 'reported_missing' | 'located_hospital' (mínimo de fase 1).
+  status: text("status").notNull().default("reported_missing"),
+  createdAt: epochMs("created_at").notNull(),
+});
+
+export const personClusterMembers = pgTable(
+  "person_cluster_members",
+  {
+    id: text("id").primaryKey(),
+    clusterId: text("cluster_id").notNull(),
+    prn: text("prn").notNull(),
+    addedAt: epochMs("added_at").notNull(),
+    // Historia preservada: quitar = set removed_at, jamás DELETE.
+    removedAt: epochMs("removed_at"),
+    // users.id | 'system' (recompute).
+    addedBy: text("added_by").notNull(),
+  },
+  (t) => [
+    // Un registro vive en ≤1 cluster VIVO. Índice parcial = punto de
+    // serialización de recomputes concurrentes (ON CONFLICT DO NOTHING + re-read).
+    uniqueIndex("idx_person_cluster_members_live")
+      .on(t.prn)
+      .where(sql`removed_at IS NULL`),
+    index("idx_person_cluster_members_cluster").on(t.clusterId, t.removedAt),
+  ],
+);
+
+/* ------------------------------------------------------ record_status_signals */
+// "Señal, no verdad": una transición de status llegada por upsert externo
+// (socio/sync) NO pisa el status guardado — queda pendiente aquí hasta que un
+// revisor la confirme o descarte (R25/R26). claimed_status es columna de
+// primera clase porque es la clave de dedup del índice parcial único.
+export const recordStatusSignals = pgTable(
+  "record_status_signals",
+  {
+    id: text("id").primaryKey(),
+    prn: text("prn").notNull(),
+    // 'partner:<email>' | 'feed:<n>' — procedencia del claim.
+    source: text("source").notNull(),
+    // Solo 'status_report' en esta fase (KTD19: precursor de intake_items).
+    kind: text("kind").notNull().default("status_report"),
+    claimedStatus: text("claimed_status").notNull(),
+    // Allowlist: nota de resolución del socio + reported-at. Sin texto libre
+    // adicional del cable, sin media.
+    payload: jsonb("payload").notNull().default({}),
+    // 'pending' | 'confirmed' | 'dismissed'
+    status: text("status").notNull().default("pending"),
+    createdAt: epochMs("created_at").notNull(),
+    decidedBy: text("decided_by"),
+    decidedAt: epochMs("decided_at"),
+    decisionNote: text("decision_note"),
+  },
+  (t) => [
+    // Idempotencia DB-enforced (un retry del socio no apila señales): un claim
+    // pendiente por (prn, kind, claimed_status).
+    uniqueIndex("idx_record_status_signals_pending")
+      .on(t.prn, t.kind, t.claimedStatus)
+      .where(sql`status = 'pending'`),
+    index("idx_record_status_signals_queue").on(t.status, t.createdAt),
   ],
 );
