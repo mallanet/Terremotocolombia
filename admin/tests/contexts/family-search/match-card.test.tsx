@@ -18,8 +18,8 @@ describe("MatchCard", () => {
     withSession(<MatchCard item={item} onAdvance={() => {}} />);
     await screen.findByTestId("match-card");
 
-    fireEvent.keyDown(window, { key: "1" });
-    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(document.body, { key: "1" });
+    fireEvent.keyDown(document.body, { key: "Enter" });
 
     await waitFor(() => expect(decisionBody).not.toBeNull());
     expect(decisionBody).toEqual({ decision: "confirmar", note: undefined });
@@ -85,8 +85,8 @@ describe("MatchCard", () => {
     withSession(<MatchCard item={item} onAdvance={() => (advanced += 1)} />);
     await screen.findByTestId("match-card");
 
-    fireEvent.keyDown(window, { key: "1" });
-    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(document.body, { key: "1" });
+    fireEvent.keyDown(document.body, { key: "Enter" });
 
     expect(await screen.findByText("Esta propuesta ya fue decidida por otra persona.")).toBeInTheDocument();
     await waitFor(() => expect(advanced).toBeGreaterThan(0), { timeout: 3000 });
@@ -102,8 +102,8 @@ describe("MatchCard", () => {
     withSession(<MatchCard item={item} onAdvance={() => {}} />);
     await screen.findByTestId("match-card");
 
-    fireEvent.keyDown(window, { key: "1" });
-    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(document.body, { key: "1" });
+    fireEvent.keyDown(document.body, { key: "Enter" });
 
     expect(await screen.findByText("Fallo interno del servidor.")).toBeInTheDocument();
     expect(screen.queryByText(/decidida por otra persona/)).not.toBeInTheDocument();
@@ -120,12 +120,51 @@ describe("MatchCard", () => {
     withSession(<MatchCard item={item} onAdvance={() => (advanced += 1)} />);
     await screen.findByTestId("match-card");
 
-    fireEvent.keyDown(window, { key: "1" });
-    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(document.body, { key: "1" });
+    fireEvent.keyDown(document.body, { key: "Enter" });
 
     await waitFor(() => expect(advanced).toBe(1));
     // Éxito real, no el copy de conflicto.
     expect(screen.queryByText(/decidida por otra persona/)).not.toBeInTheDocument();
+  });
+
+  it("Enter en un campo FUERA de la tarjeta (p. ej. el buscador) NO comete la decisión armada", async () => {
+    // Reproduce el bug real: SearchPanel se monta siempre por encima de la
+    // tarjeta (family-search-admin.tsx) y también escucha Enter — sin el
+    // guard de scope, un Enter en el buscador cometía la decisión armada de
+    // la tarjeta de fondo.
+    let calls = 0;
+    let decisionBody: Record<string, unknown> | null = null;
+    const item = buildQueueItem();
+    server.use(
+      http.post("/api/admin/family-search/decision/link-1", async ({ request }) => {
+        calls += 1;
+        decisionBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ item: { ...item.link, status: "confirmed" }, idempotentReplay: false });
+      }),
+    );
+    withSession(
+      <>
+        <input data-testid="outside-input" />
+        <MatchCard item={item} onAdvance={() => {}} />
+      </>,
+    );
+    await screen.findByTestId("match-card");
+
+    fireEvent.keyDown(document.body, { key: "1" });
+    const outsideInput = screen.getByTestId("outside-input");
+    fireEvent.keyDown(outsideInput, { key: "Enter" });
+
+    // Le da tiempo a una request que NO debería salir.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(calls).toBe(0);
+
+    // La decisión sigue armada: un Enter DENTRO de scope (nada enfocado,
+    // target === document.body) todavía comete "confirmar" — prueba que el
+    // Enter de afuera no desarmó ni disparó nada.
+    fireEvent.keyDown(document.body, { key: "Enter" });
+    await waitFor(() => expect(decisionBody).not.toBeNull());
+    expect(decisionBody).toEqual({ decision: "confirmar", note: undefined });
   });
 
   it("el banner de re-propuesta se muestra cuando hay priorRejection", async () => {

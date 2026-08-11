@@ -49,7 +49,7 @@ con el scope `missing:create` únicamente. La llave define:
       "contact": "string, opcional",
       "photoUrl": "URL http(s) absoluta, opcional",
       "sourceUrl": "URL http(s) absoluta, opcional",
-      "status": "\"active\" | \"found\", opcional (default \"active\")",
+      "status": "\"active\" | \"found\", opcional (default \"active\") — ver 'Cambios de status' abajo para qué pasa en un re-sync",
       "resolutionNote": "string, opcional — solo aplica si status=found",
       "resolvedAt": "epoch ms, opcional",
       "createdAt": "epoch ms, opcional"
@@ -79,6 +79,14 @@ problema. Si tienes más de 50 registros, divídelos en varias llamadas.
 registros bloqueados por el equipo (ver "Kill-switch por registro" abajo) — el
 endpoint no distingue el motivo en la respuesta, para no filtrar a un socio
 que su ficha fue bloqueada específicamente.
+
+`updated` cuenta cualquier fila existente tocada por el batch — incluida una
+donde lo único que cambió fue nombre/edad/descripción/foto/etc. y tu `status`
+quedó como **señal pendiente de revisión** en vez de aplicarse (ver "Cambios
+de status" abajo). `updated` no significa "tu transición de status ya está
+en vivo". Hoy no hay ningún campo en la respuesta que distinga un re-sync
+totalmente aplicado de uno con una señal pendiente — si necesitas saberlo,
+pídeselo al equipo por otra vía.
 
 ### Errores
 
@@ -113,10 +121,34 @@ revisado, no algo que se resuelva por soporte en caliente.
 - Re-enviar el mismo `externalId` **actualiza** la ficha existente (upsert),
   nunca crea una segunda fila. Es seguro reintentar un lote completo tras un
   timeout o un error de red.
-- Marcar `status: "found"` en un re-sync sobreescribe el estado en vivo, sin
-  confirmación humana de nuestro lado — si tu sistema dice que alguien
-  apareció, ese cambio queda visible de inmediato. Trata esa señal con
-  cuidado.
+- Nombre, edad, descripción, últimas señas y contacto se sobreescriben de
+  inmediato con lo que mandes en cada re-sync. Foto (`photoUrl`) y
+  `sourceUrl` solo se completan si la ficha no tenía ya un valor guardado —
+  no se pisan una vez puestos. Nada de esto pasa por revisión humana.
+
+### Cambios de status: señal, no verdad
+
+El `status` no se comporta como el resto de los campos. Aplica **"señal, no
+verdad"** (mismo principio que el resto del sistema — ver
+`docs/architecture.md`):
+
+- **Primera vez que vemos ese `externalId`** (fila nueva): el `status` que
+  mandes se guarda tal cual, sin revisión — es el estado inicial, no una
+  transición.
+- **Re-sync de una ficha que ya existe**: si el `status` que mandas es
+  DISTINTO del que tenemos guardado (p. ej. tu sistema ahora dice `"found"` y
+  acá sigue `"active"`), **no se sobreescribe el estado en vivo**. Queda una
+  señal pendiente en la cola de revisión interna — un revisor humano con
+  capacidad `person:review` la confirma o la descarta desde el panel antes de
+  que el cambio se refleje en el registro. No hay un plazo garantizado para
+  esa revisión, y el resto de los campos del mismo envío (nombre, edad, etc.)
+  se actualiza igual, de inmediato, aunque el status quede pendiente.
+- Si el `status` que mandas coincide con el guardado, no hay nada que
+  señalar — no se crea ninguna fila pendiente.
+- Como se explica en "Respuesta" arriba, el endpoint no te dice si tu
+  transición ya fue confirmada o sigue pendiente. Trata cualquier
+  `status: "found"` que envíes como una señal, no como un hecho consumado del
+  lado nuestro.
 
 ### Kill-switch por registro
 

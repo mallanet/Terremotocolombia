@@ -394,7 +394,12 @@ export async function addMissing(input: CreateInput): Promise<MissingDTO> {
   // ensurePrn loguea y devuelve null ante cualquier fallo, nunca lanza. Si
   // esto queda sin estampar (p.ej. una caída a mitad), el cron de
   // reconciliación (KTD8) lo recoge en su próxima corrida.
-  await ensurePrn("missing_report", id);
+  // AE2/U8: sweep inmediato si el PRN se estampó aquí mismo — sin esto, el
+  // registro nunca aparece en listUnstamped (ya tiene PRN) y el reconcile
+  // jamás lo barre, así que un match contra un reporte existente no genera
+  // propuesta hasta el próximo cambio de document_hash.
+  const prn = await ensurePrn("missing_report", id);
+  if (prn) enqueueMatcherSweep([prn]);
 
   return {
     id,

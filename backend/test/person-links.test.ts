@@ -91,6 +91,61 @@ async function seedProposedLink(prnX: string, prnY: string, evidenceClass = "man
   return id;
 }
 
+/** Siembra una fila `person_links` 'confirmed' DIRECTAMENTE — bypassa
+ *  `decideLink` (que además recomputaría el cluster correctamente). Sirve
+ *  para fabricar el estado ROTO que los reparos de invariante (a)/(b) deben
+ *  corregir: un link confirmado cuyos extremos NO están (todavía) en el
+ *  mismo cluster vivo, sin pasar por el camino que los mantendría
+ *  consistentes. */
+async function seedConfirmedLinkDirect(prnX: string, prnY: string, evidenceClass = "manual"): Promise<string> {
+  const [prnA, prnB] = matcherPropose.orderPair(prnX, prnY);
+  const id = randomUUID();
+  await db
+    .getDb()
+    .insert(db.schema.personLinks)
+    .values({
+      id,
+      prnA,
+      prnB,
+      status: "confirmed",
+      score: 0.9,
+      evidence: {},
+      evidenceClass,
+      method: "manual",
+      matcherVersion: null,
+      proposedAt: Date.now(),
+    })
+    .onConflictDoNothing();
+  return id;
+}
+
+/** Siembra un `person_clusters` vacío DIRECTAMENTE. */
+async function seedCluster(): Promise<string> {
+  const id = randomUUID();
+  await db.getDb().insert(db.schema.personClusters).values({
+    id,
+    status: "reported_missing",
+    createdAt: Date.now(),
+  });
+  return id;
+}
+
+/** Siembra una membresía VIVA (`removed_at` null) de `prn` en `clusterId`
+ *  DIRECTAMENTE — bypassa `recomputeClusterFor`, que es el único escritor
+ *  real de `person_cluster_members` (ver docstring de person-clusters.ts).
+ *  Sirve para fabricar a mano el estado que los reparos de invariante deben
+ *  encontrar y corregir. */
+async function seedLiveMembership(prn: string, clusterId: string): Promise<void> {
+  await db.getDb().insert(db.schema.personClusterMembers).values({
+    id: randomUUID(),
+    clusterId,
+    prn,
+    addedAt: Date.now(),
+    removedAt: null,
+    addedBy: "system",
+  });
+}
+
 async function rawLink(linkId: string): Promise<typeof db.schema.personLinks.$inferSelect | null> {
   const rows = await db.getDb().select().from(db.schema.personLinks).where(eq(db.schema.personLinks.id, linkId));
   return rows[0] ?? null;
@@ -389,6 +444,69 @@ describe("Fusión anclada (R18) — TOCTOU", () => {
 
     const mergeAudits = await auditRowsFor("cluster.merge", bridgeLinkId);
     expect(mergeAudits).toHaveLength(1);
+  });
+});
+
+describe("runClusterInvariantChecks — reparo (a): extremos de link confirmado en clusters distintos", () => {
+  it("un link 'confirmed' cuyos extremos viven en DOS clusters vivos distintos se repara a UN solo cluster compartido", async () => {
+    const t = token();
+    const idA = await seedMissing({ name: `DEMO EndpointRepair A ${t}` });
+    const idB = await seedMissing({ name: `DEMO EndpointRepair B ${t}` });
+    const prnA = await prnFor("missing_report", idA);
+    const prnB = await prnFor("missing_report", idB);
+
+    // Estado roto fabricado a mano (nunca ocurriría vía decideLink, que
+    // recompute-a el cluster como parte del mismo protocolo): el link YA
+    // está 'confirmed', pero cada extremo vive en su propio cluster vivo
+    // (sin relación entre sí) — exactamente el invariante que (a) vigila.
+    await seedConfirmedLinkDirect(prnA, prnB);
+    const clusterX = await seedCluster();
+    const clusterY = await seedCluster();
+    await seedLiveMembership(prnA, clusterX);
+    await seedLiveMembership(prnB, clusterY);
+
+    expect(await clusters.liveClusterOf(prnA)).toBe(clusterX);
+    expect(await clusters.liveClusterOf(prnB)).toBe(clusterY);
+
+    const result = await personLinksService.repairConfirmedLinkEndpoints();
+    expect(result.repaired).toBeGreaterThanOrEqual(1);
+
+    const finalClusterA = await clusters.liveClusterOf(prnA);
+    const finalClusterB = await clusters.liveClusterOf(prnB);
+    expect(finalClusterA).not.toBeNull();
+    expect(finalClusterA).toBe(finalClusterB);
+  });
+});
+
+describe("runClusterInvariantChecks — reparo (b): miembro inalcanzable dentro de un cluster", () => {
+  it("dos miembros vivos del MISMO cluster sin ningún link confirmado entre ellos → el reparo separa al menos uno a su propio cluster", async () => {
+    const t = token();
+    const idC = await seedMissing({ name: `DEMO Stray C ${t}` });
+    const idD = await seedMissing({ name: `DEMO Stray D ${t}` });
+    const prnC = await prnFor("missing_report", idC);
+    const prnD = await prnFor("missing_report", idD);
+
+    // Estado roto fabricado a mano: ambos PRNs viven, vivos, en el MISMO
+    // cluster, pero no existe NINGÚN link confirmado que los una (ni
+    // directo ni transitivo) — la caminata de conectividad de (b) debe
+    // detectar que no son mutuamente alcanzables y desalojar al "extraño".
+    const clusterZ = await seedCluster();
+    await seedLiveMembership(prnC, clusterZ);
+    await seedLiveMembership(prnD, clusterZ);
+
+    expect(await clusters.liveClusterOf(prnC)).toBe(clusterZ);
+    expect(await clusters.liveClusterOf(prnD)).toBe(clusterZ);
+
+    const result = await personLinksService.repairClusterConnectivity({ timeBudgetMs: 5_000 });
+    expect(result.repaired).toBeGreaterThanOrEqual(1);
+
+    const liveC = await clusters.liveClusterOf(prnC);
+    const liveD = await clusters.liveClusterOf(prnD);
+    // Ya no ambos siguen vivos en clusterZ a la vez — el reparo desalojó al
+    // miembro "extraño" (cuál de los dos exactamente depende del orden en
+    // que liveMembersOf devuelve la fila semilla del BFS; el invariante que
+    // importa es que ya no comparten cluster sin evidencia que los una).
+    expect(liveC === clusterZ && liveD === clusterZ).toBe(false);
   });
 });
 

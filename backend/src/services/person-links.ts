@@ -676,8 +676,15 @@ async function searchNameInTable(
 
   const normalizeName = await importNormalizeName();
   const normTerm = normalizeName(rawTerm);
+  // Recientes-primero: sin orden, "qué 1000 filas entran al scan" es
+  // arbitrario y una fila recién creada puede quedar fuera cuando la tabla
+  // supera la cota. hospital_patients no tiene created_at — su columna de
+  // recencia es admitted_at.
+  const recencyCol = sql.raw(table === "hospital_patients" ? "t.admitted_at" : "t.created_at");
   const rows = execRows<{ id: string; hay: string }>(
-    await db.execute(sql`SELECT t.id, ${nameExpr} AS hay FROM ${t} t LIMIT ${SEARCH_FALLBACK_SCAN_LIMIT}`),
+    await db.execute(
+      sql`SELECT t.id, ${nameExpr} AS hay FROM ${t} t ORDER BY ${recencyCol} DESC LIMIT ${SEARCH_FALLBACK_SCAN_LIMIT}`,
+    ),
   );
   return rows
     .filter((r) => normalizeName(r.hay).includes(normTerm))
@@ -795,23 +802,73 @@ export async function scanNotesForPii(): Promise<PiiScanResult> {
 // -------------------------------------------- comprobaciones de invariante ---
 // KTD8 — enganchadas desde person-records.ts:runClusterInvariantChecks.
 
+/**
+ * Presupuesto de tiempo por defecto de un reparo (a)/(c) — MISMO número que
+ * `CLUSTER_INVARIANT_CONNECTIVITY_BUDGET_MS` en person-records.ts (no se
+ * importa esa constante: no está exportada, y person-records.ts ya importa
+ * ESTE archivo dinámicamente — importar en la otra dirección sería el mismo
+ * ciclo que `runClusterInvariantChecks` documenta evitar). Se repite el
+ * valor con esta nota como único punto de sincronización.
+ */
+const DEFAULT_REPAIR_TIME_BUDGET_MS = 5_000;
+
+/**
+ * Cota del SELECT inicial de cada reparo (a)/(c) — mismo criterio de "bounded
+ * scans are acceptable at current volumes" ya documentado más abajo para
+ * `searchNameInTable` (`SEARCH_FALLBACK_SCAN_LIMIT`). Sin esto, el SELECT
+ * completo de `person_links` crecería sin cota junto con la tabla, y estos
+ * dos reparos corren en CADA tick del cron de reconciliación (cada 5
+ * minutos) — no en la cadencia lenta de (b).
+ *
+ * Sin cursor persistente entre corridas: un cursor a nivel de módulo NO
+ * sobrevive a un isolate reciclado en Workers (no hay garantía de que el
+ * siguiente tick del cron lo vea), y añadir una columna de watermark
+ * persistida está fuera del alcance de este reparo. Se prefiere en su lugar
+ * `ORDER BY id ASC LIMIT N`: siempre acota el trabajo por tick, a costa de
+ * re-chequear los links con id "menor" en cada corrida mientras que los que
+ * caen fuera del límite tardan más en recibir su primera pasada. Tradeoff
+ * aceptado a propósito — preferible a un SELECT sin límite.
+ */
+const REPAIR_SCAN_LIMIT = 1000;
+
 export interface RepairEndpointsResult {
   checked: number;
   repaired: number;
+  /** true = el SELECT inicial trajo REPAIR_SCAN_LIMIT filas y/o el presupuesto
+   *  de tiempo cortó la corrida antes de procesarlas todas — queda trabajo
+   *  para el próximo tick del cron. */
+  reachedBudget: boolean;
 }
 
 /** (a) Todo link CONFIRMADO: ambos extremos deben compartir un cluster vivo.
  *  Reparo: recompute de ambos extremos (recomputeClusterFor es idempotente —
- *  si ya coinciden, no hace nada). */
-export async function repairConfirmedLinkEndpoints(): Promise<RepairEndpointsResult> {
+ *  si ya coinciden, no hace nada). Acotado (mismo idioma que
+ *  `repairClusterConnectivity`): SELECT con LIMIT + presupuesto de tiempo
+ *  chequeado entre iteraciones — este reparo corre en CADA tick del cron de
+ *  reconciliación (5 min), así que su costo no puede crecer sin cota con
+ *  `person_links`. */
+export async function repairConfirmedLinkEndpoints(
+  opts: { timeBudgetMs?: number } = {},
+): Promise<RepairEndpointsResult> {
+  const timeBudgetMs = opts.timeBudgetMs ?? DEFAULT_REPAIR_TIME_BUDGET_MS;
   const db = getDb();
+  const startedAt = Date.now();
   const rows = await db
-    .select({ prnA: personLinks.prnA, prnB: personLinks.prnB })
+    .select({ id: personLinks.id, prnA: personLinks.prnA, prnB: personLinks.prnB })
     .from(personLinks)
-    .where(eq(personLinks.status, "confirmed"));
+    .where(eq(personLinks.status, "confirmed"))
+    .orderBy(personLinks.id)
+    .limit(REPAIR_SCAN_LIMIT);
 
+  let checked = 0;
   let repaired = 0;
+  let reachedBudget = rows.length >= REPAIR_SCAN_LIMIT;
   for (const row of rows) {
+    if (Date.now() - startedAt > timeBudgetMs) {
+      reachedBudget = true;
+      break;
+    }
+    checked++;
     const [clusterA, clusterB] = await Promise.all([liveClusterOf(row.prnA), liveClusterOf(row.prnB)]);
     if (!clusterA || !clusterB || clusterA !== clusterB) {
       await recomputeClusterFor(row.prnA);
@@ -819,7 +876,7 @@ export async function repairConfirmedLinkEndpoints(): Promise<RepairEndpointsRes
       repaired++;
     }
   }
-  return { checked: rows.length, repaired };
+  return { checked, repaired, reachedBudget };
 }
 
 export interface RepairConnectivityResult {
@@ -866,22 +923,41 @@ export async function repairClusterConnectivity(
 export interface RepairUndecidedResult {
   checked: number;
   reverted: number;
+  /** true = el SELECT inicial trajo REPAIR_SCAN_LIMIT filas y/o el presupuesto
+   *  de tiempo cortó la corrida antes de procesarlas todas — queda trabajo
+   *  para el próximo tick del cron (ver REPAIR_SCAN_LIMIT). */
+  reachedBudget: boolean;
 }
 
 /** (c) Todo link cuyo status implica una decisión humana (confirmed/rejected/
  *  unsure) debe tener AL MENOS una fila en person_link_decisions. Si no —
  *  atribución que solo existió en un request que se cayó a medias entre el
  *  claim y el insert de la decisión — se REVIERTE a 'proposed' (nunca se
- *  fabrica una decisión que nadie tomó). */
-export async function repairUndecidedStatuses(): Promise<RepairUndecidedResult> {
+ *  fabrica una decisión que nadie tomó). Acotado igual que
+ *  `repairConfirmedLinkEndpoints` (mismo motivo: corre en cada tick del cron
+ *  de reconciliación, no en la cadencia lenta de (b)). */
+export async function repairUndecidedStatuses(
+  opts: { timeBudgetMs?: number } = {},
+): Promise<RepairUndecidedResult> {
+  const timeBudgetMs = opts.timeBudgetMs ?? DEFAULT_REPAIR_TIME_BUDGET_MS;
   const db = getDb();
+  const startedAt = Date.now();
   const rows = await db
     .select({ id: personLinks.id, status: personLinks.status })
     .from(personLinks)
-    .where(inArray(personLinks.status, ["confirmed", "rejected", "unsure"]));
+    .where(inArray(personLinks.status, ["confirmed", "rejected", "unsure"]))
+    .orderBy(personLinks.id)
+    .limit(REPAIR_SCAN_LIMIT);
 
+  let checked = 0;
   let reverted = 0;
+  let reachedBudget = rows.length >= REPAIR_SCAN_LIMIT;
   for (const row of rows) {
+    if (Date.now() - startedAt > timeBudgetMs) {
+      reachedBudget = true;
+      break;
+    }
+    checked++;
     const has = await db
       .select({ id: personLinkDecisions.id })
       .from(personLinkDecisions)
@@ -895,5 +971,5 @@ export async function repairUndecidedStatuses(): Promise<RepairUndecidedResult> 
       reverted++;
     }
   }
-  return { checked: rows.length, reverted };
+  return { checked, reverted, reachedBudget };
 }

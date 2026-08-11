@@ -21,8 +21,8 @@ describe("Escalación de fusión anclada (R18)", () => {
     withSession(<MatchCard item={item} onAdvance={() => {}} />);
     await screen.findByTestId("match-card");
 
-    fireEvent.keyDown(window, { key: "1" });
-    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(document.body, { key: "1" });
+    fireEvent.keyDown(document.body, { key: "Enter" });
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(
@@ -42,8 +42,8 @@ describe("Escalación de fusión anclada (R18)", () => {
     );
     withSession(<MatchCard item={item} onAdvance={() => {}} />);
     await screen.findByTestId("match-card");
-    fireEvent.keyDown(window, { key: "1" });
-    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(document.body, { key: "1" });
+    fireEvent.keyDown(document.body, { key: "Enter" });
     await screen.findByRole("dialog");
     expect(decisionCalls).toBe(1);
 
@@ -65,8 +65,8 @@ describe("Escalación de fusión anclada (R18)", () => {
     );
     withSession(<MatchCard item={item} onAdvance={() => {}} />);
     await screen.findByTestId("match-card");
-    fireEvent.keyDown(window, { key: "1" });
-    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(document.body, { key: "1" });
+    fireEvent.keyDown(document.body, { key: "Enter" });
     await screen.findByRole("dialog");
 
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
@@ -84,8 +84,8 @@ describe("Escalación de fusión anclada (R18)", () => {
     );
     withSession(<MatchCard item={item} onAdvance={() => {}} />, ["person:search", "person:review"]);
     await screen.findByTestId("match-card");
-    fireEvent.keyDown(window, { key: "1" });
-    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(document.body, { key: "1" });
+    fireEvent.keyDown(document.body, { key: "Enter" });
 
     await screen.findByRole("dialog");
     expect(screen.queryByRole("button", { name: "Confirmar fusión anclada" })).not.toBeInTheDocument();
@@ -110,8 +110,8 @@ describe("Escalación de fusión anclada (R18)", () => {
     );
     withSession(<MatchCard item={item} onAdvance={() => {}} />);
     await screen.findByTestId("match-card");
-    fireEvent.keyDown(window, { key: "1" });
-    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(document.body, { key: "1" });
+    fireEvent.keyDown(document.body, { key: "Enter" });
     await screen.findByRole("dialog");
 
     fireEvent.click(screen.getByRole("button", { name: "Confirmar fusión anclada" }));

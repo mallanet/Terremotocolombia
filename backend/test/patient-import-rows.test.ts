@@ -418,6 +418,40 @@ describe("POST /:id/rows/:rowId/confirm", () => {
 		expect(again.status).toBe(200);
 		expect(again.body.row.rowStatus).toBe("valid");
 	});
+
+	it("confirmación concurrente (misma fila needs_review limpia) → ambas coinciden en valid (protocolo claim-then-reread: idempotente, NO 409)", async () => {
+		const hospital = await makeHospital(`Hosp Confirm Race ${randomUUID().slice(0, 8)}`);
+		const { importId, rowId } = await makeOcrRow({
+			name: "Demo Confirm Race",
+			hospitalName: hospital.name,
+			age: 37,
+		});
+		const rowBefore = await rawRow(rowId);
+		expect(rowBefore?.validationErrors).toEqual([]);
+
+		// A diferencia de editImportRow (que compara updatedAt Y valores exactos
+		// tras perder la carrera), confirmImportRow no lleva baseline de
+		// cliente: el claim solo exige `rowStatus = 'needs_review'`. Las DOS
+		// llamadas concurrentes apuntan al MISMO estado destino ("valid"), así
+		// que la perdedora, al releer, encuentra la fila YA en el estado que ella
+		// misma quería escribir — responde éxito idempotente, no 409 (ver
+		// rows.ts:191 y el `reread` de confirmImportRow). Contrato distinto al de
+		// editImportRow, que sí puede dar 409 al perdedor porque compara valores
+		// de edición potencialmente distintos.
+		const [r1, r2] = await Promise.allSettled([
+			svc.confirmImportRow(importId, rowId),
+			svc.confirmImportRow(importId, rowId),
+		]);
+		const outcomes = [r1, r2];
+		expect(outcomes.every((o) => o.status === "fulfilled")).toBe(true);
+		const statuses = outcomes.map(
+			(o) => (o as PromiseFulfilledResult<{ rowStatus: string }>).value.rowStatus,
+		);
+		expect(statuses).toEqual(["valid", "valid"]);
+
+		const finalRow = await rawRow(rowId);
+		expect(finalRow?.rowStatus).toBe("valid");
+	});
 });
 
 describe("POST /:id/rows/:rowId/reject", () => {
@@ -471,9 +505,44 @@ describe("POST /:id/rows/:rowId/reject", () => {
 		expect(second.status).toBe(200);
 		expect(second.body.row.rowStatus).toBe("invalid");
 	});
+
+	it("rechazo concurrente (misma fila) → ambas coinciden en invalid (mismo protocolo claim-then-reread idempotente que confirm)", async () => {
+		const hospital = await makeHospital(`Hosp Reject Race ${randomUUID().slice(0, 8)}`);
+		const { importId, rows } = await makeJsonImport([
+			{ name: "Demo Reject Race", hospital: hospital.name, age: 41 },
+		]);
+		const row = rows[0];
+		if (!row) throw new Error("fixture vacío");
+		expect(row.rowStatus).toBe("valid");
+
+		// Mismo protocolo que confirmImportRow (rows.ts:241): el claim solo exige
+		// rowStatus IN (needs_review, valid), sin baseline de cliente. Las DOS
+		// llamadas concurrentes apuntan al MISMO destino terminal ("invalid"), así
+		// que la perdedora releída ya está en el estado que quería escribir →
+		// éxito idempotente, no 409.
+		const [r1, r2] = await Promise.allSettled([
+			svc.rejectImportRow(importId, row.id),
+			svc.rejectImportRow(importId, row.id),
+		]);
+		const outcomes = [r1, r2];
+		expect(outcomes.every((o) => o.status === "fulfilled")).toBe(true);
+		const statuses = outcomes.map(
+			(o) => (o as PromiseFulfilledResult<{ rowStatus: string }>).value.rowStatus,
+		);
+		expect(statuses).toEqual(["invalid", "invalid"]);
+
+		const finalRow = await rawRow(row.id);
+		expect(finalRow?.rowStatus).toBe("invalid");
+	});
 });
 
 describe("POST /:id/rows/:rowId/dedup", () => {
+	// Nota: sin test de carrera concurrente para decideImportRowDedup (comparte
+	// el mismo protocolo claim-then-reread que confirm/reject, rows.ts:299) —
+	// a diferencia de esos dos, su claim exige un `patientId` de un candidato
+	// real sembrado en `hospital_patients`, así que montar la carrera pide
+	// fixtures adicionales que no valía la pena replicar aquí; el idioma
+	// transfiere igual si alguien lo necesita más adelante.
 	it("aceptar candidato → apply adjunta al paciente existente; hospital_patients no crece", async () => {
 		const { token } = await makeUserWithCaps(CAPS);
 		const hospital = await makeHospital(`Hosp Dedup Accept ${randomUUID().slice(0, 8)}`);

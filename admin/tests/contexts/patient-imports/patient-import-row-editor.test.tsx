@@ -198,8 +198,10 @@ describe("RowEditor (vía ImportRowsTable)", () => {
     );
   });
 
-  it("un 409 de edición concurrente muestra 'modificada por otra persona' y refresca la lista", async () => {
+  it("un 409 de edición concurrente muestra 'modificada por otra persona', refresca la lista, y el reintento reenvía la baseline fresca", async () => {
     let getRowsCalls = 0;
+    let patchCalls = 0;
+    let secondPatchBody: Record<string, unknown> | null = null;
     server.use(
       hospitalsHandler,
       http.get("/api/admin/patient-imports/imp-6/rows", () => {
@@ -210,12 +212,22 @@ describe("RowEditor (vía ImportRowsTable)", () => {
             : { ...baseRow, id: "r6", name: "Editado Por Otra Persona", updatedAt: 9999 };
         return HttpResponse.json({ items: [row] });
       }),
-      http.patch("/api/admin/patient-imports/imp-6/rows/r6", () =>
-        HttpResponse.json(
-          { error: "La fila cambió desde que la leíste (edición concurrente); recárgala e inténtalo de nuevo." },
-          { status: 409 },
-        ),
-      ),
+      // Handler con estado: el primer PATCH choca (409, como una edición
+      // concurrente real); el segundo (el reintento tras el resync) captura
+      // el body para verificar qué baseline reenvió el cliente.
+      http.patch("/api/admin/patient-imports/imp-6/rows/r6", async ({ request }) => {
+        patchCalls += 1;
+        if (patchCalls === 1) {
+          return HttpResponse.json(
+            { error: "La fila cambió desde que la leíste (edición concurrente); recárgala e inténtalo de nuevo." },
+            { status: 409 },
+          );
+        }
+        secondPatchBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({
+          row: { ...baseRow, id: "r6", name: "Editado Por Otra Persona", updatedAt: 10000 },
+        });
+      }),
     );
     withSession(<ImportRowsTable importId="imp-6" />);
 
@@ -224,6 +236,44 @@ describe("RowEditor (vía ImportRowsTable)", () => {
 
     expect(await screen.findByText(/modificada por otra persona/)).toBeInTheDocument();
     await waitFor(() => expect(getRowsCalls).toBeGreaterThan(1));
+
+    // El resync tras el 409 debe haber dejado la baseline en 9999 (el
+    // updatedAt de la fila fresca) — el botón vuelve a habilitarse porque
+    // save.isPending ya bajó y no hay otra mutación en vuelo.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Guardar cambios" })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => expect(secondPatchBody).not.toBeNull());
+    // La prueba real de que el resync post-409 arregla el reintento: el
+    // segundo PATCH debe llevar la baseline recién fetcheada (9999), no la
+    // original con la que se abrió el editor (1000) ni un valor inventado.
+    expect(secondPatchBody!.baselineUpdatedAt).toBe(9999);
+  });
+
+  it("mientras Guardar está en vuelo, el botón Confirmar también se deshabilita (una fila, una mutación a la vez)", async () => {
+    let resolvePatch: () => void = () => {};
+    server.use(
+      hospitalsHandler,
+      http.get("/api/admin/patient-imports/imp-11/rows", () =>
+        HttpResponse.json({ items: [{ ...baseRow, id: "r11" }] }),
+      ),
+      http.patch("/api/admin/patient-imports/imp-11/rows/r11", async () => {
+        await new Promise<void>((resolve) => {
+          resolvePatch = resolve;
+        });
+        return HttpResponse.json({ row: { ...baseRow, id: "r11", updatedAt: 1500 } });
+      }),
+    );
+    withSession(<ImportRowsTable importId="imp-11" />);
+
+    await expandRow();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    const confirmButton = await screen.findByRole("button", { name: "Confirmar" });
+    await waitFor(() => expect(confirmButton).toBeDisabled());
+
+    resolvePatch();
+    await waitFor(() => expect(confirmButton).not.toBeDisabled());
   });
 
   it("una mutación pendiente deshabilita el botón (segundo click no hace nada); un 500 muestra error reintentable, no el de conflicto", async () => {

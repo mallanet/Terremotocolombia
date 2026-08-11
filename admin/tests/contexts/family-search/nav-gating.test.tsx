@@ -94,8 +94,8 @@ describe("Family Search — gating por capacidad", () => {
     withSession(<MatchCard item={item} onAdvance={() => {}} />, ["person:search"]);
     await screen.findByTestId("match-card");
 
-    fireEvent.keyDown(window, { key: "1" });
-    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(document.body, { key: "1" });
+    fireEvent.keyDown(document.body, { key: "Enter" });
 
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(calls).toBe(0);

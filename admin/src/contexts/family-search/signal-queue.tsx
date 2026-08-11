@@ -135,6 +135,7 @@ function SignalCard({
   const [noteError, setNoteError] = useState(false);
   const conflictTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Keyboard-first: al armar "2" (descartar, nota obligatoria) el foco salta
   // a la nota directamente — mismo criterio que "3" (inseguro) en MatchCard.
@@ -186,8 +187,20 @@ function SignalCard({
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (decision.isPending || !canReview) return;
+      // Guard de scope: el listener es global (window), pero SearchPanel se
+      // monta siempre por encima de esta tarjeta (family-search-admin.tsx) —
+      // sin esto, un Enter en el buscador comete la decisión armada de la
+      // tarjeta de FONDO y además le hace preventDefault al submit del
+      // buscador. Solo se procesa el evento si no vino de ningún foco
+      // específico (target === document.body, el caso "nada enfocado") o si
+      // vino de dentro de esta tarjeta. Mismo criterio que MatchCard.
       const target = event.target as HTMLElement | null;
+      // `instanceof Node` además de null-check: un evento sintético puede traer
+      // window (u otro no-Node) como target, y `contains()` lanza sobre eso.
+      const inScope =
+        target === document.body || (target instanceof Node && containerRef.current?.contains(target));
+      if (!inScope) return;
+      if (decision.isPending || !canReview || decision.isConflict) return;
       const isTextField = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA");
 
       if (event.key === "Enter") {
@@ -206,7 +219,7 @@ function SignalCard({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, note, decision.isPending, canReview]);
+  }, [selected, note, decision.isPending, canReview, decision.isConflict]);
 
   if (decision.isConflict) {
     return (
@@ -221,7 +234,7 @@ function SignalCard({
   }
 
   return (
-    <div data-testid="signal-card" className="flex flex-col gap-4 rounded-lg border p-4">
+    <div ref={containerRef} data-testid="signal-card" className="flex flex-col gap-4 rounded-lg border p-4">
       <div className="rounded border p-3">
         <RecordSummary record={signal.record} label="Registro" />
       </div>

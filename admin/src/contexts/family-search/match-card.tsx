@@ -73,6 +73,7 @@ export function MatchCard({
   const [showEscalation, setShowEscalation] = useState(false);
   const conflictTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Keyboard-first: al armar "3" (nota obligatoria) el foco salta a la nota
   // directamente, sin que el revisor tenga que alcanzar el mouse.
@@ -145,8 +146,20 @@ export function MatchCard({
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (decision.isPending || showEscalation || !canReview) return;
+      // Guard de scope: el listener es global (window), pero SearchPanel se
+      // monta siempre por encima de esta tarjeta (family-search-admin.tsx) —
+      // sin esto, un Enter en el buscador comete la decisión armada de la
+      // tarjeta de FONDO y además le hace preventDefault al submit del
+      // buscador. Solo se procesa el evento si no vino de ningún foco
+      // específico (target === document.body, el caso "nada enfocado") o si
+      // vino de dentro de esta tarjeta.
       const target = event.target as HTMLElement | null;
+      // `instanceof Node` además de null-check: un evento sintético puede traer
+      // window (u otro no-Node) como target, y `contains()` lanza sobre eso.
+      const inScope =
+        target === document.body || (target instanceof Node && containerRef.current?.contains(target));
+      if (!inScope) return;
+      if (decision.isPending || showEscalation || !canReview || decision.isConflict) return;
       const isTextField = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA");
 
       if (event.key === "Enter") {
@@ -165,7 +178,7 @@ export function MatchCard({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, note, decision.isPending, showEscalation, canReview]);
+  }, [selected, note, decision.isPending, showEscalation, canReview, decision.isConflict]);
 
   if (decision.isConflict) {
     return (
@@ -184,7 +197,7 @@ export function MatchCard({
   const priorEvidenceClass = evidenceClassFromSnapshot(item.priorRejection?.evidenceSnapshot);
 
   return (
-    <div data-testid="match-card" className="flex flex-col gap-4 rounded-lg border p-4">
+    <div ref={containerRef} data-testid="match-card" className="flex flex-col gap-4 rounded-lg border p-4">
       {item.priorRejection && (
         <div role="note" className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
           Rechazado antes ({item.priorRejection.decision === "rescinded" ? "fusión deshecha" : "rechazado"})

@@ -25,12 +25,16 @@ let db: typeof import("@/db");
 let personRecords: typeof import("@/services/person-records");
 let matcher: typeof import("@/services/matcher");
 let queueConsumer: typeof import("@/lib/queue-consumer");
+let missingService: typeof import("@/services/missing");
+let patientsService: typeof import("@/services/patients");
 
 beforeAll(async () => {
   db = await import("@/db");
   personRecords = await import("@/services/person-records");
   matcher = await import("@/services/matcher");
   queueConsumer = await import("@/lib/queue-consumer");
+  missingService = await import("@/services/missing");
+  patientsService = await import("@/services/patients");
 });
 
 afterEach(() => {
@@ -424,5 +428,43 @@ describe("matcher — idempotencia del consumidor (entrega al-menos-una-vez)", (
     const rows = await linkRowsTouching(missingPrn);
     const relevant = rows.filter((r) => r.prnA === patientPrn || r.prnB === patientPrn);
     expect(relevant).toHaveLength(1);
+  });
+});
+
+describe("matcher — el sweep se dispara en creación (finding #6, AE2/U8)", () => {
+  // addMissing/createPatient llaman a ensurePrn best-effort y, cuando el PRN
+  // se estampa ahí mismo, a enqueueMatcherSweep([prn]) — si no, el registro
+  // recién creado nunca aparece en listUnstamped (ya tiene PRN) y el cron de
+  // reconciliación tampoco lo barre, así que un match contra un registro
+  // existente no produce propuesta hasta el próximo cambio disparador.
+
+  it("addMissing encola un sweep con el PRN del reporte recién creado", async () => {
+    personRecords.takeMatcherSweepCalls(); // drena residuo de otros tests de este archivo
+    const t = token();
+
+    const created = await missingService.addMissing({ name: `DEMO Sweep Missing ${t}` });
+    // ensurePrn es idempotente: la segunda llamada solo LEE el PRN ya
+    // estampado por addMissing, sin volver a encolar un sweep.
+    const prn = await personRecords.ensurePrn("missing_report", created.id);
+    expect(prn).not.toBeNull();
+
+    const sweptPrns = personRecords.takeMatcherSweepCalls().flat();
+    expect(sweptPrns).toContain(prn);
+  });
+
+  it("createPatient encola un sweep con el PRN del paciente recién creado", async () => {
+    personRecords.takeMatcherSweepCalls(); // drena residuo de otros tests de este archivo
+    const hospitalId = await makeHospital();
+    const t = token();
+
+    const created = await patientsService.createPatient({
+      hospitalId,
+      name: `DEMO Sweep Patient ${t}`,
+    });
+    const prn = await personRecords.ensurePrn("hospital_patient", created.id);
+    expect(prn).not.toBeNull();
+
+    const sweptPrns = personRecords.takeMatcherSweepCalls().flat();
+    expect(sweptPrns).toContain(prn);
   });
 });

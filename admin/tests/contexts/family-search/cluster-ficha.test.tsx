@@ -1,5 +1,5 @@
 import { HttpResponse, http } from "msw";
-import { screen, fireEvent, render } from "@testing-library/react";
+import { screen, fireEvent, render, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import { server } from "@/tests/setup";
@@ -234,5 +234,122 @@ describe("ClusterFicha", () => {
     expect(chip).toHaveTextContent("Señales pendientes (1)");
     fireEvent.click(chip);
     expect(onOpenSignalsCalls).toBe(1);
+  });
+
+  // --------------------------------------------------------- Deshacer fusión ---
+
+  it("'Deshacer fusión' en una decisión confirmada abre el modal, envía la nota y refresca la ficha", async () => {
+    let unmergeBody: Record<string, unknown> | null = null;
+    let getCalls = 0;
+    const fichaAfterUnmerge = {
+      ...baseFicha,
+      decisions: [
+        ...baseFicha.decisions,
+        {
+          id: "dec-2",
+          linkId: "link-1",
+          prnA: "TC-DEMO0001X",
+          prnB: "TC-DEMO0002Y",
+          decision: "rescinded",
+          note: "Error de captura, no son la misma persona.",
+          evidenceSnapshot: { evidenceClass: "name_age_exact" },
+          decidedBy: "u1",
+          decidedAt: 1500,
+        },
+      ],
+    };
+    server.use(
+      http.get("/api/admin/family-search/clusters/cluster-1", () => {
+        getCalls += 1;
+        return HttpResponse.json({ item: getCalls === 1 ? baseFicha : fichaAfterUnmerge });
+      }),
+      http.post("/api/admin/family-search/unmerge/link-1", async ({ request }) => {
+        unmergeBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({
+          item: {
+            id: "link-1",
+            prnA: "TC-DEMO0001X",
+            prnB: "TC-DEMO0002Y",
+            status: "rejected",
+            score: null,
+            evidence: null,
+            evidenceClass: "name_age_exact",
+            method: "deterministic",
+            matcherVersion: null,
+            proposedAt: 900,
+          },
+        });
+      }),
+    );
+    withSession(
+      <ClusterFicha target={{ type: "cluster", clusterId: "cluster-1" }} onJumpToQueue={() => {}} />,
+    );
+    await screen.findByText("Demo Uno");
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer fusión" }));
+
+    expect(
+      await screen.findByRole("dialog", { name: "Deshacer fusión — ¿confirmas?" }),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Nota (opcional)"), {
+      target: { value: "Error de captura, no son la misma persona." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() => expect(unmergeBody).not.toBeNull());
+    expect(unmergeBody).toEqual({ note: "Error de captura, no son la misma persona." });
+
+    // El modal se cierra tras el éxito y la ficha se refresca (invalidateKeys).
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await screen.findByText("Fusión deshecha")).toBeInTheDocument();
+    expect(getCalls).toBeGreaterThanOrEqual(2);
+  });
+
+  it("un 409 al confirmar el unmerge muestra el copy de conflicto y deja el modal abierto", async () => {
+    server.use(
+      http.get("/api/admin/family-search/clusters/cluster-1", () =>
+        HttpResponse.json({ item: baseFicha }),
+      ),
+      http.post("/api/admin/family-search/unmerge/link-1", () =>
+        HttpResponse.json(
+          { error: "Este vínculo ya fue decidido por otro revisor." },
+          { status: 409 },
+        ),
+      ),
+    );
+    withSession(
+      <ClusterFicha target={{ type: "cluster", clusterId: "cluster-1" }} onJumpToQueue={() => {}} />,
+    );
+    await screen.findByText("Demo Uno");
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer fusión" }));
+    await screen.findByRole("dialog", { name: "Deshacer fusión — ¿confirmas?" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    expect(
+      await screen.findByText("Este vínculo cambió de estado; recarga la ficha e inténtalo de nuevo."),
+    ).toBeInTheDocument();
+    // El modal sigue abierto — el caller no lo cierra en un conflicto.
+    expect(
+      screen.getByRole("dialog", { name: "Deshacer fusión — ¿confirmas?" }),
+    ).toBeInTheDocument();
+  });
+
+  it("sin la capacidad person:merge, el botón 'Deshacer fusión' no aparece", async () => {
+    server.use(
+      http.get("/api/admin/family-search/clusters/cluster-1", () =>
+        HttpResponse.json({ item: baseFicha }),
+      ),
+    );
+    withSession(
+      <ClusterFicha target={{ type: "cluster", clusterId: "cluster-1" }} onJumpToQueue={() => {}} />,
+      ["person:search", "person:review"],
+    );
+
+    await screen.findByText("Demo Uno");
+    expect(screen.getByText("Confirmado")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Deshacer fusión" })).not.toBeInTheDocument();
   });
 });

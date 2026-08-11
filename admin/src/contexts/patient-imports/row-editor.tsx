@@ -163,6 +163,10 @@ export function RowEditor({
   // (form + baseline) con esa versión fresca, para que reintentar guardar use
   // la baseline correcta en vez de repetir el mismo 409.
   const anyConflict = save.isConflict || confirm.isConflict || reject.isConflict || dedup.isConflict;
+  // Las cuatro mutaciones actúan sobre la MISMA fila — mientras cualquiera
+  // esté en vuelo, se deshabilitan todos los botones de acción para no
+  // disparar escrituras concurrentes (p. ej. guardar y confirmar a la vez).
+  const anyPending = save.isPending || confirm.isPending || reject.isPending || dedup.isPending;
   useEffect(() => {
     if (!anyConflict) return;
     if (row.updatedAt === currentRow.updatedAt) return;
@@ -288,14 +292,14 @@ export function RowEditor({
                 )}
 
                 <div className="flex items-center gap-2">
-                  <Button type="button" disabled={save.isPending} onClick={submitSave}>
+                  <Button type="button" disabled={anyPending} onClick={submitSave}>
                     {save.isPending ? "Guardando…" : "Guardar cambios"}
                   </Button>
                   {canConfirm && (
                     <Button
                       type="button"
                       variant="ghost"
-                      disabled={confirm.isPending || currentRow.validationErrors.length > 0}
+                      disabled={anyPending || currentRow.validationErrors.length > 0}
                       onClick={() => confirm.mutate(undefined)}
                     >
                       {confirm.isPending ? "Confirmando…" : "Confirmar"}
@@ -305,7 +309,7 @@ export function RowEditor({
                     <Button
                       type="button"
                       variant="ghost"
-                      disabled={reject.isPending}
+                      disabled={anyPending}
                       onClick={() => reject.mutate(undefined)}
                     >
                       {reject.isPending ? "Rechazando…" : "Rechazar"}
@@ -382,7 +386,7 @@ export function RowEditor({
                       </span>
                       <Button
                         type="button"
-                        disabled={dedup.isPending}
+                        disabled={anyPending}
                         onClick={() => dedup.mutate({ accept: true, patientId: candidate.patientId })}
                       >
                         {dedup.isPending ? "Guardando…" : "Aceptar"}
@@ -394,7 +398,7 @@ export function RowEditor({
                   type="button"
                   variant="ghost"
                   className="mt-2"
-                  disabled={dedup.isPending}
+                  disabled={anyPending}
                   onClick={() => dedup.mutate({ accept: false })}
                 >
                   {dedup.isPending ? "Guardando…" : "No es duplicado"}

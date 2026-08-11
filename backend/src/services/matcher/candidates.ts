@@ -176,6 +176,13 @@ async function documentHashHits(ref: PersonRecordRef, trigger: TriggerRow): Prom
  * dedup de nombre simplemente no funcionaría en ningún Postgres que no tenga
  * `f_unaccent` instalado a mano (todo entorno local/CI de hoy).
  */
+/** Bounded scan (fallback sin f_unaccent) — mismo criterio de "bounded scans
+ *  are acceptable at current volumes" (KTD10) que `SEARCH_FALLBACK_SCAN_LIMIT`
+ *  en person-links.ts. Sin este LIMIT, una edad muy común escanearía la tabla
+ *  entera antes de que la re-verificación de nombre en TS (normalizeName, más
+ *  abajo) reduzca el resultado. */
+const NAME_AGE_FALLBACK_SCAN_LIMIT = 1000;
+
 async function nameAgeHitsInTable(
   tableName: "missing_persons" | "hospital_patients",
   age: number,
@@ -199,10 +206,17 @@ async function nameAgeHitsInTable(
     );
   }
 
+  // Recientes-primero: con la cota, "qué filas entran al scan" sería
+  // arbitrario sin un orden, y los registros nuevos de la crisis son los que
+  // más probablemente aún no tienen vínculo. hospital_patients no tiene
+  // created_at — su columna de recencia es admitted_at.
+  const recencyCol = sql.raw(tableName === "hospital_patients" ? "t.admitted_at" : "t.created_at");
   const rows = execRows<{ id: string; name: string }>(
     await db.execute(sql`
       SELECT t.id, t.name FROM ${table} t
       WHERE t.age = ${age} ${excludeClause}
+      ORDER BY ${recencyCol} DESC
+      LIMIT ${NAME_AGE_FALLBACK_SCAN_LIMIT}
     `),
   );
   // Re-verificación en TS con la normalización COMPLETA (ver comentario de
