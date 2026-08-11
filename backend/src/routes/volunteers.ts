@@ -14,6 +14,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, rateLimit, requireHuman, validate } from "@/middleware";
 import { hashIp } from "@/lib/client-ip";
+import { logDbFailure } from "@/lib/db-error";
 import { serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/volunteers";
 
@@ -149,7 +150,12 @@ volunteersRouter.post(
         id: volunteer.id,
         message: "Registro recibido. El equipo de coordinación te contactará.",
       });
-    } catch {
+    } catch (err) {
+      // El cliente sigue viendo un 503 pelado; el SQLSTATE va al log del
+      // Worker (PII-safe, ver lib/db-error). Sin esto un fallo determinista
+      // —una migracion pendiente, p.ej.— es indistinguible de un parpadeo
+      // de red y se pierden registros de voluntarios en silencio.
+      logDbFailure("volunteers.create", err);
       throw serviceUnavailable("No se pudo guardar el registro.");
     }
   }),

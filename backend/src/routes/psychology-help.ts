@@ -15,6 +15,7 @@ import { z } from "zod";
 import { asyncHandler, rateLimit, validate } from "@/middleware";
 import { jsonWithEtag } from "@/lib/http";
 import { hashIp } from "@/lib/client-ip";
+import { logDbFailure } from "@/lib/db-error";
 import { forbidden, serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/psychology-help";
 
@@ -93,7 +94,8 @@ psychologyHelpRouter.get(
     try {
       const count = await service.getPsychologyHelpClickCount();
       jsonWithEtag(req, res, { count }, CACHE_HEADERS);
-    } catch {
+    } catch (err) {
+      logDbFailure("psychology-help.count", err);
       throw serviceUnavailable("No se pudo consultar el contador.");
     }
   }),
@@ -117,8 +119,12 @@ psychologyHelpRouter.post(
       }
       const count = await service.incrementPsychologyHelpClick(hashIp(req));
       res.status(200).json({ count });
-    } catch (e) {
-      if (e instanceof Error && "status" in e) throw e;
+    } catch (err) {
+      // Un HttpError deliberado (el 403 del callback de formulario) sale tal
+      // cual: no es un fallo de base y no debe degradarse a 503 ni ensuciar el
+      // log de fallos de base.
+      if (err instanceof Error && "status" in err) throw err;
+      logDbFailure("psychology-help.click", err);
       throw serviceUnavailable("No se pudo registrar el clic.");
     }
   }),
