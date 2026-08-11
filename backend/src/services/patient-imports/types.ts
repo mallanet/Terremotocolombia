@@ -75,6 +75,9 @@ export interface ImportSummaryDTO {
 	};
 	createdBy: string | null;
 	errorSummary: string | null;
+	// URL de la imagen fuente en lotes OCR (NULL en JSON/CSV/XLSX). El editor
+	// de filas del admin la muestra junto al formulario (AE1).
+	sourceImageUrl: string | null;
 	createdAt: number;
 	processedAt: number | null;
 	appliedAt: number | null;
