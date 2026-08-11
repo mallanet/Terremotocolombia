@@ -141,6 +141,55 @@ export async function ensurePrn(
   }
 }
 
+/**
+ * Versión en LOTE de `ensurePrn` (U14/KTD18): garantiza PRN para VARIOS
+ * `(recordType, id)` a la vez con DOS round-trips totales (nunca uno por
+ * registro) — el mismo `stampBatch` de arriba (UN INSERT multi-fila con `ON
+ * CONFLICT DO NOTHING RETURNING`) + UN SOLO `SELECT ... IN (...)` para el
+ * remanente que perdió el conflicto (ya tenía PRN de antes). Mismo contrato
+ * best-effort que `ensurePrn`: nunca lanza, devuelve lo que alcanzó a
+ * resolver (parcial ante un fallo a mitad de camino) — el caller decide qué
+ * hacer con los ids que quedaron sin entrada en el mapa devuelto (p.ej.
+ * `upsertExternalMissingBatch` simplemente no crea señal para esa fila; la
+ * red de seguridad es `reconcilePersonRecords`).
+ */
+export async function ensurePrns(
+  recordType: string,
+  recordIds: readonly string[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const ids = [...new Set(recordIds)];
+  if (ids.length === 0) return out;
+
+  try {
+    const stamped = await stampBatch(recordType, ids, Date.now());
+    for (const row of stamped) out.set(row.id, row.prn);
+
+    const remaining = ids.filter((id) => !out.has(id));
+    if (remaining.length > 0) {
+      const db = getDb();
+      const rows = execRows<{ id: string; prn: string }>(
+        await db.execute(sql`
+          SELECT record_id AS id, prn FROM person_records
+          WHERE record_type = ${recordType} AND record_id IN (${sql.join(
+            remaining.map((id) => sql`${id}`),
+            sql`,`,
+          )})
+        `),
+      );
+      for (const row of rows) out.set(row.id, row.prn);
+    }
+    return out;
+  } catch (err) {
+    console.error(
+      `[person-records] ensurePrns best-effort falló para record_type="${recordType}" ` +
+        `(${ids.length} fila(s)):`,
+      err,
+    );
+    return out;
+  }
+}
+
 /** A qué registro fuente apunta un PRN, o `null` si el PRN no existe. */
 export interface PersonRecordRef {
   recordType: string;
