@@ -19,16 +19,12 @@
  * `stampActor` en hospital-supplies.router — permitir que el body declare su
  * propio `source` dejaría a un socio escribir bajo la identidad de otro.
  *
- * CONOCIDO Y A PROPÓSITO PARA ESTA FASE DE PRUEBA: igual que cualquier otra
- * fuente que ya usa `upsertExternalMissingBatch`, un registro entrante
- * pisa `status` en cada re-sync (ON CONFLICT DO UPDATE SET status =
- * EXCLUDED.status) — es decir, hoy un socio puede marcar "found" y el cambio
- * queda en vivo sin confirmación humana. Es el comportamiento que YA tiene
- * cualquier fuente externa en este repo (no es un downgrade nuevo), pero es
- * exactamente lo que hay que resolver antes de que esto reciba datos reales de
- * un socio en producción: la señal ("el socio dice que se encontró a esta
- * persona") no debería sobreescribir la verdad local sin que un moderador la
- * confirme. Bloqueante para producción, no para esta prueba.
+ * RESUELTO (U14 — "señal, no verdad"): una transición de `status` entrante en
+ * un re-sync YA NO pisa el status guardado. `upsertExternalMissingBatch`
+ * conserva el status local y crea una fila pendiente en
+ * `record_status_signals` que un revisor (person:review) confirma o descarta
+ * en el panel. Los campos no-status siguen con el merge COALESCE de siempre.
+ * Con esto cae el bloqueante de producción que este comentario documentaba.
  *
  * Bloqueo de un socio problemático: `missing_person_suppressions` (source,
  * external_id) ya existe y `upsertExternalMissingBatch` ya la respeta — sirve
