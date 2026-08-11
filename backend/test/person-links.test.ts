@@ -302,13 +302,22 @@ describe("POST /:linkId/unmerge (R15)", () => {
     const decisions = await decisionsFor(linkId);
     expect(decisions.some((d) => d.decision === "rescinded")).toBe(true);
 
+    // Contrato real (KTD3): el cluster NO se disuelve — el recompute reutiliza
+    // el cluster más antiguo para uno de los separados (queda como singleton)
+    // y desaloja al otro. El invariante es: ningún cluster los contiene VIVOS
+    // a ambos, y la historia se preserva (filas con removed_at, jamás DELETE).
     const memberRows = await db
       .getDb()
       .select()
       .from(db.schema.personClusterMembers)
       .where(eq(db.schema.personClusterMembers.clusterId, clusterId));
     expect(memberRows.length).toBeGreaterThanOrEqual(2);
-    expect(memberRows.every((r) => r.removedAt !== null)).toBe(true); // preservadas, no borradas
+    expect(memberRows.some((r) => r.removedAt !== null)).toBe(true); // historia preservada
+    const liveA = await clusters.liveClusterOf(prnA);
+    const liveB = await clusters.liveClusterOf(prnB);
+    expect(liveA).not.toBeNull();
+    expect(liveB).not.toBeNull();
+    expect(liveA).not.toBe(liveB); // separados: ya no comparten cluster vivo
 
     const sweptPrns = personRecords.takeMatcherSweepCalls().flat();
     expect(sweptPrns).toContain(prnA);

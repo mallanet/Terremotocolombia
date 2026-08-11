@@ -191,7 +191,10 @@ personLinksRouter.get(
   requireCapability("person:search"),
   validate({ query: recordsSearchQuery }),
   asyncHandler(async (req, res) => {
-    const q = req.query as z.infer<typeof recordsSearchQuery>;
+    // `as unknown` intermedio: recordsSearchQuery tiene `q` requerido y TS
+    // rechaza la conversión directa desde ParsedQs (audit.router no lo
+    // necesita porque su schema es todo-opcional).
+    const q = req.query as unknown as z.infer<typeof recordsSearchQuery>;
     const result = await service.searchRecords(q.q, q.limit);
     res.json(result);
   }),
