@@ -80,6 +80,111 @@ export async function sendVolunteerMessage(
   return { sent: true };
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+/**
+ * Correo de bienvenida + asignación de tarea a un voluntario, con la marca
+ * Mallanet (logo servido por el sitio) y los puntos del traslado con sus
+ * coordenadas exactas. El botón lleva a /voluntariado/<token>, la página
+ * pública con el mapa y los botones de respuesta. Todo dato interpolado va
+ * escapado (lo escriben admins en el panel). {sent:false} si no hay SMTP.
+ */
+export async function sendVolunteerAssignmentEmail(
+  to: string,
+  input: {
+    volunteerName: string;
+    task: {
+      title: string;
+      description: string;
+      kind: string;
+      city: string | null;
+      originName: string | null;
+      originLat: number | null;
+      originLng: number | null;
+      destName: string | null;
+      destLat: number | null;
+      destLng: number | null;
+      transportNote: string | null;
+    };
+    assignmentUrl: string;
+  },
+): Promise<{ sent: boolean }> {
+  const t = transport();
+  if (!t) return { sent: false };
+  const { task, volunteerName, assignmentUrl } = input;
+  const logoUrl = `${env.APP_BASE_URL.replace(/\/$/, "")}/icon-192.png`;
+
+  const legs: string[] = [];
+  if (task.originName) {
+    legs.push(
+      `<li><strong>Recoger en:</strong> ${escapeHtml(task.originName)}` +
+        (task.originLat !== null && task.originLng !== null
+          ? ` <span style="color:#666">(${task.originLat.toFixed(5)}, ${task.originLng.toFixed(5)})</span>`
+          : "") +
+        `</li>`,
+    );
+  }
+  if (task.destName) {
+    legs.push(
+      `<li><strong>Entregar en:</strong> ${escapeHtml(task.destName)}` +
+        (task.destLat !== null && task.destLng !== null
+          ? ` <span style="color:#666">(${task.destLat.toFixed(5)}, ${task.destLng.toFixed(5)})</span>`
+          : "") +
+        `</li>`,
+    );
+  }
+  const legsHtml = legs.length > 0 ? `<ul style="padding-left:18px">${legs.join("")}</ul>` : "";
+  const legsText = [
+    task.originName
+      ? `Recoger en: ${task.originName}${task.originLat !== null ? ` (${task.originLat.toFixed(5)}, ${task.originLng?.toFixed(5)})` : ""}`
+      : null,
+    task.destName
+      ? `Entregar en: ${task.destName}${task.destLat !== null ? ` (${task.destLat.toFixed(5)}, ${task.destLng?.toFixed(5)})` : ""}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  await t.sendMail({
+    from: env.SMTP_FROM,
+    to,
+    subject: `Bienvenida al equipo de voluntarios — tu asignación: ${task.title}`,
+    text:
+      `Hola ${volunteerName}, bienvenida/o al equipo de voluntarios de ${PRODUCT_NAME}.\n\n` +
+      `Tu asignación: ${task.title} (${task.kind}${task.city ? `, ${task.city}` : ""})\n` +
+      (task.description ? `${task.description}\n` : "") +
+      (legsText ? `\n${legsText}\n` : "") +
+      (task.transportNote ? `\nTransporte: ${task.transportNote}\n` : "") +
+      `\nAbre tu enlace para ver el mapa con los puntos exactos y responder (aceptar / no puedo / terminada):\n${assignmentUrl}\n`,
+    html: `
+<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a">
+  <div style="text-align:center;padding:16px 0">
+    <img src="${logoUrl}" alt="${escapeHtml(PRODUCT_NAME)}" width="64" height="64" style="border-radius:12px" />
+  </div>
+  <h1 style="font-size:18px;color:#003893">Bienvenida/o al equipo de voluntarios</h1>
+  <p>Hola ${escapeHtml(volunteerName)}, gracias por sumarte a ${escapeHtml(PRODUCT_NAME)}. Tienes una asignación:</p>
+  <div style="border:1px solid #e2e2e2;border-radius:12px;padding:16px;margin:16px 0">
+    <p style="margin:0 0 4px"><strong>${escapeHtml(task.title)}</strong>
+      <span style="color:#666">(${escapeHtml(task.kind)}${task.city ? `, ${escapeHtml(task.city)}` : ""})</span></p>
+    ${task.description ? `<p style="margin:8px 0">${escapeHtml(task.description)}</p>` : ""}
+    ${legsHtml}
+    ${task.transportNote ? `<p style="margin:8px 0"><strong>Transporte:</strong> ${escapeHtml(task.transportNote)}</p>` : ""}
+  </div>
+  <p style="text-align:center;margin:24px 0">
+    <a href="${assignmentUrl}" style="background:#003893;color:#fff;padding:12px 24px;border-radius:9999px;text-decoration:none;font-weight:600">Ver mi asignación y el mapa</a>
+  </p>
+  <p style="color:#666;font-size:12px">Desde ese enlace puedes aceptar, indicar que no puedes, o marcar la tarea como terminada. Si no esperabas este correo, ignóralo.</p>
+</div>`,
+  });
+  return { sent: true };
+}
+
 /**
  * Manda el código OTP de recuperación de contraseña. {sent:false} si no hay SMTP
  * (dev) — el caller NO debe exponer el código en la respuesta (a diferencia del

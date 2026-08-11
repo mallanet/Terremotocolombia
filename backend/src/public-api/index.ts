@@ -22,6 +22,7 @@ import { donationsResource } from "@/public-api/resources/donations.resource";
 import { chatResource } from "@/public-api/resources/chat.resource";
 import { contactResource } from "@/public-api/resources/contact.resource";
 import { volunteersResource } from "@/public-api/resources/volunteers.resource";
+import { volunteerTasksResource } from "@/public-api/resources/volunteer-tasks.resource";
 import { rolesResource } from "@/public-api/resources/roles.resource";
 // Routers RBAC escritos a mano (verbos irregulares que no encajan en la fábrica).
 import { usersRouter } from "@/public-api/routers/users.router";
@@ -37,6 +38,7 @@ import { personLinksRouter } from "@/public-api/routers/person-links.router";
 import { recordSignalsRouter } from "@/public-api/routers/record-signals.router";
 import { psychologyRouter } from "@/public-api/routers/psychology.router";
 import { volunteersActionsRouter } from "@/public-api/routers/volunteers-actions.router";
+import { volunteerTasksActionsRouter } from "@/public-api/routers/volunteer-tasks-actions.router";
 
 /**
  * Registro path → CONFIG del recurso. Fuente de verdad ÚNICA: de aquí salen
@@ -56,6 +58,7 @@ export const PUBLIC_RESOURCES: Record<string, AnyResource> = {
   chat: chatResource as AnyResource,
   contact: contactResource as AnyResource,
   volunteers: volunteersResource as AnyResource,
+  "volunteer-tasks": volunteerTasksResource as AnyResource,
   // RBAC: roles encaja en el cuarteto CRUD (read/create/edit/delete) → fábrica.
   roles: rolesResource as AnyResource,
 };
@@ -99,4 +102,6 @@ export function mountPublicApi(app: Express): void {
   // Acciones de dominio sobre voluntarios (enviar mensaje): volunteer:edit.
   // Junto al CRUD de la fábrica; no colisiona (POST /:id/message no existe ahí).
   app.use("/api/public/volunteers", volunteersActionsRouter);
+  // Asignación de tareas a voluntarios (crea token + envía correo): volunteer:edit.
+  app.use("/api/public/volunteer-tasks", volunteerTasksActionsRouter);
 }

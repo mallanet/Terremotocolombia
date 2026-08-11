@@ -80,6 +80,15 @@ const CASES: Case[] = [
     cap: "volunteer:edit",
     body: { subject: "Hola", message: "Mensaje de prueba" },
   },
+  // --- Tablero de tareas de voluntarios (fábrica CRUD + assign a mano) ---
+  { label: "volunteer-tasks list", method: "get", path: "/api/public/volunteer-tasks", cap: "volunteer:read" },
+  {
+    label: "volunteer-tasks assign",
+    method: "post",
+    path: "/api/public/volunteer-tasks/none/assign",
+    cap: "volunteer:edit",
+    body: { volunteerId: "none" },
+  },
   {
     label: "deletion-requests edit",
     method: "patch",

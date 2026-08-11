@@ -284,6 +284,38 @@ export const MODELS = [
     ],
   },
   {
+    path: "volunteer-tasks",
+    label: "Tareas de voluntarios",
+    readCapability: "volunteer:read",
+    capabilityRoot: "volunteer",
+    columns: [
+      { key: "title", label: "Título" },
+      { key: "kind", label: "Tipo" },
+      { key: "city", label: "Ciudad" },
+      { key: "originName", label: "Origen" },
+      { key: "destName", label: "Destino" },
+      { key: "status", label: "Estado" },
+    ],
+    createFields: [
+      { key: "title", label: "Título", required: true },
+      { key: "kind", label: "Tipo (digital | terreno)", required: true },
+      { key: "city", label: "Ciudad" },
+      { key: "description", label: "Descripción" },
+      { key: "originName", label: "Punto de recogida (nombre)" },
+      { key: "originLat", label: "Recogida latitud", type: "number" },
+      { key: "originLng", label: "Recogida longitud", type: "number" },
+      { key: "destName", label: "Punto de entrega (nombre)" },
+      { key: "destLat", label: "Entrega latitud", type: "number" },
+      { key: "destLng", label: "Entrega longitud", type: "number" },
+      { key: "transportNote", label: "Nota de transporte (terminal, ruta, hora)" },
+    ],
+    editFields: [
+      { key: "status", label: "Estado (open | assigned | done | cancelled)", required: true },
+      { key: "transportNote", label: "Nota de transporte" },
+    ],
+    // Sin canDelete: una tarea se cancela por estado, no se borra.
+  },
+  {
     path: "deletion-requests",
     label: "Supresión de datos",
     readCapability: "deletion:read",

@@ -7,6 +7,7 @@ import type { ModelConfig, ModelField } from "../model-registry";
 import type { ModelRow } from "../application/models-gateway";
 import { useAdminSessionContext } from "../../../shared/auth/admin-session-context";
 import { VolunteerMessageForm } from "../../volunteers/volunteer-message-form";
+import { AssignTaskForm } from "../../volunteers/assign-task-form";
 
 function renderCell(value: unknown): string {
   if (value === null || value === undefined) return "—";
@@ -39,12 +40,15 @@ export function ModelTable({ model }: { model: ModelConfig }) {
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<ModelRow | null>(null);
   const [messaging, setMessaging] = useState<ModelRow | null>(null);
+  const [assigning, setAssigning] = useState<ModelRow | null>(null);
   const canCreate = Boolean(model.createFields && can(`${model.capabilityRoot}:create`));
   const canEdit = Boolean(model.editFields && can(`${model.capabilityRoot}:edit`));
   const canDelete = Boolean(model.canDelete && can(`${model.capabilityRoot}:delete`));
   // Acción de dominio única de volunteers: enviar correo desde el panel.
   const canMessage = model.path === "volunteers" && canEdit;
-  const hasActions = canEdit || canDelete || canMessage;
+  // Acción de dominio única de volunteer-tasks: asignar a un voluntario.
+  const canAssign = model.path === "volunteer-tasks" && canEdit;
+  const hasActions = canEdit || canDelete || canMessage || canAssign;
 
   const rows = useMemo(
     () => (data ?? []).filter((r) => matchesQuery(r, query)),
@@ -125,6 +129,11 @@ export function ModelTable({ model }: { model: ModelConfig }) {
                           Contactar
                         </Button>
                       )}
+                      {canAssign && (
+                        <Button type="button" variant="ghost" onClick={() => setAssigning(row)}>
+                          Asignar
+                        </Button>
+                      )}
                       {canDelete && (
                         <Button
                           type="button"
@@ -164,6 +173,13 @@ export function ModelTable({ model }: { model: ModelConfig }) {
           id={renderCell(messaging.id)}
           contact={renderCell(messaging.contact)}
           onClose={() => setMessaging(null)}
+        />
+      )}
+      {assigning && (
+        <AssignTaskForm
+          taskId={renderCell(assigning.id)}
+          taskTitle={renderCell(assigning.title)}
+          onClose={() => setAssigning(null)}
         />
       )}
     </div>
