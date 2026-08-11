@@ -50,10 +50,17 @@
   //
   // OJO: `queues` NO se hereda en env.staging (los nombres difieren por
   // entorno); cada bloque declara los suyos.
+  //
+  // terremotocolombia-matcher (U8): un mensaje `{ prn }` por registro
+  // recién estampado/editado — dispara la generación de candidatos
+  // deterministas. max_batch_size 10 (mensajes livianos, no hay motivo para
+  // procesar de a uno como imports) y mismos retries/retry_delay que imports
+  // (3 x 30s, un fallo aquí suele ser la DB, no un tercero externo lento).
   "queues": {
     "producers": [
       { "binding": "NEEDS_QUEUE", "queue": "terremotocolombia-needs" },
-      { "binding": "IMPORTS_QUEUE", "queue": "terremotocolombia-imports" }
+      { "binding": "IMPORTS_QUEUE", "queue": "terremotocolombia-imports" },
+      { "binding": "MATCHER_QUEUE", "queue": "terremotocolombia-matcher" }
     ],
     "consumers": [
       {
@@ -73,7 +80,15 @@
         "max_batch_size": 1,
         "dead_letter_queue": "terremotocolombia-imports-dlq"
       },
-      { "queue": "terremotocolombia-imports-dlq", "max_retries": 0 }
+      { "queue": "terremotocolombia-imports-dlq", "max_retries": 0 },
+      {
+        "queue": "terremotocolombia-matcher",
+        "max_retries": 3,
+        "retry_delay": 30,
+        "max_batch_size": 10,
+        "dead_letter_queue": "terremotocolombia-matcher-dlq"
+      },
+      { "queue": "terremotocolombia-matcher-dlq", "max_retries": 0 }
     ]
   },
   "vars": {
@@ -128,7 +143,8 @@
       "queues": {
         "producers": [
           { "binding": "NEEDS_QUEUE", "queue": "terremotocolombia-needs-staging" },
-          { "binding": "IMPORTS_QUEUE", "queue": "terremotocolombia-imports-staging" }
+          { "binding": "IMPORTS_QUEUE", "queue": "terremotocolombia-imports-staging" },
+          { "binding": "MATCHER_QUEUE", "queue": "terremotocolombia-matcher-staging" }
         ],
         "consumers": [
           {
@@ -146,7 +162,15 @@
             "max_batch_size": 1,
             "dead_letter_queue": "terremotocolombia-imports-dlq-staging"
           },
-          { "queue": "terremotocolombia-imports-dlq-staging", "max_retries": 0 }
+          { "queue": "terremotocolombia-imports-dlq-staging", "max_retries": 0 },
+          {
+            "queue": "terremotocolombia-matcher-staging",
+            "max_retries": 3,
+            "retry_delay": 30,
+            "max_batch_size": 10,
+            "dead_letter_queue": "terremotocolombia-matcher-dlq-staging"
+          },
+          { "queue": "terremotocolombia-matcher-dlq-staging", "max_retries": 0 }
         ]
       },
       "vars": {

@@ -24,9 +24,18 @@ import { env } from "@/config/env";
  * Lo mínimo que este módulo necesita de un binding de Cloudflare Queues. Se
  * declara aquí en vez de depender de los tipos de workers-types para que el
  * módulo siga compilando bajo el tsconfig de Node.
+ *
+ * `sendBatch` es OPCIONAL en el tipo aunque un binding real de Queues siempre
+ * lo trae (junto a `send`): así un producer fake de test que solo implementa
+ * `send` sigue satisfaciendo la interfaz. Quien quiera enviar en lote
+ * (`services/person-records.ts`, U8) comprueba su presencia en runtime y cae
+ * a `send()` uno por uno si falta — nunca lanza por su ausencia.
  */
 export interface QueueProducer {
   send(body: unknown, options?: { delaySeconds?: number }): Promise<void>;
+  sendBatch?(
+    messages: Iterable<{ body: unknown; delaySeconds?: number }>,
+  ): Promise<void>;
 }
 
 /** Descripción de una cola: su nombre en BullMQ y su binding en Workers. */
