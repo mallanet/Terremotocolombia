@@ -327,7 +327,8 @@ export async function reconcilePersonRecords(
       }
 
       const stamped = await stampBatch(population.recordType, ids, startedAt);
-      result.stampedByType[population.recordType] += stamped.length;
+      result.stampedByType[population.recordType] =
+        (result.stampedByType[population.recordType] ?? 0) + stamped.length;
       result.stampedTotal += stamped.length;
       if (stamped.length > 0) {
         enqueueMatcherSweep(stamped.map((row) => row.prn));

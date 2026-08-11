@@ -453,6 +453,11 @@ export interface EditImportRowInput {
 	status?: string;
 	sourceHospital?: string;
 	hospitalId?: string;
+	// `updated_at` de la fila TAL COMO LA VIO el cliente al renderizar el
+	// editor. Sin esto la concurrencia optimista solo protege el interior de
+	// una llamada: dos revisores con la fila abierta re-leerían baselines
+	// frescas en el servicio y el último pisaría al primero sin 409.
+	baselineUpdatedAt?: number;
 }
 
 function stringifyForCorrection(value: string | number | null): string {
@@ -509,6 +514,19 @@ export async function editImportRow(
 	if (row.rowStatus !== "needs_review" && row.rowStatus !== "valid") {
 		throw conflict(
 			`No se puede editar una fila en estado "${row.rowStatus}" (invalid es terminal).`,
+		);
+	}
+	// Chequeo de baseline del CLIENTE, ANTES de tocar ocr_corrections: si la
+	// fila cambió desde que el revisor la leyó, 409 inmediato — así una edición
+	// perdedora no deja filas de corrección de una edición que nunca aterrizó.
+	// (El reintento del MISMO PATCH tras un corte pasa: la escritura final no
+	// llegó a ejecutarse, así que updated_at no cambió.)
+	if (
+		edits.baselineUpdatedAt !== undefined &&
+		edits.baselineUpdatedAt !== row.updatedAt
+	) {
+		throw conflict(
+			"La fila cambió desde que la leíste (edición concurrente); recárgala e inténtalo de nuevo.",
 		);
 	}
 
@@ -725,14 +743,27 @@ export async function editImportRow(
 		});
 	}
 
-	// Carrera perdida (0 filas): baseline obsoleta. Releer — si por coincidencia
-	// el estado actual YA es el que esta petición quería dejar, se trata como
-	// idempotente (p.ej. el mismo PATCH llegó duplicado por reintento de red
-	// DESPUÉS de que la primera copia sí completara la UPDATE final). Si no,
-	// fue una edición concurrente DISTINTA: 409.
+	// Carrera perdida (0 filas): baseline obsoleta. Releer — solo es un reintento
+	// idempotente si la fila YA contiene EXACTAMENTE los valores que esta
+	// petición quería escribir (el mismo PATCH duplicado por reintento de red
+	// DESPUÉS de que la primera copia completara la UPDATE final). Comparar solo
+	// el estado sería demasiado débil: dos ediciones concurrentes DISTINTAS
+	// suelen aterrizar ambas en "valid" y la perdedora fingiría éxito sin
+	// escribir nada. Cualquier diferencia de valores → 409.
 	const reread = await loadRow(importId, rowId);
-	if (reread?.rowStatus === nextRowStatus) return toDTOFromRecord(reread, {});
+	if (
+		reread &&
+		reread.rowStatus === nextRowStatus &&
+		reread.name === nextName &&
+		reread.age === nextAge &&
+		reread.condition === nextCondition &&
+		reread.status === nextStatus &&
+		reread.sourceHospital === nextSourceHospital &&
+		reread.hospitalId === nextHospitalId
+	) {
+		return toDTOFromRecord(reread, {});
+	}
 	throw conflict(
-		"La fila cambió de estado mientras se editaba (edición concurrente); recárgala e inténtalo de nuevo.",
+		"La fila cambió mientras se editaba (edición concurrente); recárgala e inténtalo de nuevo.",
 	);
 }

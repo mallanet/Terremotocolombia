@@ -259,7 +259,7 @@ describe("PATCH /:id/rows/:rowId — edición", () => {
 		expect(res.status).toBe(409);
 	});
 
-	it("edición concurrente (baseline obsoleta) → una gana, la otra 409", async () => {
+	it("edición concurrente (misma baseline del cliente) → una gana, la otra 409", async () => {
 		const hospital = await makeHospital(`Hosp Race ${randomUUID().slice(0, 8)}`);
 		const { importId, rowId } = await makeOcrRow({
 			name: "Demo Race Original",
@@ -267,10 +267,25 @@ describe("PATCH /:id/rows/:rowId — edición", () => {
 			age: 50,
 		});
 		const actorId = (await makeUserWithCaps(CAPS)).id;
+		// Ambos "revisores" leyeron la MISMA versión de la fila (baseline del
+		// cliente). Sin baselineUpdatedAt el servicio re-lee una baseline fresca
+		// por llamada y el último escritor pisa al primero sin 409 — que es
+		// exactamente el escenario de UI que R20 prohíbe.
+		const baseline = (await rawRow(rowId))?.updatedAt as number;
 
 		const [r1, r2] = await Promise.allSettled([
-			svc.editImportRow(importId, rowId, { name: "Demo Race A" }, actorId),
-			svc.editImportRow(importId, rowId, { name: "Demo Race B" }, actorId),
+			svc.editImportRow(
+				importId,
+				rowId,
+				{ name: "Demo Race A", baselineUpdatedAt: baseline },
+				actorId,
+			),
+			svc.editImportRow(
+				importId,
+				rowId,
+				{ name: "Demo Race B", baselineUpdatedAt: baseline },
+				actorId,
+			),
 		]);
 		const outcomes = [r1, r2];
 		const fulfilled = outcomes.filter((o) => o.status === "fulfilled");
@@ -281,6 +296,14 @@ describe("PATCH /:id/rows/:rowId — edición", () => {
 			status?: number;
 		};
 		expect(rejection.status).toBe(409);
+		// El ganador quedó escrito; el perdedor no dejó corrección huérfana.
+		const finalRow = await rawRow(rowId);
+		const winnerName = (
+			fulfilled[0] as PromiseFulfilledResult<{ name: string }>
+		).value.name;
+		expect(finalRow?.name).toBe(winnerName);
+		const corr = await corrections(rowId);
+		expect(corr.filter((c) => c.field === "name").length).toBe(1);
 	});
 
 	it("idempotencia de reintento: el mismo PATCH tras un corte simulado entre insert de corrección y escritura de estado → exactamente UNA fila de ocr_corrections; estado final correcto", async () => {
