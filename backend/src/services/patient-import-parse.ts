@@ -71,9 +71,13 @@ const HEADER_ALIASES: Readonly<Record<string, keyof RawPatientRow>> =
 		notes: "notes",
 		notas: "notes",
 		observaciones: "notes",
+		// Headers "aplastados" de exports reales de Sheets: "Teléfono/Número" y
+		// "Dx/Observación" pierden separadores en headerKey().
+		dxobservacion: "notes",
 		contact: "contact",
 		contacto: "contact",
 		telefono: "contact",
+		telefononumero: "contact",
 	});
 
 function headerKey(raw: string): string {

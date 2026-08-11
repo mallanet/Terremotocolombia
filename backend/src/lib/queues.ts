@@ -187,6 +187,13 @@ export interface PatientImportJobData {
    */
   contentType?: string;
   fileBase64?: string;
+  /**
+   * Hospital destino del lote (modo "process" de archivo): se estampa como
+   * hospitalId en TODAS las filas al materializar staging. Viaja con el
+   * archivo (BullMQ) o se consume inline al stagear (Cloudflare Queues);
+   * para lotes JSON las filas ya se estamparon en la creación.
+   */
+  defaultHospitalId?: string;
 }
 
 /**
@@ -216,7 +223,12 @@ export async function enqueuePatientImport(
       // mensaje. Se materializan las filas aquí (mismo resultado que haría el
       // worker de BullMQ) y se encola solo el process.
       const { stageFileRows } = await import("@/services/patient-imports");
-      await stageFileRows(data.importId, data.contentType, data.fileBase64);
+      await stageFileRows(
+        data.importId,
+        data.contentType,
+        data.fileBase64,
+        data.defaultHospitalId,
+      );
       payload = { importId: data.importId, mode: "process" };
     }
     await producer.send(payload);

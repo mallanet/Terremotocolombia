@@ -11,6 +11,7 @@ import {
 } from "@/services/ocr/minimax-provider";
 import type { RawPatientRow } from "@/services/patient-import-logic";
 import { parseImportFile } from "@/services/patient-import-parse";
+import { stampDefaultHospital } from "./internal";
 import { processImport } from "./process";
 import type { ImportSummaryDTO } from "./types";
 
@@ -18,8 +19,11 @@ const { patientImports, patientImportRows } = schema;
 
 async function replaceStagingRows(
 	importId: string,
-	rows: RawPatientRow[],
+	rawRows: RawPatientRow[],
+	defaultHospitalId?: string,
 ): Promise<void> {
+	// Lote con hospital destino: el id elegido pisa el de cada fila.
+	const rows = stampDefaultHospital(rawRows, defaultHospitalId);
 	const db = getDb();
 	const now = Date.now();
 	// SIN transacción interactiva (Workers). Orden deliberado: borrar, insertar
@@ -65,9 +69,10 @@ export async function stageFileRows(
 	importId: string,
 	contentType: string,
 	fileBase64: string,
+	defaultHospitalId?: string,
 ): Promise<void> {
 	const rows = parseImportFile(contentType, fileBase64);
-	await replaceStagingRows(importId, rows);
+	await replaceStagingRows(importId, rows, defaultHospitalId);
 }
 
 export interface OcrIngestDeps {
@@ -99,8 +104,9 @@ export async function ingestFileImport(
 	importId: string,
 	contentType: string,
 	fileBase64: string,
+	defaultHospitalId?: string,
 ): Promise<ImportSummaryDTO> {
 	const rows = parseImportFile(contentType, fileBase64);
-	await replaceStagingRows(importId, rows);
+	await replaceStagingRows(importId, rows, defaultHospitalId);
 	return processImport(importId);
 }

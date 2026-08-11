@@ -130,6 +130,22 @@ describe("tableToRows — mapeo de cabecera por alias", () => {
     });
   });
 
+  it("mapea cabeceras 'aplastadas' de exports de Sheets (Teléfono/Número, Dx/Observación)", () => {
+    // Caso real: Sheets exporta cabeceras compuestas tipo "Teléfono/Número" y
+    // "Dx/Observación"; headerKey() les quita separadores y acentos, así que
+    // llegan como "telefononumero" y "dxobservacion".
+    const rows = tableToRows([
+      ["Nombre", "Hospital", "Teléfono/Número", "Dx/Observación"],
+      ["Demo Cinco", "Hospital Demo", "3000000000", "dx demo"],
+    ]);
+    expect(rows[0]).toEqual({
+      name: "Demo Cinco",
+      hospital: "Hospital Demo",
+      contact: "3000000000",
+      notes: "dx demo",
+    });
+  });
+
   it("conserva columnas desconocidas bajo su encabezado crudo (passthrough)", () => {
     const rows = tableToRows([
       ["name", "hospital", "triage"],

@@ -88,6 +88,12 @@ export interface CreateImportInput {
 	contentType?: string;
 	idempotencyKey?: string;
 	rows: RawPatientRow[];
+	/**
+	 * Hospital destino del LOTE: se estampa como `hospitalId` en el rawData de
+	 * TODAS las filas al materializar staging, pisando el de la fila. Un
+	 * archivo = un hospital. El caller (ruta) valida que el id exista.
+	 */
+	defaultHospitalId?: string;
 }
 
 export interface CreateImportResult extends ImportSummaryDTO {

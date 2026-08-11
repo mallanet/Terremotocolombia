@@ -10,6 +10,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Input } from "@/src/ui";
 import { adminFetch, type FetchInit } from "@/src/shared/http/admin-fetch";
+import { useModelList } from "../models/ui/use-model-list";
 import { ImportRowsTable } from "./import-rows-table";
 
 interface ImportSummary {
@@ -68,6 +69,10 @@ export function PatientImportsAdmin() {
   const [file, setFile] = useState<File | null>(null);
   const [rowsText, setRowsText] = useState("[]");
   const [importId, setImportId] = useState("");
+  // Hospital destino del lote (obligatorio): el backend lo estampa en TODAS
+  // las filas, así el CSV no necesita columna hospital ni nombres exactos.
+  const [hospitalId, setHospitalId] = useState("");
+  const hospitals = useModelList("hospitals");
 
   const create = useMutation({
     mutationFn: (body: unknown) =>
@@ -122,6 +127,7 @@ export function PatientImportsAdmin() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     try {
+      if (!hospitalId) throw new Error("Elige el hospital destino del lote.");
       if (mode === "file") {
         if (!file) throw new Error("Elige un archivo CSV o XLSX.");
         if (file.size > MAX_FILE_BYTES) {
@@ -133,12 +139,22 @@ export function PatientImportsAdmin() {
         const contentType = CONTENT_TYPE_BY_EXTENSION[extension];
         if (!contentType) throw new Error("Solo CSV o XLSX.");
         const fileBase64 = await fileToBase64(file);
-        create.mutate({ source: source || undefined, contentType, fileBase64 });
+        create.mutate({
+          source: source || undefined,
+          contentType,
+          fileBase64,
+          defaultHospitalId: hospitalId,
+        });
         return;
       }
       const rows = JSON.parse(rowsText) as unknown;
       if (!Array.isArray(rows)) throw new Error("Las filas deben ser un array JSON.");
-      create.mutate({ source: source || undefined, contentType: "application/json", rows });
+      create.mutate({
+        source: source || undefined,
+        contentType: "application/json",
+        rows,
+        defaultHospitalId: hospitalId,
+      });
     } catch (error) {
       create.reset();
       window.alert(error instanceof Error ? error.message : "Entrada inválida.");
@@ -178,6 +194,36 @@ export function PatientImportsAdmin() {
 
         <Input label="Fuente (opcional)" value={source} onChange={(event) => setSource(event.target.value)} />
 
+        <label className="text-sm font-medium">
+          Hospital destino
+          <select
+            className="mt-1 block w-full rounded border px-3 py-2 text-sm"
+            required
+            value={hospitalId}
+            onChange={(event) => setHospitalId(event.target.value)}
+          >
+            <option value="">
+              {hospitals.isLoading ? "Cargando hospitales…" : "Elige un hospital…"}
+            </option>
+            {[...(hospitals.data ?? [])]
+              .sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")))
+              .map((h) => (
+                <option key={String(h.id)} value={String(h.id)}>
+                  {String(h.name ?? h.id)}
+                </option>
+              ))}
+          </select>
+          <span className="mt-1 block text-xs text-gray-500">
+            Todos los pacientes de este archivo se asignan a este hospital (no hace
+            falta columna de hospital en el CSV).
+          </span>
+          {hospitals.isError && (
+            <span className="mt-1 block text-xs text-red-600">
+              No se pudo cargar el catálogo de hospitales.
+            </span>
+          )}
+        </label>
+
         {mode === "file" ? (
           <label className="text-sm font-medium">
             Archivo (CSV o XLSX, máx. ~3 MB)
@@ -200,7 +246,7 @@ export function PatientImportsAdmin() {
           </label>
         )}
 
-        <Button type="submit" disabled={create.isPending}>
+        <Button type="submit" disabled={create.isPending || !hospitalId}>
           {create.isPending ? "Enviando…" : "Crear lote"}
         </Button>
       </form>

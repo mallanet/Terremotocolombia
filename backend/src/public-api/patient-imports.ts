@@ -10,6 +10,7 @@ import {
 import { enqueuePatientImport } from "@/lib/queues";
 import { asyncHandler, rateLimit, validate } from "@/middleware";
 import { requireCapability } from "@/middleware/auth";
+import { getHospital } from "@/services/hospitals";
 import { getMinimaxOcrConfig } from "@/services/ocr/minimax-config";
 import {
 	CONTENT_TYPE,
@@ -60,6 +61,11 @@ const createSchema = z
 		sourceRecordId: z.string().trim().max(200).optional(),
 		integration: z.string().trim().max(120).optional(),
 
+		// Hospital destino del LOTE: se estampa como hospitalId en todas las
+		// filas (pisa el de la fila). Así un CSV sin columna hospital — o con
+		// nombres que no matchean el catálogo — queda válido en un paso.
+		defaultHospitalId: z.string().trim().min(1).max(120).optional(),
+
 		contentType: z
 			.string()
 			.trim()
@@ -98,6 +104,19 @@ const createSchema = z
 			.optional(),
 	})
 	.superRefine((val, ctx) => {
+		if (
+			val.defaultHospitalId !== undefined &&
+			val.contentType !== undefined &&
+			isOcrPendingContentType(val.contentType)
+		) {
+			// El staging OCR no estampa el hospital: rechazar explícito antes
+			// que aceptar un campo que no tendría efecto.
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["defaultHospitalId"],
+				message: "defaultHospitalId no aplica a importaciones OCR/ICR.",
+			});
+		}
 		if (val.imageUrl !== undefined && !isImageContentType(val.contentType)) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
@@ -260,6 +279,17 @@ patientImportsRouter.post(
 			parsed.contentType !== undefined &&
 			FILE_CONTENT_TYPES.has(parsed.contentType);
 
+		// Validar el hospital destino ANTES de crear nada: un id inexistente
+		// dejaría todo el lote en revisión, justo lo que el picker evita.
+		if (parsed.defaultHospitalId !== undefined) {
+			const hospital = await getHospital(parsed.defaultHospitalId);
+			if (!hospital) {
+				throw badRequest(
+					"El hospital indicado (defaultHospitalId) no existe en el catálogo.",
+				);
+			}
+		}
+
 		const created = await service.createImport(
 			{
 				source: parsed.source,
@@ -268,6 +298,7 @@ patientImportsRouter.post(
 				contentType: parsed.contentType,
 				rows: isFile ? [] : (parsed.rows ?? []),
 				idempotencyKey: headers["idempotency-key"],
+				defaultHospitalId: parsed.defaultHospitalId,
 			},
 			req.user?.id ?? null,
 		);
@@ -285,6 +316,7 @@ patientImportsRouter.post(
 							mode: "process",
 							contentType: parsed.contentType,
 							fileBase64: parsed.fileBase64,
+							defaultHospitalId: parsed.defaultHospitalId,
 						}
 					: { importId: summary.id, mode: "process" },
 			);
