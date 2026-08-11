@@ -107,12 +107,17 @@ el runner.
   `services/patient-imports/*` **fallan en Workers**; funcionan bajo Node/compose.
   Motivo: en Workers un socket TCP pertenece a la petición que lo abrió, así que
   un pool con estado no sirve.
-- **Turnstile está desactivado.** Se quitó `TURNSTILE_SECRET_KEY` del Worker de la
-  API porque el bundle del frontend no llevaba la site key pública y **todos** los
-  reportes de personas desaparecidas fallaban con 403. Las escrituras públicas no
-  tienen prueba de humanidad ahora mismo; siguen el WAF y el rate limit de
-  Cloudflare. Para reactivarlo: primero confirmar que la site key llega al bundle,
-  **después** reponer el secreto. En ese orden, o se rompen los reportes otra vez.
+- **Turnstile está ACTIVO en ambos entornos** (verificado 2026-08-11 con
+  `wrangler secret list` y con un envío real de navegador en staging y en
+  producción). `TURNSTILE_SECRET_KEY` está en el Worker de la API y la site key
+  pública sí llega al bundle del frontend.
+  **Consecuencia para código nuevo:** todo formulario público que escriba DEBE
+  mandar `turnstileToken` (patrón canónico: `useTurnstile()` + `getToken()` por
+  submit, ver `components/features/contacts/ContactForm.tsx`). Un `POST` sin
+  token responde **403** — que es exactamente como se rompieron en su día todos
+  los reportes de personas desaparecidas: el secreto puesto en el Worker sin que
+  la site key llegara al bundle. Si alguna vez hay que rehacer ese ciclo: primero
+  confirmar la site key en el bundle, **después** reponer el secreto.
 - **Bot Fight Mode está apagado** en la zona: inyectaba su script y chocaba con la
   CSP del frontend.
 - **`wrangler.jsonc` no debe declarar `routes`.** Los dominios propios se adjuntan

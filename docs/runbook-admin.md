@@ -34,8 +34,13 @@ las dos cosas.**
    `admin.terremotocolombia.co` (Zero Trust dashboard → Access → Applications,
    o vía API con `CLOUDFLARE_ACCESS_API_TOKEN` de Doppler `prd`).
 2. **Panel**: entrar como admin → **Usuarios** → invitar con su email y rol.
-   Producción no tiene SMTP: la respuesta muestra el **link de activación** —
-   cópialo y envíaselo por un canal directo. Caduca en 72 h.
+   Producción **sí tiene SMTP** (Resend; los cinco secretos `SMTP_*` están en el
+   Worker de la API — verificado 2026-08-11 con `wrangler secret list`), así que
+   la invitación se envía por correo sola y la respuesta trae `emailSent:true`
+   sin `inviteUrl`. Caduca en 72 h. Si `emailSent` viniera `false`, la respuesta
+   incluye el **link de activación** para pasarlo por un canal directo.
+   Ojo: los secretos de un Worker NO aparecen en `wrangler.jsonc` — mirar la
+   config para saber si hay SMTP da un falso negativo; usa `wrangler secret list`.
 3. La persona abre el link, fija SU contraseña y queda activa con el rol
    asignado.
 
