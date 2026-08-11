@@ -33,16 +33,18 @@ export interface IncomingQueueBatch {
   messages: readonly IncomingQueueMessage[];
 }
 
-export type QueueKind = "needs" | "needs-dlq" | "unknown";
+export type QueueKind = "needs" | "needs-dlq" | "imports" | "imports-dlq" | "unknown";
 
 /**
- * Clasifica una cola por su nombre. Cubre los cuatro nombres reales
- * (terremotocolombia-needs[-staging] y terremotocolombia-needs-dlq[-staging])
- * sin acoplarse al prefijo, y lo desconocido se reporta como tal.
+ * Clasifica una cola por su nombre. Cubre los nombres reales
+ * (terremotocolombia-{needs,imports}[-dlq][-staging]) sin acoplarse al
+ * prefijo, y lo desconocido se reporta como tal.
  */
 export function classifyQueue(name: string): QueueKind {
   if (name.includes("-needs-dlq")) return "needs-dlq";
   if (name.includes("-needs")) return "needs";
+  if (name.includes("-imports-dlq")) return "imports-dlq";
+  if (name.includes("-imports")) return "imports";
   return "unknown";
 }
 
@@ -63,6 +65,57 @@ export async function consumeNeedsBatch(
     } catch (err) {
       console.error(
         `[queue:needs] mensaje ${message.id} falló (intento ${message.attempts ?? "?"}):`,
+        err instanceof Error ? err.message : String(err),
+      );
+      message.retry();
+    }
+  }
+}
+
+/**
+ * Job de importación de pacientes (misma forma que el camino BullMQ:
+ * lib/queues.PatientImportJobData). Los campos pesados (fileBase64) nunca
+ * viajan por Queues — el productor materializa las filas antes de encolar.
+ */
+export interface ImportJobBody {
+  importId: string;
+  mode: "process" | "apply" | "ocr";
+  actorId?: string | null;
+  imageUrl?: string;
+}
+
+export interface ImportsConsumerDeps {
+  /** Ejecuta el job (inyectable para tests; en prod, patient-imports). */
+  run(job: ImportJobBody): Promise<unknown>;
+}
+
+function isImportJob(body: unknown): body is ImportJobBody {
+  const job = body as ImportJobBody | null;
+  return (
+    typeof job === "object" &&
+    job !== null &&
+    typeof job.importId === "string" &&
+    typeof job.mode === "string"
+  );
+}
+
+/** Procesa un batch de importaciones. Ack por mensaje; fallo → retry(). */
+export async function consumeImportsBatch(
+  batch: IncomingQueueBatch,
+  deps: ImportsConsumerDeps,
+): Promise<void> {
+  for (const message of batch.messages) {
+    if (!isImportJob(message.body)) {
+      console.error(`[queue:imports] mensaje ${message.id} sin forma de job — al DLQ.`);
+      message.retry();
+      continue;
+    }
+    try {
+      await deps.run(message.body);
+      message.ack();
+    } catch (err) {
+      console.error(
+        `[queue:imports] ${message.body.mode} de ${message.body.importId} falló (intento ${message.attempts ?? "?"}):`,
         err instanceof Error ? err.message : String(err),
       );
       message.retry();
@@ -103,10 +156,20 @@ export async function persistDeadLetter(entry: DeadLetterEntry): Promise<void> {
     });
 }
 
+export interface DlqHooks {
+  /**
+   * Carta muerta de un job de importación: espejo del "último intento" del
+   * processor BullMQ — marca el lote como fallido para que el panel lo
+   * muestre en vez de dejarlo "processing" para siempre. Best-effort.
+   */
+  onImportDeadLetter?(job: ImportJobBody): Promise<void>;
+}
+
 /** Procesa un batch del DLQ: persistir y SIEMPRE ack (nunca reencolar). */
 export async function consumeDlqBatch(
   batch: IncomingQueueBatch,
   persist: PersistDeadLetter,
+  hooks: DlqHooks = {},
 ): Promise<void> {
   for (const message of batch.messages) {
     try {
@@ -123,6 +186,16 @@ export async function consumeDlqBatch(
         `[queue:dlq] no se pudo persistir la carta muerta ${message.id}:`,
         err instanceof Error ? err.message : String(err),
       );
+    }
+    if (hooks.onImportDeadLetter && isImportJob(message.body)) {
+      try {
+        await hooks.onImportDeadLetter(message.body);
+      } catch (err) {
+        console.error(
+          `[queue:dlq] no se pudo marcar fallido el lote ${(message.body as ImportJobBody).importId}:`,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
     }
     message.ack();
   }

@@ -28,6 +28,7 @@ import { registerJobBindings } from "./lib/job-dispatch.js";
 import {
   classifyQueue,
   consumeDlqBatch,
+  consumeImportsBatch,
   consumeNeedsBatch,
   persistDeadLetter,
   type IncomingQueueBatch,
@@ -181,8 +182,29 @@ export default {
       });
       return;
     }
-    if (kind === "needs-dlq") {
-      await consumeDlqBatch(batch, persistDeadLetter);
+    if (kind === "imports") {
+      await consumeImportsBatch(batch, {
+        run: async (job) => {
+          // Mismo despacho por modo que el processor BullMQ de compose.
+          const imports = await import("./services/patient-imports/index.js");
+          if (job.mode === "ocr") return imports.ingestOcrImport(job.importId, job.imageUrl);
+          if (job.mode === "apply") return imports.applyImport(job.importId, job.actorId ?? null);
+          return imports.processImport(job.importId);
+        },
+      });
+      return;
+    }
+    if (kind === "needs-dlq" || kind === "imports-dlq") {
+      await consumeDlqBatch(batch, persistDeadLetter, {
+        onImportDeadLetter: async (job) => {
+          const { markImportFailed } = await import("./services/patient-imports/index.js");
+          await markImportFailed(
+            job.importId,
+            `Falló el ${job.mode}: reintentos agotados (ver Auditoría, queue.dead_letter).`,
+            job.mode === "apply" ? "apply" : "process",
+          );
+        },
+      });
       return;
     }
     // Cola desconocida: ack para no envenenar la entrega. El fallo real

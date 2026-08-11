@@ -122,17 +122,19 @@ el runner.
   el fallo aborta el deploy **después** de subir el código y **antes** de promover
   la versión: el Worker se queda sirviendo la build anterior y el comando parece
   casi correcto.
-- **Los jobs de fondo están a medio portar a Cloudflare** (plan en
+- **Jobs de fondo: portados a Cloudflare casi por completo** (plan en
   `docs/plans/2026-08-10-002-…`, estado por unidad en `docs/runbook-fase0.md`).
-  Ya corren en Workers: sync de sismos y geocode (Cron Triggers) y el seam de
-  despacho de colas. Con código listo pendiente de verificación/cutover:
-  publicación de necesidades por Cloudflare Queues + DLQ persistido en
-  `audit_log`. Siguen inertes: sync de fuentes (U5) y, **a propósito**, la
-  importación de pacientes (manual y OCR usan transacciones interactivas que
-  fallan en Workers; tendrá su propio plan). Consecuencia en el panel: la
-  pantalla "Importar pacientes" encola lotes que **no se procesan** — la carga
-  de datos hospitalarios va por los CRUD directos (hospitales, pacientes,
-  insumos). El worker BullMQ de compose queda intacto para el camino VPS.
+  Corren en Workers: sync de sismos y geocode (Cron Triggers), publicación de
+  necesidades (Queues + DLQ persistido en `audit_log`) y la **importación de
+  pacientes en lote** (cola `terremotocolombia-imports`; sus transacciones
+  interactivas se reescribieron como máquina de estados idempotente — el apply
+  usa claims condicionales + id de paciente determinista por fila y es
+  reanudable tras un corte sin duplicar pacientes). `services/roles.ts` se
+  reescribió igual (create/edit de roles fallaba en Workers). Sigue inerte el
+  sync de fuentes externas (U5) — sin fuentes `ENABLE_*` habilitadas no hay
+  nada que sincronizar. El worker BullMQ de compose queda intacto (R5);
+  `scripts/verify-jobs.sh [staging|production]` verifica frescura sin
+  escribir nada.
 - **Hay bindings de Hyperdrive y una base D1 creados pero SIN USAR.**
   `backend/wrangler.jsonc` declara un binding de Hyperdrive que hoy no se lee.
   Se intentó y fue contraproducente: el driver de Workers es el HTTP de Neon,

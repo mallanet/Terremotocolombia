@@ -65,11 +65,14 @@ Orden natural en el panel:
    Las notas "internas" solo las ve quien tiene capacidad sobre hospitales;
    las públicas salen al sitio.
 
-> **Importación en lote ("Importar pacientes"): todavía NO procesa en
-> producción.** La pantalla encola el lote, pero el procesamiento depende de
-> transacciones interactivas que fallan en Workers (ver el plan
-> `docs/plans/2026-08-10-002-…` → fuera de alcance). Hasta su propio plan,
-> la carga es registro a registro por las pantallas CRUD.
+> **Importación en lote ("Importar pacientes"): FUNCIONA en Workers** (desde
+> 2026-08-10). El lote se encola en Cloudflare Queues
+> (`terremotocolombia-imports`), el consumidor del propio Worker lo procesa
+> (validación + dedupe) y el apply es una máquina de estados idempotente y
+> reanudable — un corte a medias nunca duplica pacientes. Un lote que agota
+> reintentos queda `failed` con causa y su carta muerta aparece en Auditoría
+> (`queue.dead_letter`). Archivos CSV/XLSX: el productor materializa las filas
+> antes de encolar (límite de 128 KB por mensaje de Queues).
 
 ## Despliegues del panel
 
