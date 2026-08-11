@@ -5,6 +5,13 @@
  */
 import nodemailer from "nodemailer";
 import { env } from "@/config/env";
+// Identidad real del despliegue (se inlinea en el bundle). El nombre del
+// producto en los emails sale de aquí, NUNCA hardcodeado: un email de
+// activación con una marca desconocida parece phishing. Ver CLAUDE.md →
+// "No inventes identidad".
+import deployment from "../../../config/deployment.config.json";
+
+const PRODUCT_NAME: string = deployment.productName;
 
 let _transport: nodemailer.Transporter | null = null;
 
@@ -42,9 +49,9 @@ export async function sendInvitationEmail(to: string, token: string): Promise<{ 
   await t.sendMail({
     from: env.SMTP_FROM,
     to,
-    subject: "Te invitaron a Mapa Emergencia",
-    text: `Has sido invitado a Mapa Emergencia.\n\nActiva tu cuenta aquí (expira pronto):\n${url}\n\nSi no esperabas esto, ignora este correo.`,
-    html: `<p>Has sido invitado a <strong>Mapa Emergencia</strong>.</p>
+    subject: `Te invitaron al panel de ${PRODUCT_NAME}`,
+    text: `Has sido invitado al panel de administración de ${PRODUCT_NAME}.\n\nActiva tu cuenta aquí (expira pronto):\n${url}\n\nSi no esperabas esto, ignora este correo.`,
+    html: `<p>Has sido invitado al panel de administración de <strong>${PRODUCT_NAME}</strong>.</p>
 <p><a href="${url}">Activa tu cuenta aquí</a> (el enlace expira pronto).</p>
 <p style="color:#666;font-size:12px">Si no esperabas esto, ignora este correo.</p>`,
   });
