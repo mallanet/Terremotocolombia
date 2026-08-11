@@ -443,7 +443,7 @@ export async function unmergeLink(input: UnmergeInput): Promise<UnmergeResult> {
 
   await recomputeClusterFor(row.prnA);
   await recomputeClusterFor(row.prnB);
-  enqueueMatcherSweep([row.prnA, row.prnB]);
+  await enqueueMatcherSweep([row.prnA, row.prnB]);
 
   const finalRow = await loadLinkRaw(input.linkId);
   return { link: toLinkDTO(finalRow!), prnA: row.prnA, prnB: row.prnB };

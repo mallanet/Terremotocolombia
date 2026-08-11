@@ -350,7 +350,7 @@ export async function tombstonePersonRecord(
 
     // 6. Sweep del matcher para los mismos vecinos.
     if (formerNeighbors.size > 0) {
-      enqueueMatcherSweep([...formerNeighbors]);
+      await enqueueMatcherSweep([...formerNeighbors]);
     }
 
     return { prn };
@@ -448,19 +448,26 @@ let matcherSweepCalls: string[][] = [];
 const MATCHER_QUEUE_BATCH_LIMIT = 100;
 const MATCHER_QUEUE_BINDING = "MATCHER_QUEUE";
 
-export function enqueueMatcherSweep(prns: string[]): void {
+export async function enqueueMatcherSweep(prns: string[]): Promise<void> {
   matcherSweepCalls.push(prns);
   if (prns.length === 0) return;
 
   const producer = getQueueProducer(MATCHER_QUEUE_BINDING);
   if (!producer) return; // sin binding registrado (tests, entorno sin U8 desplegado): solo queda el registro de arriba.
 
-  void sendMatcherSweepMessages(producer, prns).catch((err) => {
+  // AWAITED a propósito (bug real de staging, 2026-08-11): con `void ...` el
+  // send quedaba como promesa huérfana y Workers la MATA al terminar la
+  // respuesta HTTP — el mensaje jamás llegaba a la cola y el matcher no se
+  // disparaba en creación, sin un solo error en los logs. Sigue sin lanzar:
+  // el fallo se loguea y el sweep perdido lo recoge el siguiente trigger.
+  try {
+    await sendMatcherSweepMessages(producer, prns);
+  } catch (err) {
     console.error(
       `[person-records] enqueueMatcherSweep: fallo enviando ${prns.length} PRN(s) a ${MATCHER_QUEUE_BINDING}:`,
       err,
     );
-  });
+  }
 }
 
 /** Envía en lotes de ≤100 mensajes (`sendBatch` si el binding lo trae —
@@ -615,7 +622,7 @@ export async function reconcilePersonRecords(
         (result.stampedByType[population.recordType] ?? 0) + stamped.length;
       result.stampedTotal += stamped.length;
       if (stamped.length > 0) {
-        enqueueMatcherSweep(stamped.map((row) => row.prn));
+        await enqueueMatcherSweep(stamped.map((row) => row.prn));
       }
 
       // Avanza sobre TODO el lote leído, no solo sobre lo insertado por esta
