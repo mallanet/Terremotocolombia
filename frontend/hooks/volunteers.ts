@@ -12,11 +12,26 @@
 import { useMutation } from "@tanstack/react-query";
 import { apiSend } from "@/lib/api";
 
+export type VolunteerOfferType =
+  | "persona"
+  | "donacion-especie"
+  | "dinero"
+  | "maquinaria"
+  | "transporte";
+
 export interface VolunteerInput {
   name: string;
-  phone: string;
-  offer: string;
-  zone: string;
+  contact: string; // WhatsApp o correo
+  zone: string; // ciudad y país actual
+  availability: string;
+  offerTypes: VolunteerOfferType[];
+  offer?: string; // detalles (especie/dinero/maquinaria/transporte)
+  digitalSkills?: string[];
+  crisisExperience?: boolean;
+  fieldCity?: string;
+  rescueTraining?: boolean;
+  fieldRole?: string;
+  ownVehicle?: boolean;
   turnstileToken?: string; // prueba de humanidad (Turnstile) para el backend
 }
 

@@ -19,29 +19,50 @@ import * as service from "@/services/volunteers";
 
 export const volunteersRouter = Router();
 
-// Validación (contrato canónico del feature: name 1..120, phone 1..40,
-// offer 1..2000, zone 1..200).
+// Contrato del llamado Mallanet: pregunta ramificadora `offerTypes` (cada
+// tipo abre solo sus preguntas) + datos base para todas las personas.
+// `offer` queda como detalles opcionales (especie/dinero/maquinaria/
+// transporte); las ramas persona → digital/terreno llegan en sus campos.
+export const VOLUNTEER_OFFER_TYPES = [
+  "persona",
+  "donacion-especie",
+  "dinero",
+  "maquinaria",
+  "transporte",
+] as const;
+
 const createBody = z.object({
   name: z
     .string()
     .trim()
     .min(1, "El nombre debe tener entre 1 y 120 caracteres.")
     .max(120, "El nombre debe tener entre 1 y 120 caracteres."),
-  phone: z
+  contact: z
     .string()
     .trim()
-    .min(1, "El teléfono debe tener entre 1 y 40 caracteres.")
-    .max(40, "El teléfono debe tener entre 1 y 40 caracteres."),
-  offer: z
-    .string()
-    .trim()
-    .min(1, "Cuéntanos qué puedes ofrecer (1 a 2000 caracteres).")
-    .max(2000, "Cuéntanos qué puedes ofrecer (1 a 2000 caracteres)."),
+    .min(1, "Indica tu WhatsApp o correo (1 a 120 caracteres).")
+    .max(120, "Indica tu WhatsApp o correo (1 a 120 caracteres)."),
   zone: z
     .string()
     .trim()
-    .min(1, "La zona debe tener entre 1 y 200 caracteres.")
-    .max(200, "La zona debe tener entre 1 y 200 caracteres."),
+    .min(1, "Indica tu ciudad y país (1 a 200 caracteres).")
+    .max(200, "Indica tu ciudad y país (1 a 200 caracteres)."),
+  availability: z
+    .string()
+    .trim()
+    .min(1, "Indica tu disponibilidad (1 a 120 caracteres).")
+    .max(120, "Indica tu disponibilidad (1 a 120 caracteres)."),
+  offerTypes: z
+    .array(z.enum(VOLUNTEER_OFFER_TYPES))
+    .min(1, "Marca al menos una cosa que puedes ofrecer.")
+    .max(5),
+  offer: z.string().trim().max(2000, "Los detalles no pueden pasar de 2000 caracteres.").optional().default(""),
+  digitalSkills: z.array(z.string().trim().min(1).max(60)).max(10).optional(),
+  crisisExperience: z.boolean().optional(),
+  fieldCity: z.string().trim().max(200).optional(),
+  rescueTraining: z.boolean().optional(),
+  fieldRole: z.string().trim().max(120).optional(),
+  ownVehicle: z.boolean().optional(),
   turnstileToken: z.string().optional(),
 });
 
@@ -57,12 +78,22 @@ const createBody = z.object({
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name, phone, offer, zone]
+ *             required: [name, contact, zone, availability, offerTypes]
  *             properties:
  *               name: { type: string }
- *               phone: { type: string }
- *               offer: { type: string }
- *               zone: { type: string }
+ *               contact: { type: string, description: "WhatsApp o correo" }
+ *               zone: { type: string, description: "Ciudad y país actual" }
+ *               availability: { type: string }
+ *               offerTypes:
+ *                 type: array
+ *                 items: { type: string, enum: [persona, donacion-especie, dinero, maquinaria, transporte] }
+ *               offer: { type: string, description: "Detalles opcionales" }
+ *               digitalSkills: { type: array, items: { type: string } }
+ *               crisisExperience: { type: boolean }
+ *               fieldCity: { type: string }
+ *               rescueTraining: { type: boolean }
+ *               fieldRole: { type: string }
+ *               ownVehicle: { type: boolean }
  *     responses:
  *       200:
  *         description: Registro recibido
@@ -100,9 +131,17 @@ volunteersRouter.post(
     try {
       const volunteer = await service.createVolunteer({
         name: body.name,
-        phone: body.phone,
+        contact: body.contact,
         offer: body.offer,
         zone: body.zone,
+        availability: body.availability,
+        offerTypes: body.offerTypes,
+        digitalSkills: body.digitalSkills,
+        crisisExperience: body.crisisExperience,
+        fieldCity: body.fieldCity,
+        rescueTraining: body.rescueTraining,
+        fieldRole: body.fieldRole,
+        ownVehicle: body.ownVehicle,
         ipHash: hashIp(req),
       });
       res.status(200).json({
