@@ -42,6 +42,7 @@ export function toSummary(h: ImportHeaderRow): ImportSummaryDTO {
 		},
 		createdBy: h.createdBy,
 		errorSummary: h.errorSummary,
+		sourceImageUrl: h.sourceImageUrl ?? null,
 		createdAt: h.createdAt,
 		processedAt: h.processedAt,
 		appliedAt: h.appliedAt,
