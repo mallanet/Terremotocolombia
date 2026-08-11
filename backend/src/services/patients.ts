@@ -19,6 +19,7 @@
  */
 import { sql } from "drizzle-orm";
 import { getDb } from "@/db";
+import { ensurePrn } from "@/services/person-records";
 
 export type PatientStatus =
   | "hospitalized"
@@ -301,6 +302,13 @@ export async function createPatient(input: CreatePatientInput): Promise<PatientD
       (${id}, ${input.hospitalId}, ${name}, ${age}, ${condition}, ${status},
        ${notes}, ${contact}, ${input.documentHash ?? null}, ${now}, ${now})
   `);
+
+  // Best-effort (U7/R8): nunca debe tumbar esta creación ya confirmada —
+  // ensurePrn loguea y devuelve null ante cualquier fallo, nunca lanza. Si
+  // esto queda sin estampar (p.ej. una caída a mitad), el cron de
+  // reconciliación (KTD8) lo recoge en su próxima corrida.
+  await ensurePrn("hospital_patient", id);
+
   return {
     id,
     hospitalId: input.hospitalId,
