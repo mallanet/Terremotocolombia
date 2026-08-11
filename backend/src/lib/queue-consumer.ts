@@ -33,18 +33,29 @@ export interface IncomingQueueBatch {
   messages: readonly IncomingQueueMessage[];
 }
 
-export type QueueKind = "needs" | "needs-dlq" | "imports" | "imports-dlq" | "unknown";
+export type QueueKind =
+  | "needs"
+  | "needs-dlq"
+  | "imports"
+  | "imports-dlq"
+  | "matcher"
+  | "matcher-dlq"
+  | "unknown";
 
 /**
  * Clasifica una cola por su nombre. Cubre los nombres reales
- * (terremotocolombia-{needs,imports}[-dlq][-staging]) sin acoplarse al
- * prefijo, y lo desconocido se reporta como tal.
+ * (terremotocolombia-{needs,imports,matcher}[-dlq][-staging]) sin acoplarse
+ * al prefijo, y lo desconocido se reporta como tal. El DLQ de cada familia se
+ * comprueba ANTES que la familia (mismo motivo en las tres): "-matcher" es
+ * substring de "-matcher-dlq".
  */
 export function classifyQueue(name: string): QueueKind {
   if (name.includes("-needs-dlq")) return "needs-dlq";
   if (name.includes("-needs")) return "needs";
   if (name.includes("-imports-dlq")) return "imports-dlq";
   if (name.includes("-imports")) return "imports";
+  if (name.includes("-matcher-dlq")) return "matcher-dlq";
+  if (name.includes("-matcher")) return "matcher";
   return "unknown";
 }
 
@@ -116,6 +127,65 @@ export async function consumeImportsBatch(
     } catch (err) {
       console.error(
         `[queue:imports] ${message.body.mode} de ${message.body.importId} falló (intento ${message.attempts ?? "?"}):`,
+        err instanceof Error ? err.message : String(err),
+      );
+      message.retry();
+    }
+  }
+}
+
+/**
+ * Job del matcher determinista (U8): `{ prn }` únicamente (regla de Queues de
+ * mensajes ≤128KB — no hace falta más, `services/matcher` resuelve el registro
+ * completo a partir del PRN). Mismo criterio que `ImportJobBody`: forma propia
+ * aquí, desacoplada de `services/matcher` — el consumidor no importa el
+ * módulo de dominio, solo la forma del mensaje.
+ */
+export interface MatcherJobBody {
+  prn: string;
+}
+
+export interface MatcherConsumerDeps {
+  /** Procesa un sweep del matcher para un PRN (inyectable para tests; en
+   *  prod, services/matcher.processMatcherMessage). */
+  run(job: MatcherJobBody): Promise<unknown>;
+}
+
+function isMatcherJob(body: unknown): body is MatcherJobBody {
+  const job = body as MatcherJobBody | null;
+  return typeof job === "object" && job !== null && typeof job.prn === "string" && job.prn.length > 0;
+}
+
+/**
+ * Procesa un batch de sweeps del matcher. Ack por mensaje; fallo → retry()
+ * (mismo criterio que `consumeNeedsBatch`/`consumeImportsBatch`: Queues
+ * reintenta según `max_retries`/`retry_delay` del consumidor en
+ * wrangler.jsonc y agotados los reintentos cae al DLQ genérico). Un mensaje
+ * sin forma de job también hace retry() en vez de descartarse en silencio —
+ * si nunca adquiere forma válida, agota reintentos igual y queda visible en
+ * `audit_log` vía el DLQ, en vez de perderse sin rastro.
+ *
+ * Idempotente por construcción vía `services/matcher`: la escritura de
+ * `person_links` es un upsert por `(prn_a, prn_b)` (KTD4/KTD5), así que la
+ * entrega al-menos-una-vez de Queues es segura — dos entregas del MISMO
+ * mensaje dejan la MISMA fila.
+ */
+export async function consumeMatcherBatch(
+  batch: IncomingQueueBatch,
+  deps: MatcherConsumerDeps,
+): Promise<void> {
+  for (const message of batch.messages) {
+    if (!isMatcherJob(message.body)) {
+      console.error(`[queue:matcher] mensaje ${message.id} sin forma de job — reintento.`);
+      message.retry();
+      continue;
+    }
+    try {
+      await deps.run(message.body);
+      message.ack();
+    } catch (err) {
+      console.error(
+        `[queue:matcher] sweep de ${message.body.prn} falló (intento ${message.attempts ?? "?"}):`,
         err instanceof Error ? err.message : String(err),
       );
       message.retry();

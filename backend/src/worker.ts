@@ -19,9 +19,11 @@ import { httpServerHandler } from "cloudflare:node";
 import { app } from "./server.js";
 import { backfill, isEmpty, syncFromFeed } from "./services/earthquakes.js";
 import { runGeocode } from "./services/geocode-batch.js";
+import { reconcilePersonRecords } from "./services/person-records.js";
 import {
   CRON_EARTHQUAKES,
   CRON_GEOCODE,
+  CRON_PERSON_RECONCILE,
   dispatchCron,
 } from "./services/cron-jobs.js";
 import { registerJobBindings } from "./lib/job-dispatch.js";
@@ -34,6 +36,7 @@ import {
   classifyQueue,
   consumeDlqBatch,
   consumeImportsBatch,
+  consumeMatcherBatch,
   consumeNeedsBatch,
   persistDeadLetter,
   type IncomingQueueBatch,
@@ -138,6 +141,32 @@ async function geocodePending(): Promise<void> {
   }
 }
 
+/**
+ * Reconciliación de PRNs (U7, KTD8): estampa registros sin PRN (backfill en
+ * sus primeras corridas; red de seguridad de la carrera del camino inline en
+ * régimen permanente) y corre los invariantes de cluster de U9. Ver
+ * `services/person-records.ts:reconcilePersonRecords`.
+ *
+ * Se relanza el fallo sin `noRetry()`, como los otros dos crons: la escritura
+ * es idempotente (`ON CONFLICT (record_type, record_id) DO NOTHING
+ * RETURNING`), así que un reintento de Cloudflare es seguro y preferible a
+ * dejar backlog sin estampar.
+ */
+async function reconcilePeople(): Promise<void> {
+  try {
+    const r = await reconcilePersonRecords();
+    console.log(
+      `[cron:person-reconcile] estampados=${r.stampedTotal} por_tipo=${JSON.stringify(r.stampedByType)}`,
+    );
+  } catch (err) {
+    console.error(
+      "[cron:person-reconcile] fallo:",
+      err instanceof Error ? err.message : String(err),
+    );
+    throw err;
+  }
+}
+
 export default {
   fetch(request: Request, env: WorkerEnv, ctx: Ctx): Promise<Response> {
     // Idempotente y barato (un Map.set por binding). Va aqui porque `env` solo
@@ -175,6 +204,7 @@ export default {
         await dispatchCron(controller.cron, now, {
           [CRON_EARTHQUAKES]: syncEarthquakes,
           [CRON_GEOCODE]: geocodePending,
+          [CRON_PERSON_RECONCILE]: reconcilePeople,
         });
       })(),
     );
@@ -216,7 +246,18 @@ export default {
       });
       return;
     }
-    if (kind === "needs-dlq" || kind === "imports-dlq") {
+    if (kind === "matcher") {
+      await consumeMatcherBatch(batch, {
+        run: async (job) => {
+          // Import perezoso, mismo motivo que needs/imports: services/matcher
+          // no entra en el arranque del isolate.
+          const { processMatcherMessage } = await import("./services/matcher/index.js");
+          return processMatcherMessage(job);
+        },
+      });
+      return;
+    }
+    if (kind === "needs-dlq" || kind === "imports-dlq" || kind === "matcher-dlq") {
       await consumeDlqBatch(batch, persistDeadLetter, {
         onImportDeadLetter: async (job) => {
           const { markImportFailed } = await import("./services/patient-imports/index.js");

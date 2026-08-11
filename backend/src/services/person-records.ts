@@ -23,6 +23,7 @@
 import { eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { generatePrn, normalizePrn } from "@/lib/prn";
+import { getQueueProducer, type QueueProducer } from "@/lib/job-dispatch";
 
 const { personRecords } = schema;
 
@@ -224,22 +225,63 @@ export async function listUnstamped(
 }
 
 /**
- * TODO-U8: encolar un mensaje `{ prn }` por PRN vía el binding de Cloudflare
- * Queues que U8 declara (`terremotocolombia-matcher`), a través del seam de
- * `lib/job-dispatch.ts` como el resto de productores del repo.
+ * Encola un mensaje `{ prn }` por PRN en `terremotocolombia-matcher` (U8),
+ * vía el binding registrado en `lib/job-dispatch.ts` (`MATCHER_QUEUE`) —
+ * mismo seam que el resto de productores del repo, pero consultado
+ * DIRECTAMENTE (`getQueueProducer`) en vez de por `dispatchJob`: esta cola no
+ * tiene camino BullMQ de respaldo (U8 nace ya en el mundo Cloudflare Queues)
+ * y necesita envío en LOTE (`sendBatch`), que `dispatchJob` no expone.
  *
- * Por ahora es un no-op deliberado — SOLO registra la llamada para que el
- * test seam (`takeMatcherSweepCalls`, más abajo) pueda observarla, sin tocar
- * ningún transporte real. `reconcilePersonRecords` YA lo llama con el
- * RETURNING set exacto de cada lote (los PRNs recién estampados EN ESA
- * corrida, nunca los que otro writer ganó por la carrera del ON CONFLICT),
- * así que cuando U8 exista, conectar el binding real aquí dentro es el ÚNICO
- * cambio necesario — ningún call site cambia.
+ * SIEMPRE registra la llamada primero (para el test seam `takeMatcherSweepCalls`,
+ * más abajo) y solo DESPUÉS intenta el envío real — así en test/dev sin
+ * binding de Queues registrado, el comportamiento es record-only (no lanza,
+ * no bloquea). `reconcilePersonRecords` la llama con el RETURNING set exacto
+ * de cada lote (los PRNs recién estampados EN ESA corrida, nunca los que otro
+ * writer ganó por la carrera del ON CONFLICT).
+ *
+ * Fire-and-forget A PROPÓSITO: la firma es `void` (best-effort, mismo
+ * espíritu que `ensurePrn`) y el único call site (`reconcilePersonRecords`)
+ * no la espera. Un fallo de envío se loguea pero nunca tumba la corrida del
+ * cron — el PRN ya quedó estampado en `person_records`; si el mensaje se
+ * pierde, la red de seguridad es la PRÓXIMA corrida del cron encontrando ese
+ * mismo registro... salvo que ya esté estampado (no vuelve a aparecer en
+ * `listUnstamped`). Ese residual (envío perdido de un PRN ya estampado) es un
+ * gap conocido de esta primera versión: no hay cola de reintento de sweeps
+ * per se, solo la de Cloudflare Queues para el envío mismo. Ver reporte U8.
  */
 let matcherSweepCalls: string[][] = [];
 
+/** Tope de mensajes por `sendBatch` — límite duro de Cloudflare Queues. */
+const MATCHER_QUEUE_BATCH_LIMIT = 100;
+const MATCHER_QUEUE_BINDING = "MATCHER_QUEUE";
+
 export function enqueueMatcherSweep(prns: string[]): void {
   matcherSweepCalls.push(prns);
+  if (prns.length === 0) return;
+
+  const producer = getQueueProducer(MATCHER_QUEUE_BINDING);
+  if (!producer) return; // sin binding registrado (tests, entorno sin U8 desplegado): solo queda el registro de arriba.
+
+  void sendMatcherSweepMessages(producer, prns).catch((err) => {
+    console.error(
+      `[person-records] enqueueMatcherSweep: fallo enviando ${prns.length} PRN(s) a ${MATCHER_QUEUE_BINDING}:`,
+      err,
+    );
+  });
+}
+
+/** Envía en lotes de ≤100 mensajes (`sendBatch` si el binding lo trae —
+ *  siempre en un binding real de Queues; `send()` uno por uno como respaldo
+ *  para un producer fake de test que solo implemente `send`). */
+async function sendMatcherSweepMessages(producer: QueueProducer, prns: string[]): Promise<void> {
+  for (let i = 0; i < prns.length; i += MATCHER_QUEUE_BATCH_LIMIT) {
+    const chunk = prns.slice(i, i + MATCHER_QUEUE_BATCH_LIMIT);
+    if (producer.sendBatch) {
+      await producer.sendBatch(chunk.map((prn) => ({ body: { prn } })));
+    } else {
+      await Promise.all(chunk.map((prn) => producer.send({ prn })));
+    }
+  }
 }
 
 /**
