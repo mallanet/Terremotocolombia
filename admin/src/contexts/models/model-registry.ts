@@ -90,6 +90,9 @@ export const MODELS = [
       { key: "name", label: "Nombre" },
       { key: "lastSeen", label: "Última ubicación" },
       { key: "status", label: "Estado" },
+      // Presencia de cédula/documento (solo sí/—; el valor nunca se expone).
+      // Ver services/missing.ts:MissingAdminDTO — solo en este camino gated.
+      { key: "hasDocument", label: "Doc." },
     ],
     createFields: [
       { key: "name", label: "Nombre", required: true },
@@ -99,6 +102,9 @@ export const MODELS = [
       { key: "lastSeen", label: "Última ubicación" },
       { key: "contact", label: "Contacto" },
     ],
+    // La captura de cédula es SOLO edición (U12): la creación pública/staff de
+    // un reporte sigue sin documento a propósito (captura pública diferida,
+    // ver R10/R22).
     editFields: [
       { key: "name", label: "Nombre" },
       { key: "age", label: "Edad", type: "number" },
@@ -106,6 +112,15 @@ export const MODELS = [
       { key: "description", label: "Descripción" },
       { key: "lastSeen", label: "Última ubicación" },
       { key: "contact", label: "Contacto" },
+      {
+        key: "tipoDocumento",
+        label: "Tipo de documento (CC, TI, CE, PA, RC, NUIP o sin_documento)",
+      },
+      {
+        key: "documentId",
+        label:
+          "Cédula / Documento (vacío = sin cambio). Solo se guarda una huella criptográfica, nunca el número.",
+      },
     ],
     canDelete: true,
   },

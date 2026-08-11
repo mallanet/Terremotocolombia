@@ -20,7 +20,7 @@ import {
 } from "@/lib/r2";
 import { isAllowedImageDataUrl, parseImageDataUri } from "@/lib/image";
 import { invalidate } from "@/lib/cache";
-import { ensurePrn } from "@/services/person-records";
+import { ensurePrn, enqueueMatcherSweep } from "@/services/person-records";
 
 const { missingPersons, missingPersonSuppressions } = schema;
 
@@ -647,6 +647,83 @@ export async function getMissingById(id: string): Promise<MissingDTO | null> {
   return rows.length > 0 ? rowToPerson(rows[0]!) : null;
 }
 
+// ---------------------------------------------------------------------------
+// U12 — camino de lectura CAPABILITY-GATED (missing.resource.ts: admin /
+// integraciones vía `missing:read`/`missing:edit`). Añade `hasDocument` /
+// `tipoDocumento` (presencia + tipo del documento; el HMAC ni el crudo se
+// exponen jamás) SOLO aquí. `rowToPerson`/`MissingDTO` de arriba siguen siendo
+// el builder COMPARTIDO con las rutas anónimas (`GET /api/missing` y el DTO que
+// crea/resuelve un reporte) y quedan byte-idénticos a propósito: sus SELECT
+// nunca piden `tipo_documento`/`document_hash`, así que esos campos no pueden
+// filtrarse por accidente al público. `rowToPersonWithDocument` reusa
+// `rowToPerson` sin modificarlo, solo le añade las dos columnas extra.
+// ---------------------------------------------------------------------------
+
+/** MissingDTO + presencia/tipo de documento. `hasDocument`/`tipoDocumento`
+ *  quedan OPCIONALES en el tipo (nunca en el valor de este camino) para que
+ *  `MissingDTO` simple —como el que devuelve `addMissing`— siga siendo
+ *  asignable donde se espera este tipo (mismo patrón que `PatientDTO.hasDocument`). */
+export type MissingAdminDTO = MissingDTO & {
+  hasDocument?: boolean;
+  tipoDocumento?: string | null;
+};
+
+type AdminRow = Row & {
+  tipo_documento: string | null;
+  has_document: boolean;
+};
+
+/** SELECT del camino gated: mismas columnas que el público + tipo_documento /
+ *  (document_hash IS NOT NULL). Fragmento reusado por get, list Y el RETURNING
+ *  de updateMissing — de ahí el `COALESCE(status, 'active')` (defensivo, igual
+ *  que markMissingFound/restoreMissing) en vez del `status` plano de
+ *  getMissingById/listMissing: preserva el comportamiento EXACTO que ya tenía
+ *  el RETURNING de updateMissing antes de U12. */
+const ADMIN_SELECT_COLUMNS = sql`id, name, age, nationality, description, last_seen, contact,
+               (photo IS NOT NULL) AS has_photo,
+               photo_external_url,
+               COALESCE(status, 'active') AS status,
+               resolution_note,
+               (resolution_photo IS NOT NULL) AS has_resolution_photo,
+               resolved_at, created_at,
+               tipo_documento,
+               (document_hash IS NOT NULL) AS has_document`;
+
+function rowToPersonWithDocument(row: AdminRow): MissingAdminDTO {
+  return {
+    ...rowToPerson(row),
+    hasDocument: Boolean(row.has_document),
+    tipoDocumento: row.tipo_documento,
+  };
+}
+
+/** Como getMissingById, pero con hasDocument/tipoDocumento — SOLO para el
+ *  camino gated (missing.resource.ts `get`/`update`). */
+export async function getMissingByIdWithDocument(
+  id: string,
+): Promise<MissingAdminDTO | null> {
+  const db = await getDb();
+  const res = await db.execute(
+    sql`SELECT ${ADMIN_SELECT_COLUMNS} FROM missing_persons WHERE id = ${id}`,
+  );
+  const rows = execRows<AdminRow>(res);
+  return rows.length > 0 ? rowToPersonWithDocument(rows[0]!) : null;
+}
+
+/** Como listMissing, pero con hasDocument/tipoDocumento — SOLO para el camino
+ *  gated (missing.resource.ts `list`). */
+export async function listMissingWithDocument(
+  options: { includeFound?: boolean } = {},
+): Promise<MissingAdminDTO[]> {
+  const db = await getDb();
+  const whereSql = options.includeFound ? sql`` : sql`WHERE status = 'active'`;
+  const res = await db.execute(
+    sql`SELECT ${ADMIN_SELECT_COLUMNS} FROM missing_persons ${whereSql}
+        ORDER BY created_at DESC, id DESC`,
+  );
+  return execRows<AdminRow>(res).map(rowToPersonWithDocument);
+}
+
 /** Campos editables de la ficha (no se permite mover id/createdAt/status/foto). */
 export interface UpdateMissingInput {
   name?: string;
@@ -655,17 +732,35 @@ export interface UpdateMissingInput {
   description?: string;
   lastSeen?: string;
   contact?: string;
+  /** tipo_documento normalizado (CC/TI/CE/PA/RC/NUIP/sin_documento). `undefined`
+   *  = no tocar. Sin `null`: no hay operación de "borrar solo el tipo" definida
+   *  (limpiar el documento se hace vía `documentHash: null`, ver abajo). */
+  tipoDocumento?: string;
+  /**
+   * HMAC del documento normalizado (computado en missing.resource.ts con la
+   * MISMA clave/normalización que hospital_patients.document_hash; el
+   * documento crudo NUNCA llega aquí). `null` borra el documento del reporte.
+   * `undefined` = no tocar. Cualquier cambio (fijar o borrar) reestampa el PRN
+   * y encola un matcher sweep (U8) — el cruce de cédula es la señal fuerte
+   * del matcher (AE2), así que un cambio de hash SIEMPRE debe re-evaluarse.
+   */
+  documentHash?: string | null;
 }
 
 /**
  * Actualiza campos permitidos de la ficha de una persona. Recorta/clampa con los
- * mismos límites que addMissing. Devuelve el DTO actualizado o null si no existe.
- * Escape `sql` por el tipo unión de drivers (igual que markMissingFound).
+ * mismos límites que addMissing. Devuelve el DTO (gated: con hasDocument/
+ * tipoDocumento) actualizado o null si no existe. Escape `sql` por el tipo
+ * unión de drivers (igual que markMissingFound).
+ *
+ * SIN unicidad/409 por colisión de document_hash a propósito (KTD9): dos
+ * reportes con la misma cédula son señal legítima de duplicado para el
+ * matcher, no un conflicto — diferencia deliberada con `patients.ts`.
  */
 export async function updateMissing(
   id: string,
   input: UpdateMissingInput,
-): Promise<MissingDTO | null> {
+): Promise<MissingAdminDTO | null> {
   const sets: ReturnType<typeof sql>[] = [];
   if (input.name !== undefined)
     sets.push(sql`name = ${input.name.trim().slice(0, MAX_NAME)}`);
@@ -678,23 +773,32 @@ export async function updateMissing(
     sets.push(sql`last_seen = ${input.lastSeen.trim().slice(0, MAX_LAST_SEEN)}`);
   if (input.contact !== undefined)
     sets.push(sql`contact = ${input.contact.trim().slice(0, MAX_CONTACT)}`);
-  if (sets.length === 0) return getMissingById(id);
+  if (input.tipoDocumento !== undefined)
+    sets.push(sql`tipo_documento = ${input.tipoDocumento}`);
+  const documentChanged = input.documentHash !== undefined;
+  if (documentChanged) sets.push(sql`document_hash = ${input.documentHash}`);
+  if (sets.length === 0) return getMissingByIdWithDocument(id);
 
   const db = await getDb();
   const result = await db.execute(
     sql`UPDATE missing_persons SET ${sql.join(sets, sql`, `)}
         WHERE id = ${id}
-        RETURNING id, name, age, nationality, description, last_seen, contact,
-                  (photo IS NOT NULL) AS has_photo,
-                  photo_external_url,
-                  COALESCE(status, 'active') AS status,
-                  resolution_note,
-                  (resolution_photo IS NOT NULL) AS has_resolution_photo,
-                  resolved_at, created_at`,
+        RETURNING ${ADMIN_SELECT_COLUMNS}`,
   );
-  const rows = execRows<Row>(result);
-  if (rows.length > 0) invalidate();
-  return rows.length > 0 ? rowToPerson(rows[0]!) : null;
+  const rows = execRows<AdminRow>(result);
+  if (rows.length === 0) return null;
+  invalidate();
+
+  // Cualquier cambio de document_hash (fijado o borrado) es candidato a
+  // re-evaluación del matcher — ver comentario de UpdateMissingInput.
+  // Best-effort: ensurePrn/enqueueMatcherSweep nunca lanzan, así que esto
+  // jamás tumba una actualización ya confirmada en la fila.
+  if (documentChanged) {
+    const prn = await ensurePrn("missing_report", id);
+    if (prn) enqueueMatcherSweep([prn]);
+  }
+
+  return rowToPersonWithDocument(rows[0]!);
 }
 
 /** Totales consolidados para el panel del mapa y el hero. */
