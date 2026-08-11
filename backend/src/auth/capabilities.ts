@@ -34,6 +34,7 @@ export const MODELS: { key: string; category: string; label: string }[] = [
   { key: "donation", category: "donations", label: "Donaciones / acopio" },
   { key: "chat", category: "chat", label: "Mensajes de chat" },
   { key: "contact", category: "contact", label: "Mensajes de contacto" },
+  { key: "volunteer", category: "volunteers", label: "Voluntarios" },
 ];
 
 /**

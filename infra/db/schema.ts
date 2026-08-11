@@ -634,6 +634,30 @@ export const contactMessages = pgTable(
   ],
 );
 
+/* ----------------------------------------------------- volunteers */
+// Voluntarios registrados desde /voluntario. Contexto humanitario:
+// `ip_hash` es un HASH (hashIp()), NUNCA la IP cruda — solo para
+// rate-limit/anti-abuso, no identifica a la persona por sí solo.
+export const volunteers = pgTable(
+  "volunteers",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    phone: text("phone").notNull(),
+    offer: text("offer").notNull(),
+    zone: text("zone").notNull(),
+    status: text("status").notNull().default("pending"),
+    notes: text("notes"),
+    ipHash: text("ip_hash"),
+    createdAt: epochMs("created_at").notNull(),
+    updatedAt: epochMs("updated_at"),
+  },
+  (t) => [
+    index("volunteers_created_at_idx").on(t.createdAt.desc()),
+    index("volunteers_status_idx").on(t.status, t.createdAt.desc()),
+  ],
+);
+
 /* ----------------------------------------------------- data_deletion_requests */
 // Solicitudes de eliminación de datos personales (GDPR/CCPA).
 // Los usuarios pueden solicitar que eliminemos sus datos personales;
