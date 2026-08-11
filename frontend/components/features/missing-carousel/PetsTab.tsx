@@ -89,12 +89,14 @@ export const PetsTab = forwardRef<PetsTabHandle>(function PetsTab(_props, ref) {
   const stats = usePetStats();
 
   const pets = data?.pets ?? [];
-  const total = data?.total ?? 0;
   const totalPages = data?.totalPages ?? 1;
-  // Los dos desgloses salen de /api/pets/stats, NO del total de la lista: ese
+  // Los tres contadores salen de /api/pets/stats, NO del total de la lista: ese
   // total es el del FILTRO activo, así que con "Todas" seleccionado etiquetarlo
   // como "perdidas" daría "43 perdidas / 6 reunidas" sobre 43 en total — números
-  // que no suman y que hacen dudar del resto de la página.
+  // que no suman y que hacen dudar del resto de la página. El badge "reportadas"
+  // tenía el mismo fallo: con "Reunidas" puesto anunciaba el nº de reunidas como
+  // si fuera el total reportado.
+  const reportedTotal = stats.data?.total ?? 0;
   const activeTotal = stats.data?.active ?? 0;
   const foundTotal = stats.data?.found ?? 0;
   // Sin datos todavía no se afirma "0": un cero mientras la lista viaja —o
@@ -104,9 +106,10 @@ export const PetsTab = forwardRef<PetsTabHandle>(function PetsTab(_props, ref) {
   // también al caso de error).
   const fmtCount = (n: number, unknown: boolean) =>
     unknown ? "—" : n.toLocaleString("es");
-  const totalLabel = fmtCount(total, isPending || isError);
-  const activeLabel = fmtCount(activeTotal, stats.isPending || stats.isError);
-  const foundLabel = fmtCount(foundTotal, stats.isPending || stats.isError);
+  const statsUnknown = stats.isPending || stats.isError;
+  const reportedLabel = fmtCount(reportedTotal, statsUnknown);
+  const activeLabel = fmtCount(activeTotal, statsUnknown);
+  const foundLabel = fmtCount(foundTotal, statsUnknown);
 
   const prefetchPetsPages = usePrefetchPetsPages();
   useEffect(() => {
@@ -170,12 +173,12 @@ export const PetsTab = forwardRef<PetsTabHandle>(function PetsTab(_props, ref) {
           <span
             className="e-m-person-head__count"
             aria-label={
-              isPending
+              statsUnknown
                 ? "Cargando el número de mascotas reportadas"
-                : `${total} mascotas reportadas`
+                : `${reportedTotal} mascotas reportadas`
             }
           >
-            {totalLabel} reportadas
+            {reportedLabel} reportadas
           </span>
         </div>
         <div className="e-m-person-stats">

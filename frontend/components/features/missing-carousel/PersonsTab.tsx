@@ -80,16 +80,25 @@ export const PersonsTab = forwardRef<PersonsTabHandle>(function PersonsTab(
   const stats = useMissingStats();
 
   const people = data?.people ?? [];
-  const total = data?.total ?? 0;
   const totalPages = data?.totalPages ?? 1;
+  // Los TRES contadores de la cabecera salen de /stats, NUNCA del total de la
+  // lista: ese total es el del FILTRO activo. Cableado a la lista, con
+  // "Encontradas" puesto el badge decía "3 reportadas" habiendo 69 personas
+  // reportadas, y "desaparecidas" repetía el número de encontradas. Aquí se
+  // resume TODO el directorio, no la página que se está viendo. Igual que
+  // PetsTab.
+  const reportedTotal = stats.data?.total ?? 0;
+  const activeTotal = stats.data?.active ?? 0;
   const foundTotal = stats.data?.found ?? 0;
   // Sin datos todavía no se afirma "0": un cero mientras la lista viaja es una
   // afirmación falsa sobre cuánta gente hay reportada. Lo mismo si la petición
   // FALLÓ: un error tampoco es un cero.
   const fmtCount = (n: number, unknown: boolean) =>
     unknown ? "—" : n.toLocaleString("es");
-  const totalLabel = fmtCount(total, isPending || isError);
-  const foundLabel = fmtCount(foundTotal, stats.isPending || stats.isError);
+  const statsUnknown = stats.isPending || stats.isError;
+  const reportedLabel = fmtCount(reportedTotal, statsUnknown);
+  const activeLabel = fmtCount(activeTotal, statsUnknown);
+  const foundLabel = fmtCount(foundTotal, statsUnknown);
 
   const prefetchMissingPages = usePrefetchMissingPages();
   useEffect(() => {
@@ -153,18 +162,18 @@ export const PersonsTab = forwardRef<PersonsTabHandle>(function PersonsTab(
           <span
             className="e-m-person-head__count"
             aria-label={
-              isPending
+              statsUnknown
                 ? "Cargando el número de personas reportadas"
-                : `${total} personas reportadas`
+                : `${reportedTotal} personas reportadas`
             }
           >
-            {totalLabel} reportadas
+            {reportedLabel} reportadas
           </span>
         </div>
         <div className="e-m-person-stats">
           <span className="e-m-person-stats__item">
             <span className="e-m-person-stats__dot e-m-person-stats__dot--missing" aria-hidden />
-            {totalLabel} desaparecidas
+            {activeLabel} desaparecidas
           </span>
           <span className="e-m-person-stats__item">
             <span className="e-m-person-stats__dot e-m-person-stats__dot--found" aria-hidden />
