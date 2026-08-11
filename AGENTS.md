@@ -319,6 +319,53 @@ El backend tiene DOS superficies HTTP y cada una sigue su patrón:
   antes de que arranquen `backend`/`worker`. Las migraciones deben ser
   expand-contract si vas a hacer rollouts sin downtime.
 
+### PROHIBIDO: `db.transaction(...)` interactiva en `src/**` (invariante Workers)
+
+Producción corre en Cloudflare Workers con el driver HTTP de Neon, que **no
+soporta transacciones interactivas**. Una `db.transaction(async (tx) => …)` en
+código alcanzable desde el Worker compila, pasa los tests locales
+(node-postgres sí las soporta) y **revienta solo en producción**. Así estuvo
+roto el create/edit de roles del panel sin que ningún test lo viera.
+
+En su lugar, los patrones que ya usa el repo (referencia:
+`services/patient-imports/apply.ts`, `services/roles.ts`):
+
+- **Claim condicional**: `UPDATE … WHERE <estado esperado> RETURNING` como
+  sentencia única atómica — sustituye a `SELECT … FOR UPDATE`.
+- **Ids deterministas** para escrituras reintentables: mismo input ⇒ mismo id
+  ⇒ el re-insert choca en la PK y el reintento es no-op
+  (`deterministicPatientId`).
+- **Compensación** cuando un paso posterior falla (crear rol → si fallan las
+  capacidades, borrar el rol).
+- **Guard de integridad** cuando dos escrituras secuenciales deben ser
+  coherentes (el process verifica filas == totalRows antes de tocar nada).
+- La duda de siempre: si crees que necesitas una transacción interactiva,
+  primero pregúntate si un UPDATE condicional + idempotencia la reemplaza.
+
+`backend/worker/**` (BullMQ, solo compose) SÍ puede usarlas: corre bajo Node.
+
+### Jobs de fondo (Cloudflare Queues / Cron Triggers)
+
+Un job nuevo NO se conecta a BullMQ directo — sigue el seam por capacidad
+(plan `docs/plans/2026-08-10-002-…`, estado en `docs/runbook-fase0.md`):
+
+1. **Productor**: binding de Queues si está registrado; BullMQ con
+   `VALKEY_URL` (compose). Referencia: `lib/job-dispatch.ts` y el branch de
+   `enqueuePatientImport` en `lib/queues.ts`. Mensajes ≤128 KB: lo pesado se
+   materializa en la base ANTES de encolar, nunca viaja en el mensaje.
+2. **Consumidor**: rama en `lib/queue-consumer.ts` (extraído de `worker.ts`
+   para ser testeable) + cableado en el handler `queue` de `src/worker.ts`.
+   Ack POR MENSAJE; fallo → `retry()`; los reintentos/DLQ los configura
+   `wrangler.jsonc` (declarar la cola en AMBOS entornos — `queues` no se
+   hereda en `env.staging`).
+3. **Cartas muertas**: el consumidor del DLQ persiste en `audit_log`
+   (`queue.dead_letter`) y hace ack incondicional. Sin DLQ con consumidor, un
+   mensaje agotado SE PIERDE a los 4 días.
+4. **Colas**: `wrangler queues create <nombre>` para prod y staging antes del
+   primer deploy con la config.
+5. **Verificación**: `scripts/verify-jobs.sh [staging|production]` (frescura
+   derivada, sin escrituras).
+
 ### Actualizar listas de personas (hospitalizados / refugiados)
 
 Las personas localizadas (en hospital o en refugio/centro de acopio) viven en
