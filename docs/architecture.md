@@ -21,14 +21,20 @@ infraestructura compartida:
   **No desplegado hoy** — ver [Workers y colas](#workers-y-colas).
 - `admin/`: panel de administración como microservicio Next.js standalone
   (3er tier, RBAC con JWT en cookie httpOnly). Su BFF (`app/api/*`) reenvía al
-  backend por la red interna del despliegue.
-  **No desplegado hoy**: CI lo compila (`build-admin` en `ci.yml`), pero
-  `admin.terremotocolombia.co` no sirve tráfico.
+  backend (`EMERGENCY_API_URL`).
+  **Desplegado en Cloudflare Workers desde 2026-08-10**: `terremotocolombia-admin`
+  sirve `admin.terremotocolombia.co` (staging: `terremotocolombia-admin-staging` /
+  `admin-staging.terremotocolombia.co`), vía `@opennextjs/cloudflare` igual que
+  el frontend (`admin/wrangler.jsonc`, sin secretos de runtime). Deploy: staging
+  automático en `deploy-staging.yml`; producción manual con confirmación
+  (`deploy-admin.yml`). OJO: la pantalla "Importar pacientes" depende del worker
+  de colas, que sigue SIN desplegar — en Workers los lotes se encolan y no se
+  procesan; la carga de datos hospitalarios va por los CRUD directos.
 - `infra/db/`: esquema Drizzle y migraciones SQL.
 - **Producción hoy: Cloudflare Workers + Neon Postgres.**
   `docker-compose.prod.yml` + `Caddyfile.example` (VPS único con Caddy) es el
-  camino **alternativo**, y el único donde funcionan colas, transacciones
-  interactivas y `admin/`. Ver [Despliegue](#despliegue).
+  camino **alternativo**, y el único donde funcionan colas y transacciones
+  interactivas. Ver [Despliegue](#despliegue).
 
 ## Flujo de requests
 

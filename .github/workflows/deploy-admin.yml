@@ -1,0 +1,83 @@
+name: Deploy admin (manual)
+
+# Despliega SOLO el panel admin (Worker terremotocolombia-admin,
+# admin.terremotocolombia.co).
+#
+# MANUAL A PROPOSITO, igual que el backend: el panel es la superficie de
+# escritura interna sobre datos reales de la crisis. Que alguien tenga que
+# pulsar el boton es la funcionalidad.
+#
+# El panel NO lleva secretos de runtime: su BFF solo necesita
+# EMERGENCY_API_URL (var en admin/wrangler.jsonc); la sesion es el JWT del
+# backend en cookie httpOnly. Doppler aqui solo aporta los tokens de
+# Cloudflare para wrangler.
+#
+# Lanzarlo:  Actions -> "Deploy admin (manual)" -> Run workflow
+#       o:   gh workflow run deploy-admin.yml -f confirmar=desplegar
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Escribe "desplegar" para confirmar'
+        required: true
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-admin
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy del panel admin
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Segunda red de seguridad: sin la palabra exacta, ni se ejecuta.
+    if: github.event.inputs.confirmar == 'desplegar'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+
+      - uses: dopplerhq/cli-action@v3
+
+      - name: Instalar dependencias
+        working-directory: admin
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: admin
+        run: npm run typecheck
+
+      - name: Build (OpenNext -> Workers)
+        working-directory: admin
+        run: npx opennextjs-cloudflare build
+
+      - name: Deploy a Cloudflare Workers
+        working-directory: admin
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+        run: |
+          doppler run --command '
+            CLOUDFLARE_API_TOKEN="$CLOUDFLARE_ACCOUNT_API_TOKEN" \
+            CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID" \
+            npx wrangler deploy'
+
+      - name: Smoke check del panel
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 10); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://admin.terremotocolombia.co/api/health || echo 000)
+            echo "intento $i -> HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "El panel no devolvio 200 tras el despliegue"
+          exit 1
