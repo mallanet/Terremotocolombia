@@ -19,9 +19,14 @@ import {
 const SHARE_TEXT = `${SITE_PRODUCT_NAME}. Reporta y consulta el estado de las zonas en tiempo real.`;
 
 const MOBILE_NAV_BOTTOM = "calc(3.25rem + env(safe-area-inset-bottom))";
+// Lista PROPIA del header de escritorio, deliberadamente mas corta que
+// SECTION_LINKS (que alimenta la hoja del menu movil): aqui solo caben los
+// destinos de primer nivel. Si añades uno, añadelo tambien a SECTION_LINKS o
+// quedara fuera del menu movil.
 const DESKTOP_HEADER_LINKS = [
   { href: "#mapa", label: "Mapa" },
   { href: "#e-directory", label: "Personas" },
+  { href: "/mascotas", label: "Mascotas" },
   { href: "/acopio", label: "Acopio" },
   { href: "/guia", label: "Guía" },
 ] as const;
