@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
 import { renderWithProviders } from "@/tests/_utils/render-with-providers";
 import { AdminSessionContext } from "@/src/shared/auth/admin-session-context";
+import type {
+  QueueItemDTO,
+  DecisionHistoryEntryDTO,
+  RecordDisplayDTO,
+} from "@/src/contexts/family-search/types";
 
 /** Mismo patrón que `patient-import-row-editor.test.tsx` (U5) — sesión de
  *  prueba con capacidades explícitas. Por defecto trae las TRES capacidades
@@ -32,7 +37,7 @@ export function withSession(
  *  son solo strings de display en estos tests (nunca pasan por
  *  `normalizePrn`/`looksLikePrn` salvo en search-panel.test.tsx, donde se
  *  usan formas realistas a propósito). */
-export const DEMO_RECORD_A = {
+export const DEMO_RECORD_A: RecordDisplayDTO = {
   prn: "TC-DEMO0001X",
   recordType: "missing_report",
   name: "Demo Uno",
@@ -43,7 +48,7 @@ export const DEMO_RECORD_A = {
   clusterId: null as string | null,
 };
 
-export const DEMO_RECORD_B = {
+export const DEMO_RECORD_B: RecordDisplayDTO = {
   prn: "TC-DEMO0002Y",
   recordType: "hospital_patient",
   name: "Demo Dos",
@@ -58,8 +63,8 @@ export function buildQueueItem(overrides: {
   link?: Partial<typeof baseLink>;
   a?: typeof DEMO_RECORD_A | null;
   b?: typeof DEMO_RECORD_B | null;
-  priorRejection?: unknown;
-} = {}) {
+  priorRejection?: DecisionHistoryEntryDTO | null;
+} = {}): QueueItemDTO {
   return {
     link: { ...baseLink, ...overrides.link },
     a: overrides.a === undefined ? DEMO_RECORD_A : overrides.a,
