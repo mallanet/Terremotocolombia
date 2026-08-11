@@ -403,10 +403,13 @@ delivery log visible in the panel; `verify-notifications.sh production` green;
 2. **Digest interval.** 15 min? 30? Hourly? Wants one real crisis of data to
    answer honestly. Start at 30 min, make it config not code.
 3. ~~**Who is on the `configured_list` for Ley 1581?**~~ **Decided 2026-08-11 by
-   the maintainer: Eduardo Muth Martínez and Christian Ríos.**
-   Eduardo is `e.muth.martinez@gmail.com` (active, admin, super).
-   **Christian has no account and no email on file** — a query of prod `users`
-   for `%rios%`/`%christ%` returns nothing. See Blocking Dependency below.
+   the maintainer: Eduardo Muth Martínez (`e.muth.martinez@gmail.com`) and
+   Marian (`mmbtc90@gmail.com`).** Both are `active` admin accounts today, so
+   both can actually open and resolve a request — no provisioning needed and
+   nothing blocks implementation. Christian Ríos was the maintainer's first
+   choice and was set aside for now because he has no account (see note below);
+   add him later by appending to this list, which is precisely the property KTD2
+   was chosen for.
 4. **Should `data_deletion_requests` gain an actual statutory deadline field?**
    There is none today, so "overdue" cannot currently be computed — only "old".
    Adding one is a legal-posture decision. Until then the sweep can only alert
@@ -418,34 +421,34 @@ delivery log visible in the panel; `verify-notifications.sh production` green;
 
 ---
 
-## Blocking Dependency — Christian Ríos needs panel access
+## Note — adding a third name later (e.g. Christian Ríos)
 
-The Ley 1581 list is *decided* but not yet *real*. A content-free notification
-is only useful to someone who can walk through the door it links to, and
-Christian currently cannot:
+Nothing blocks implementation, but when the list grows, remember a name on it is
+only worth something if that person can walk through the door the notification
+links to. A content-free email is useless to someone who cannot log in, and two
+names where one cannot act reads as coverage while being a single point of
+failure.
 
-1. **No panel account.** Prod `users` has no row matching `%rios%` or
-   `%christ%`. Without one he cannot open a deletion request, let alone resolve
-   it.
-2. **Not on the Cloudflare Access allowlist.** Production sits behind Access
-   (email OTP against an allowlist); without his address there he never reaches
-   the panel login at all. Both layers are required — see
+Adding a person therefore means three things, not one:
+
+1. A panel account (invite + role). Minimum useful role for this job is
+   `deletion:read` + `deletion:edit` — full `admin` is more than the task needs.
+2. Their email on the **Cloudflare Access allowlist** for
+   `admin.terremotocolombia.co`. Production is behind email-OTP at the edge, so
+   without this they never reach the panel login. Both layers are required —
    `docs/runbook-admin.md` → "Alta de un usuario nuevo".
-3. **His email address is not recorded anywhere in this repo or its
-   infrastructure.** It has to come from the maintainer.
+3. Only then, append them to the `configured_list`.
 
-Until all three are resolved, putting Christian on the list creates *the exact
-illusion of coverage this design exists to prevent*: two names on a legally
-load-bearing list, one of whom cannot act. Treat "Christian can log in and
-resolve a deletion request" as a precondition of G3, not a follow-up.
+Christian Ríos was the maintainer's initial pick on 2026-08-11 and was deferred
+for exactly this reason: prod `users` has no row matching `%rios%`/`%christ%`.
+Creating accounts, editing the Access allowlist and sending invitations are
+access-provisioning and outward-facing actions — maintainer's call, per
+`CLAUDE.md`, not an agent's.
 
-Deliberately not done by an agent: creating the user, adding the Access
-allowlist entry, and sending the invitation are access-provisioning and
-outward-facing actions — maintainer's call, per `CLAUDE.md`.
-
-Interim posture: until Christian is provisioned, the list is Eduardo alone,
-which is a single point of failure on a statutory clock and should be recorded
-as such rather than quietly accepted.
+**Unrelated but found the same day:** `mockraw@gmail.com` and
+`mariopulice21@gmail.com` are both still `invited` — the invitations were never
+activated (Mario's was issued 2026-08-11 with a 72 h expiry, so it has likely
+lapsed). Two teammates may believe they have panel access and not have it.
 
 ## Sources & Research
 
