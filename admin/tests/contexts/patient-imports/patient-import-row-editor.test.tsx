@@ -147,8 +147,10 @@ describe("RowEditor (vía ImportRowsTable)", () => {
     withSession(<ImportRowsTable importId="imp-4" />);
 
     await expandRow();
-    expect(await screen.findByText(/posible duplicado de/)).toBeInTheDocument();
-    expect(screen.getByText(/Original Demo/)).toBeInTheDocument();
+    // El aviso de duplicado aparece legítimamente dos veces: el chip de la
+    // tabla y la línea del editor — se afirma presencia, no unicidad.
+    expect((await screen.findAllByText(/posible duplicado de/)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Original Demo/).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Aceptar" }));
     await waitFor(() => expect(dedupBody).not.toBeNull());
@@ -164,11 +166,23 @@ describe("RowEditor (vía ImportRowsTable)", () => {
       dedupStatus: "duplicate",
       dedupCandidates: [{ patientId: "p9", name: "Original Demo", reason: "document_hash exacto" }],
     };
+    // Handler con estado: tras el rechazo, el refetch (invalidación de la
+    // query) devuelve la fila YA limpia — igual que haría el backend real.
+    let rejected = false;
     server.use(
       hospitalsHandler,
-      http.get("/api/admin/patient-imports/imp-5/rows", () => HttpResponse.json({ items: [dupRow] })),
+      http.get("/api/admin/patient-imports/imp-5/rows", () =>
+        HttpResponse.json({
+          items: [
+            rejected
+              ? { ...dupRow, rowStatus: "valid", dedupStatus: "unique", dedupCandidates: [], updatedAt: 1400 }
+              : dupRow,
+          ],
+        }),
+      ),
       http.post("/api/admin/patient-imports/imp-5/rows/r5/dedup", async ({ request }) => {
         dedupBody = (await request.json()) as Record<string, unknown>;
+        rejected = true;
         return HttpResponse.json({
           row: { ...dupRow, rowStatus: "valid", dedupStatus: "unique", dedupCandidates: [], updatedAt: 1400 },
         });
@@ -214,7 +228,9 @@ describe("RowEditor (vía ImportRowsTable)", () => {
 
   it("una mutación pendiente deshabilita el botón (segundo click no hace nada); un 500 muestra error reintentable, no el de conflicto", async () => {
     let patchCalls = 0;
-    let resolvePatch: (() => void) | null = null;
+    // Inicializado a no-op (no a null): TS no puede ordenar la asignación
+    // dentro del executor de la Promise y estrecharía el tipo a null/never.
+    let resolvePatch: () => void = () => {};
     server.use(
       hospitalsHandler,
       http.get("/api/admin/patient-imports/imp-7/rows", () =>
@@ -239,7 +255,7 @@ describe("RowEditor (vía ImportRowsTable)", () => {
     // onClick — no debe generar una segunda llamada al PATCH.
     fireEvent.click(saveButton);
 
-    resolvePatch?.();
+    resolvePatch();
     await waitFor(() => expect(patchCalls).toBe(1));
     expect(await screen.findByText("Fallo interno del servidor.")).toBeInTheDocument();
     expect(screen.queryByText(/modificada por otra persona/)).not.toBeInTheDocument();
