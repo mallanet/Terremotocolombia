@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { HandCoins, MapPinned } from "lucide-react";
+import { HandCoins, HeartHandshake, MapPinned } from "lucide-react";
 import TranslateWidget from "@/components/ui/TranslateWidget";
 import { SiteBrand } from "./HeroSection";
 import { toggleTheme } from "./ThemeProvider";
 import { useMissingStats } from "@/hooks/missing";
+import { trackPsychHelpClicked } from "@/lib/analytics";
 import { SITE_PRODUCT_NAME } from "@/lib/site";
 import {
   MOBILE_BAR_LINKS,
@@ -109,8 +110,40 @@ function NavHeaderActions() {
   return (
     <div className="e-nav__actions">
       <TranslateWidget variant="header" />
+      <PsychNavLink variant="desktop" />
       <DonateNavLink variant="desktop" />
     </div>
+  );
+}
+
+// Botón de ayuda psicológica → portal exclusivo de psicólogos (/psicologia).
+// Los datos de contacto directo (líneas de apoyo) llegan después; por ahora
+// el destino es el portal.
+function PsychNavLink({
+  variant,
+  onNavigate,
+}: {
+  variant: "desktop" | "sheet";
+  onNavigate?: () => void;
+}) {
+  const className =
+    variant === "desktop"
+      ? "e-nav__psych"
+      : "flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-950 transition hover:bg-blue-100";
+
+  return (
+    <Link
+      href="/psicologia"
+      onClick={() => {
+        trackPsychHelpClicked(variant === "desktop" ? "header" : "mobile_sheet");
+        onNavigate?.();
+      }}
+      className={className}
+      aria-label="Ayuda psicológica y portal de psicólogos"
+    >
+      <HeartHandshake aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+      Ayuda psicológica
+    </Link>
   );
 }
 
@@ -406,6 +439,9 @@ export function MobileStickyNav() {
                   </span>
                   Cambiar tema claro/oscuro
                 </button>
+              </li>
+              <li className="e-nav__sheet-section">
+                <PsychNavLink variant="sheet" onNavigate={closeSheet} />
               </li>
               <li className="e-nav__sheet-section">
                 <DonateNavLink variant="sheet" onNavigate={closeSheet} />

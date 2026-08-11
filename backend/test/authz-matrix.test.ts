@@ -68,6 +68,8 @@ const CASES: Case[] = [
   { label: "patient-import apply", method: "post", path: "/api/public/patient-imports/none/apply", cap: "patient:import" },
   // --- Supresión de datos, Ley 1581 (router a mano; deletion:read/edit) ---
   { label: "deletion-requests list", method: "get", path: "/api/public/deletion-requests", cap: "deletion:read" },
+  // --- Portal exclusivo de psicólogos (router a mano; psychology:access) ---
+  { label: "psychology portal", method: "get", path: "/api/public/psychology", cap: "psychology:access" },
   {
     label: "deletion-requests edit",
     method: "patch",

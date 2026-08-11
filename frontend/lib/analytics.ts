@@ -120,6 +120,10 @@ export function trackVolunteerPathClicked(volunteerType: string, source: string)
   });
 }
 
+export function trackPsychHelpClicked(source: string) {
+  trackEvent("psych_help_clicked", { source });
+}
+
 export function trackMapOpened(source: string) {
   trackEvent("map_opened", { source });
 }

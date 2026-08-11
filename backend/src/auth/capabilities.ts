@@ -63,6 +63,14 @@ export const CROSS_CUTTING: { key: string; category: string; description: string
     category: "privacy",
     description: "Resolver/rechazar solicitudes de supresión de datos",
   },
+  // Portal exclusivo de psicólogos (/psicologia): gatea el endpoint
+  // api/public/psychology. El rol "Psicólogos" lo crea el admin desde el
+  // panel con esta capability; las invitaciones van por el flujo normal.
+  {
+    key: "psychology:access",
+    category: "psychology",
+    description: "Acceder al portal exclusivo de psicólogos",
+  },
   { key: "user:invite", category: "auth", description: "Invitar usuarios nuevos" },
   { key: "user:read", category: "auth", description: "Ver usuarios" },
   { key: "user:edit", category: "auth", description: "Editar usuarios (estado, rol)" },

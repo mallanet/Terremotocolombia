@@ -32,6 +32,7 @@ import { apiKeysRouter } from "@/public-api/routers/api-keys.router";
 import { hubCredentialsRouter } from "@/public-api/routers/hub-credentials.router";
 import { hospitalSuppliesRouter } from "@/public-api/routers/hospital-supplies.router";
 import { deletionRequestsRouter } from "@/public-api/routers/deletion-requests.router";
+import { psychologyRouter } from "@/public-api/routers/psychology.router";
 
 /**
  * Registro path → CONFIG del recurso. Fuente de verdad ÚNICA: de aquí salen
@@ -78,4 +79,6 @@ export function mountPublicApi(app: Express): void {
   app.use("/api/public/capabilities", capabilitiesRouter); // role:read (catálogo p/ UI)
   app.use("/api/public/api-keys", apiKeysRouter); // apikey:manage (self-service)
   app.use("/api/public/hub-credentials", hubCredentialsRouter); // mirror:manage (super admin)
+  // Portal de psicólogos (/psicologia): gateado por psychology:access.
+  app.use("/api/public/psychology", psychologyRouter);
 }

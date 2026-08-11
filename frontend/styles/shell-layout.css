@@ -542,6 +542,7 @@
 
 .e-nav__support,
 .e-nav__language,
+.e-nav__psych,
 .e-nav__donate {
 	display: inline-flex;
 	flex-shrink: 0;
@@ -595,6 +596,19 @@
 .e-nav__donate:hover {
 	border-color: var(--brand-blue-dark);
 	background: var(--brand-blue-dark);
+	color: #fff;
+}
+
+/* Ayuda psicológica: outline de marca, hermana discreta del botón Donar. */
+.e-nav__psych {
+	border: 1px solid var(--brand-blue);
+	background: #fff;
+	color: var(--brand-blue-dark);
+}
+
+.e-nav__psych:hover {
+	border-color: var(--brand-blue-dark);
+	background: var(--brand-blue);
 	color: #fff;
 }
 
