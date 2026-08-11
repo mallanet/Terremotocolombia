@@ -33,6 +33,7 @@ import { hubCredentialsRouter } from "@/public-api/routers/hub-credentials.route
 import { hospitalSuppliesRouter } from "@/public-api/routers/hospital-supplies.router";
 import { deletionRequestsRouter } from "@/public-api/routers/deletion-requests.router";
 import { partnerSyncRouter } from "@/public-api/routers/partner-sync.router";
+import { personLinksRouter } from "@/public-api/routers/person-links.router";
 
 /**
  * Registro path → CONFIG del recurso. Fuente de verdad ÚNICA: de aquí salen
@@ -74,6 +75,10 @@ export function mountPublicApi(app: Express): void {
   // Ingesta síncrona de un socio externo (missing:create, sin cola — ver el
   // comment-block del router para por qué no usa worker/sync ni worker/hub).
   app.use("/api/public/partner-sync", partnerSyncRouter);
+  // Family Search (U9): cola de revisión, decisión, propuesta manual,
+  // unmerge, búsqueda de registros y ficha de cluster. person:search/
+  // person:review/person:merge (capabilities.ts).
+  app.use("/api/public/person-links", personLinksRouter);
   // RBAC con verbos irregulares (no CRUD): routers a mano. Cada ruta lleva
   // rateLimit + requireCapability + writeAudit (gates que exige el ESLint).
   app.use("/api/public/users", usersRouter); // user:read/edit/delete (invite→auth)

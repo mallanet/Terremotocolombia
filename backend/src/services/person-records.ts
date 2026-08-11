@@ -298,17 +298,66 @@ export function takeMatcherSweepCalls(): string[][] {
 }
 
 /**
- * TODO-U9: KTD8 exige tres invariantes de cluster (coincidencia de extremos
- * de link confirmado, conectividad por cluster en cadencia lenta, estado sin
- * decisión revertido) que viven en `services/person-links.ts` /
- * `services/person-clusters.ts` — módulos que U9 construye. Este hook es el
- * punto de enganche: el cron ya lo llama en cada corrida; cuando U9 exista,
- * este cuerpo pasa a invocar las comprobaciones reales (con su propia lógica
- * de cadencia — cheap checks cada corrida, la caminata de conectividad en
- * una más lenta).
+ * KTD8 (U9): tres invariantes de cluster + un barrido de PII, enganchados
+ * desde `services/person-links.ts` — import DINÁMICO a propósito, no
+ * estático: person-links.ts importa `enqueueMatcherSweep`/`resolvePrn` de
+ * ESTE archivo a nivel de módulo, así que un `import` estático aquí, en la
+ * dirección contraria, sería un ciclo real (person-records ⇄ person-links)
+ * en el momento de evaluación del módulo. El `await import()` diferido evita
+ * el ciclo por completo — mismo idioma que ya usa `worker.ts` para cargar
+ * handlers bajo demanda.
+ *
+ * Cadencia: (a) coincidencia de extremos de link confirmado y (c) estado sin
+ * decisión son BARATAS (recorren `person_links`, no caminan clusters) y
+ * corren en CADA llamada. (b) la caminata de conectividad por cluster —y el
+ * barrido `scanNotesForPii`, que no es barato tampoco (dos scans con regex
+ * sobre texto libre)— corren en una cadencia MÁS LENTA (1 de cada
+ * `CLUSTER_INVARIANT_SLOW_CADENCE` corridas), con su propio presupuesto de
+ * tiempo. El contador es in-memory por-isolate — "mejor esfuerzo", no una
+ * garantía dura de cadencia (un isolate reciclado la reinicia) — mismo
+ * espíritu que el resto de este archivo (ensurePrn, enqueueMatcherSweep).
+ *
+ * Errores: se atrapan y loguean AQUÍ (no se propagan a `reconcilePersonRecords`,
+ * que sí decide propagar los SUYOS a propósito — ver su docstring). Esta
+ * corrida es reparación de mejor esfuerzo sobre trabajo YA completado (el
+ * backfill de PRNs de esta misma invocación ya terminó cuando se llega
+ * aquí); que un invariante falle no debería re-encolar todo el backfill vía
+ * el reintento de cron de Cloudflare. La red de seguridad real es que la
+ * PRÓXIMA corrida del cron lo vuelve a intentar (los reparos son
+ * idempotentes).
  */
+let clusterInvariantRunCount = 0;
+const CLUSTER_INVARIANT_SLOW_CADENCE = 10;
+const CLUSTER_INVARIANT_CONNECTIVITY_BUDGET_MS = 5_000;
+
 export async function runClusterInvariantChecks(): Promise<void> {
-  // no-op (TODO-U9): ver KTD8 en el plan.
+  try {
+    const { repairConfirmedLinkEndpoints, repairUndecidedStatuses, repairClusterConnectivity, scanNotesForPii } =
+      await import("@/services/person-links");
+
+    await repairConfirmedLinkEndpoints();
+    await repairUndecidedStatuses();
+
+    clusterInvariantRunCount++;
+    const runSlowChecks = clusterInvariantRunCount % CLUSTER_INVARIANT_SLOW_CADENCE === 1;
+    if (runSlowChecks) {
+      await repairClusterConnectivity({ timeBudgetMs: CLUSTER_INVARIANT_CONNECTIVITY_BUDGET_MS });
+      // Solo detecta — nunca repara sola (una nota/metadata con PII es una
+      // decisión de revisión humana, no algo que este cron pueda "arreglar").
+      // Se loguean ÚNICAMENTE ids/conteos (el propio scan nunca trae el texto
+      // ofensor a memoria de la app — ver su docstring en person-links.ts).
+      const pii = await scanNotesForPii();
+      if (pii.decisionOffenderIds.length > 0 || pii.auditOffenderIds.length > 0) {
+        console.error(
+          `[person-records] scanNotesForPii: posible PII en texto libre — ` +
+            `${pii.decisionOffenderIds.length} person_link_decisions.note (ids: ${pii.decisionOffenderIds.join(", ")}), ` +
+            `${pii.auditOffenderIds.length} audit_log.metadata (ids: ${pii.auditOffenderIds.join(", ")}). Revisión humana requerida.`,
+        );
+      }
+    }
+  } catch (err) {
+    console.error("[person-records] runClusterInvariantChecks falló (mejor esfuerzo, se reintenta en la próxima corrida):", err);
+  }
 }
 
 /** Resultado de una corrida de `reconcilePersonRecords`. */
