@@ -1,0 +1,84 @@
+name: Monitor de deriva de esquema
+
+# Red de seguridad PERMANENTE contra la deriva entre el codigo desplegado y el
+# esquema real de la base.
+#
+# El gate de deploy-backend.yml solo dispara cuando alguien despliega. Esto cubre
+# lo demas: una migracion aplicada a medias, un ALTER a mano, un rollback del
+# Worker a una version que espera otro esquema, o simplemente una migracion que
+# se quedo pendiente y nadie retomo. Ninguno de esos casos pasa por un deploy.
+#
+# Por que un cron de Actions y no un Cron Trigger de Cloudflare: aqui la ALERTA
+# es gratis. GitHub ya envia correo al mantenedor cuando un workflow programado
+# falla, asi que no hay que decidir ni cablear un destino de notificaciones, ni
+# meter otro secreto. Y no depende de que nadie mire los logs del Worker.
+#
+# CADENCIA: cada hora. Es un compromiso deliberado — el gate de deploy ya cubre
+# el caso frecuente, asi que esto solo persigue la deriva fuera de banda, y cada
+# ejecucion gasta minutos de Actions (repo privado). Si hace falta reaccionar mas
+# rapido durante una crisis, baja el cron a `*/15 * * * *`; si molesta el gasto,
+# subelo a cada 6h. El valor no cambia de forma, solo la latencia de deteccion.
+on:
+  schedule:
+    - cron: "17 * * * *" # minuto 17: fuera de la avalancha de crons en punto
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monitor-schema-drift
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    name: deriva (${{ matrix.entorno }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      # fail-fast: false — si produccion deriva, igual quiero saber si staging
+      # tambien. Un job que cancela al otro esconde la mitad del problema.
+      fail-fast: false
+      matrix:
+        include:
+          # Cada config de Doppler tiene su PROPIO token de servicio; no hay uno
+          # que llegue a los dos, asi que el nombre del secreto va en la matriz
+          # y se resuelve con secrets[...].
+          - entorno: produccion
+            token_secret: DOPPLER_TOKEN
+          - entorno: staging
+            token_secret: DOPPLER_TOKEN_STAGING
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - uses: dopplerhq/cli-action@v3
+
+      - name: Instalar dependencias
+        working-directory: backend
+        run: npm ci
+
+      # Solo lee information_schema y drizzle.__drizzle_migrations. No escribe
+      # nada y NO aplica migraciones: el gate humano sigue intacto.
+      - name: Comprobar deriva
+        working-directory: backend
+        env:
+          DOPPLER_TOKEN: ${{ secrets[matrix.token_secret] }}
+        run: doppler run --command 'npm run check:schema-drift'
+
+      - name: Que significa si este job falla
+        if: failure()
+        run: |
+          echo "::error title=Deriva de esquema en ${{ matrix.entorno }}::El codigo desplegado espera columnas que la base no tiene. Los endpoints que las toquen estan devolviendo 5xx AHORA MISMO."
+          echo "Arriba esta la lista exacta de columnas."
+          echo "Arreglo: aplicar las migraciones pendientes (scripts/migrate-direct.sh, GATEADO POR UN HUMANO)."
+          echo "Si no hay migraciones pendientes, la base se toco fuera de las migraciones."

@@ -126,3 +126,28 @@ describe("no-blind-catch", () => {
     });
   });
 });
+
+describe("no-interactive-transaction", () => {
+  it("prohibe db.transaction en src/**; worker/** queda fuera", () => {
+    const SERVICE = "/repo/backend/src/services/roles.ts";
+    ruleTester.run("no-interactive-transaction", plugin.rules["no-interactive-transaction"], {
+      valid: [
+        // El idioma correcto en Workers: sentencia unica + ON CONFLICT.
+        { code: `await db.insert(t).values(v).onConflictDoNothing()`, filename: SERVICE },
+        // worker/** corre bajo Node: ahi las transacciones SI valen.
+        {
+          code: `await db.transaction(async (tx) => { await tx.insert(t) })`,
+          filename: "/repo/backend/worker/backfill.ts",
+        },
+      ],
+      invalid: [
+        {
+          // Compila, pasa los tests locales, y revienta solo en produccion.
+          code: `await db.transaction(async (tx) => { await tx.insert(t) })`,
+          filename: SERVICE,
+          errors: [{ messageId: "forbidden" }],
+        },
+      ],
+    });
+  });
+});

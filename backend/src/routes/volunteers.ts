@@ -15,6 +15,7 @@ import { z } from "zod";
 import { asyncHandler, rateLimit, requireHuman, validate } from "@/middleware";
 import { hashIp } from "@/lib/client-ip";
 import { logDbFailure } from "@/lib/db-error";
+import { captureFailedSubmission } from "@/lib/failed-submission";
 import { serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/volunteers";
 
@@ -161,6 +162,9 @@ volunteersRouter.post(
       // —una migracion pendiente, p.ej.— es indistinguible de un parpadeo
       // de red y se pierden registros de voluntarios en silencio.
       logDbFailure("volunteers.create", err);
+      // Red de durabilidad: el 503 sigue igual, pero el envio de la
+      // persona no se tira. Ver lib/failed-submission (nunca lanza).
+      await captureFailedSubmission("volunteers", body, err);
       throw serviceUnavailable("No se pudo guardar el registro.");
     }
   }),

@@ -478,3 +478,26 @@ Antes de abrir o actualizar un PR:
 - Código no trivial sin test = no enviado. Bug fix = test de regresión que
   falla antes del fix y pasa después.
 - Antes de dar por terminado: lint clean, typecheck clean, tests verdes.
+
+#### Red de durabilidad: `failed_submissions`
+
+Los cinco formularios públicos (voluntarios, desaparecidos, reportes, contacto,
+supresión de datos) capturan el envío en `failed_submissions` cuando la
+escritura principal falla, en vez de perderlo. `lib/failed-submission.ts`
+**nunca lanza**: corre dentro del `catch` del route y el usuario debe seguir
+recibiendo su 5xx.
+
+Qué cubre y qué no, sin adornos: cubre que **una tabla** esté rota (deriva de
+esquema, constraint, tipo). **No** cubre que la base entera esté caída — ahí
+también falla la captura, y el log `[failed-submission] ... SE PIERDE` es la
+única señal.
+
+Drenaje: `SELECT form, count(*) FROM failed_submissions WHERE replayed_at IS
+NULL GROUP BY form`. Reinyectar es manual a día de hoy: arregla la causa, mete
+las filas en su tabla y sella `replayed_at`. **Un buzón que nadie vacía es
+pérdida de datos con más pasos** — revísalo después de cada incidente de
+escritura.
+
+`payload` contiene datos personales a propósito (es el dato que no queremos
+perder). PENDIENTE: el flujo de supresión de la Ley 1581
+(`routes/data-deletion.ts`) todavía NO mira esta tabla.

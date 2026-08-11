@@ -61,6 +61,19 @@ export default tseslint.config(
     },
   },
   {
+    // Invariante de RUNTIME, no de arquitectura de rutas: aplica a TODO src/**,
+    // porque cualquier cosa alcanzable desde el Worker puede caer en ella.
+    // `db.transaction(...)` compila, pasa los tests locales (node-postgres sí
+    // las soporta) y falla SOLO en producción con el driver HTTP de Neon — así
+    // estuvo roto el create/edit de roles del panel. worker/** queda fuera a
+    // propósito: corre bajo Node, donde las transacciones son correctas.
+    files: ["src/**/*.ts"],
+    plugins: { local },
+    rules: {
+      "local/no-interactive-transaction": "error",
+    },
+  },
+  {
     // Los tests pueden ser más laxos.
     files: ["test/**/*.ts"],
     rules: {

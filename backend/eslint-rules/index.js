@@ -11,6 +11,11 @@
  *   no-turnstile-in-public-api       — la superficie máquina NO lleva requireHuman.
  *   user-facing-mutation-needs-guard — mutaciones de src/routes/** llevan
  *                                      requireHuman O un gate (capability/admin/cron).
+ *   no-blind-catch                   — `catch {}` sin binding tira el error y deja el
+ *                                      5xx sin diagnostico (caida de voluntarios, 2026-08-11).
+ *   no-interactive-transaction       — db.transaction(...) en src/** revienta SOLO en
+ *                                      produccion (driver HTTP de Neon). Aplica a TODO
+ *                                      src/**, no solo a rutas.
  *
  * Modelo de detección: las rutas se montan con `router.<verbo>("path", ...mw,
  * handler)`. Inspeccionamos esa CallExpression y miramos los nombres de los
@@ -220,6 +225,43 @@ const noBlindCatch = {
   },
 };
 
+const noInteractiveTransaction = {
+  meta: {
+    type: "problem",
+    docs: {
+      description:
+        "`db.transaction(async tx => ...)` NO existe en el driver HTTP de Neon. En src/** " +
+        "(codigo alcanzable desde el Worker) compila, pasa los tests locales con " +
+        "node-postgres y revienta SOLO en produccion.",
+    },
+    schema: [],
+    messages: {
+      forbidden:
+        "Transaccion interactiva en codigo del Worker: el driver HTTP de Neon no la soporta y " +
+        "esto solo falla en PRODUCCION. Usa el idioma idempotente del repo (claim condicional + " +
+        "id determinista + ON CONFLICT). Ver AGENTS.md.",
+    },
+  },
+  create(context) {
+    const file = context.filename || context.getFilename();
+    // Solo src/**: worker/** (BullMQ, migrate, backfills) corre bajo Node, donde
+    // las transacciones interactivas SI funcionan y son correctas.
+    if (!file.includes("/src/")) return {};
+    return {
+      CallExpression(node) {
+        const cal = node.callee;
+        if (
+          cal.type === "MemberExpression" &&
+          cal.property.type === "Identifier" &&
+          cal.property.name === "transaction"
+        ) {
+          context.report({ node, messageId: "forbidden" });
+        }
+      },
+    };
+  },
+};
+
 export default {
   rules: {
     "require-rate-limit": requireRateLimit,
@@ -227,5 +269,6 @@ export default {
     "no-turnstile-in-public-api": noTurnstileInPublicApi,
     "user-facing-mutation-needs-guard": userFacingMutationNeedsGuard,
     "no-blind-catch": noBlindCatch,
+    "no-interactive-transaction": noInteractiveTransaction,
   },
 };

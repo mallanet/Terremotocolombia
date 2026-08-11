@@ -20,6 +20,7 @@ import { asyncHandler, rateLimit, requireAdmin, requireHuman, setPublicPhotoHead
 import { jsonWithEtag } from "@/lib/http";
 import { hashIp } from "@/lib/client-ip";
 import { logDbFailure } from "@/lib/db-error";
+import { captureFailedSubmission } from "@/lib/failed-submission";
 import { badRequest, HttpError, notFound, payloadTooLarge, serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/reports";
 import { publishNeedAtLocation } from "@/modules/needs";
@@ -134,6 +135,9 @@ reportsRouter.post(
       if (body.type === "supplies") mirrorSuppliesReportToNeed(body);
     } catch (err) {
       logDbFailure("reports.create", err);
+      // Red de durabilidad: el 503 sigue igual, pero el envio de la
+      // persona no se tira. Ver lib/failed-submission (nunca lanza).
+      await captureFailedSubmission("reports", body, err);
       // Falla visible: nunca confirmamos un reporte que no se guardó en la base.
       throw serviceUnavailable(
         "No se pudo guardar el reporte. Revisa tu conexión e inténtalo de nuevo.",

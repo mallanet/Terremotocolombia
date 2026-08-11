@@ -60,6 +60,18 @@ jobs:
         working-directory: backend
         run: npm run typecheck
 
+      # Integridad del journal de migraciones. No toca la base ni necesita
+      # secretos, asi que puede gatear CADA PR.
+      #
+      # Dos ramas que generan migracion en paralelo producen dos `0003_*.sql` y
+      # dos entradas con idx 3; git resuelve el JSON como texto y el journal
+      # queda roto. Peor: si comparten el `when`, aplicar una marca la otra como
+      # aplicada y esa migracion NO CORRE NUNCA, en silencio. Ya hubo una
+      # colision real entre main y feat/family-search-identity (2026-08-11).
+      - name: Journal de migraciones
+        working-directory: backend
+        run: npm run check:migration-journal
+
       - name: Build
         working-directory: backend
         run: npm run build
