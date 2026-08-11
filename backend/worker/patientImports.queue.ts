@@ -14,6 +14,8 @@ interface PatientImportJobData {
 
 	contentType?: string;
 	fileBase64?: string;
+	/** Hospital destino del lote: se estampa en todas las filas al stagear. */
+	defaultHospitalId?: string;
 }
 
 const processor: Processor = async (job) => {
@@ -38,6 +40,7 @@ const processor: Processor = async (job) => {
 							data.importId,
 							data.contentType,
 							data.fileBase64,
+							data.defaultHospitalId,
 						)
 					: await processImport(data.importId);
 			return { mode: "process", importId: data.importId, counts: r.counts };

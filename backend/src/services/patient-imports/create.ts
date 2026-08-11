@@ -5,6 +5,7 @@ import {
 	hashIdempotencyKey,
 	isUniqueViolation,
 	loadHeader,
+	stampDefaultHospital,
 	type StagingRow,
 	toCreateImportResult,
 	toRowDTO,
@@ -69,10 +70,12 @@ export async function createImport(
 			updatedAt: now,
 		});
 
+		// Lote con hospital destino: el id elegido pisa el de cada fila.
+		const rows = stampDefaultHospital(input.rows, input.defaultHospitalId);
 		const CHUNK = 100;
-		for (let start = 0; start < input.rows.length; start += CHUNK) {
+		for (let start = 0; start < rows.length; start += CHUNK) {
 			await db.insert(patientImportRows).values(
-				input.rows.slice(start, start + CHUNK).map((raw, offset) => ({
+				rows.slice(start, start + CHUNK).map((raw, offset) => ({
 					id: randomUUID(),
 					importId: id,
 					rowIndex: start + offset,

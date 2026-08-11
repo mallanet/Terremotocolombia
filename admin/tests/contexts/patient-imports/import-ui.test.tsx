@@ -28,10 +28,20 @@ function withSession(ui: ReactNode) {
   );
 }
 
+// El formulario monta el picker de hospital destino (GET /api/models/hospitals):
+// todo test que renderice PatientImportsAdmin necesita este handler.
+const hospitalsHandler = http.get("/api/models/hospitals", () =>
+  HttpResponse.json([
+    { id: "h1", name: "Hosp Demo" },
+    { id: "h2", name: "Hosp Beta" },
+  ]),
+);
+
 describe("PatientImportsAdmin — archivo", () => {
-  it("sube un CSV como base64 con el contentType correcto", async () => {
+  it("sube un CSV como base64 con el hospital destino estampado en el body", async () => {
     let received: Record<string, unknown> | null = null;
     server.use(
+      hospitalsHandler,
       http.post("/api/admin/patient-imports", async ({ request }) => {
         received = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(
@@ -47,8 +57,12 @@ describe("PatientImportsAdmin — archivo", () => {
     );
     withSession(<PatientImportsAdmin />);
 
+    const select = await screen.findByLabelText(/Hospital destino/);
+    await screen.findByRole("option", { name: "Hosp Demo" });
+    fireEvent.change(select, { target: { value: "h1" } });
+
     const fileInput = screen.getByLabelText(/Archivo \(CSV o XLSX/);
-    const csv = new File(["name,hospital\nDemo Uno,Hosp Demo\n"], "lote.csv", {
+    const csv = new File(["name\nDemo Uno\n"], "lote.csv", {
       type: "text/csv",
     });
     fireEvent.change(fileInput, { target: { files: [csv] } });
@@ -59,10 +73,22 @@ describe("PatientImportsAdmin — archivo", () => {
     expect(typeof received!.fileBase64).toBe("string");
     expect((received!.fileBase64 as string).length).toBeGreaterThan(0);
     expect(received!.rows).toBeUndefined();
+    expect(received!.defaultHospitalId).toBe("h1");
+  });
+
+  it("sin hospital destino el submit queda bloqueado", async () => {
+    server.use(hospitalsHandler);
+    withSession(<PatientImportsAdmin />);
+
+    await screen.findByLabelText(/Hospital destino/);
+    // Sin hospital elegido, el botón está deshabilitado: no puede salir un
+    // lote sin destino (el backend igualmente lo estampa por lote, no por fila).
+    expect(screen.getByRole("button", { name: "Crear lote" })).toBeDisabled();
   });
 
   it("muestra el botón de aplicar cuando el lote está processed", async () => {
     server.use(
+      hospitalsHandler,
       http.get("/api/admin/patient-imports/imp-2", () =>
         HttpResponse.json({
           import: {

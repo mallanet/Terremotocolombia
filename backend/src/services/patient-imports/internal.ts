@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { env } from "@/config/env";
 import { getDb, schema } from "@/db";
-import type { DedupCandidate } from "@/services/patient-import-logic";
+import type {
+	DedupCandidate,
+	RawPatientRow,
+} from "@/services/patient-import-logic";
 import { hashDocumentDigits } from "@/services/patient-import-logic";
 import {
 	type CreateImportResult,
@@ -60,6 +63,21 @@ export function isFailedStage(
 		value === PATIENT_IMPORT_FAILED_STAGE.PROCESS ||
 		value === PATIENT_IMPORT_FAILED_STAGE.APPLY
 	);
+}
+
+/**
+ * Estampa el hospital destino del lote en cada fila cruda. PISA el
+ * `hospitalId` de la fila a propósito (semántica "un archivo = un hospital");
+ * el `hospital` (texto) se conserva solo como referencia — el process
+ * prioriza el id cuando existe en el catálogo.
+ */
+export function stampDefaultHospital(
+	rows: RawPatientRow[],
+	defaultHospitalId: string | undefined,
+): RawPatientRow[] {
+	const id = defaultHospitalId?.trim();
+	if (!id) return rows;
+	return rows.map((raw) => ({ ...raw, hospitalId: id }));
 }
 
 export function hashIdempotencyKey(key: string | undefined): string | null {
