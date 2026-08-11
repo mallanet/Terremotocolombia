@@ -15,6 +15,13 @@
       "when": 1786401964317,
       "tag": "0001_premium_calypso",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786465755019,
+      "tag": "0002_premium_loki",
+      "breakpoints": true
     }
   ]
 }

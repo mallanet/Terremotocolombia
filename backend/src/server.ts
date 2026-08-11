@@ -24,6 +24,7 @@ import { acopioRouter } from "@/modules/acopio";
 import { needsRouter } from "@/modules/needs";
 import { psychologyHelpRouter } from "@/routes/psychology-help";
 import { contactRouter } from "@/routes/contact";
+import { volunteersRouter } from "@/routes/volunteers";
 import { dataDeletionRouter } from "@/routes/data-deletion";
 import { hubRouter } from "@/routes/hub";
 import { syncRouter } from "@/routes/sync";
@@ -189,6 +190,7 @@ if (env.ENABLE_RESPONSEGRID) {
 }
 app.use("/api/stats/psychology-help", psychologyHelpRouter);
 app.use("/api/contact", contactRouter);
+app.use("/api/volunteers", volunteersRouter);
 app.use("/api/data-deletion", dataDeletionRouter);
 app.use("/api/hub", hubRouter);
 app.use("/api/sync", syncRouter);

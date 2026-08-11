@@ -21,6 +21,7 @@ import { patientsResource } from "@/public-api/resources/patients.resource";
 import { donationsResource } from "@/public-api/resources/donations.resource";
 import { chatResource } from "@/public-api/resources/chat.resource";
 import { contactResource } from "@/public-api/resources/contact.resource";
+import { volunteersResource } from "@/public-api/resources/volunteers.resource";
 import { rolesResource } from "@/public-api/resources/roles.resource";
 // Routers RBAC escritos a mano (verbos irregulares que no encajan en la fábrica).
 import { usersRouter } from "@/public-api/routers/users.router";
@@ -49,6 +50,7 @@ export const PUBLIC_RESOURCES: Record<string, AnyResource> = {
   donations: donationsResource as AnyResource,
   chat: chatResource as AnyResource,
   contact: contactResource as AnyResource,
+  volunteers: volunteersResource as AnyResource,
   // RBAC: roles encaja en el cuarteto CRUD (read/create/edit/delete) → fábrica.
   roles: rolesResource as AnyResource,
 };

@@ -243,6 +243,31 @@ export const MODELS = [
     editFields: [{ key: "read", label: "Leído (true)", required: true }],
   },
   {
+    path: "volunteers",
+    label: "Voluntarios",
+    readCapability: "volunteer:read",
+    capabilityRoot: "volunteer",
+    columns: [
+      { key: "id", label: "ID" },
+      { key: "name", label: "Nombre" },
+      { key: "phone", label: "Teléfono" },
+      { key: "zone", label: "Zona" },
+      { key: "status", label: "Estado" },
+    ],
+    // Sin createFields: los voluntarios ENTRAN por el formulario público
+    // (/voluntario). Aquí solo se gestiona el estado y las notas internas.
+    // Sin canDelete: bandeja humanitaria, mismo criterio que
+    // contact.resource.ts — no se borran registros por este endpoint.
+    editFields: [
+      {
+        key: "status",
+        label: "Estado (pending | contacted | active | declined)",
+        required: true,
+      },
+      { key: "notes", label: "Notas internas" },
+    ],
+  },
+  {
     path: "deletion-requests",
     label: "Supresión de datos",
     readCapability: "deletion:read",

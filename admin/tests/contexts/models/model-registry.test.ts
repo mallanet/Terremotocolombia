@@ -14,6 +14,7 @@ describe("model-registry", () => {
         "missing",
         "patients",
         "reports",
+        "volunteers",
       ].sort(),
     );
   });
@@ -48,6 +49,7 @@ function capabilityRoot(path: string): string {
     chat: "chat",
     contact: "contact",
     "deletion-requests": "deletion",
+    volunteers: "volunteer",
   };
   return map[path] ?? path;
 }
