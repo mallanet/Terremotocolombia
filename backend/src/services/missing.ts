@@ -20,6 +20,7 @@ import {
 } from "@/lib/r2";
 import { isAllowedImageDataUrl, parseImageDataUri } from "@/lib/image";
 import { invalidate } from "@/lib/cache";
+import { ensurePrn } from "@/services/person-records";
 
 const { missingPersons, missingPersonSuppressions } = schema;
 
@@ -86,6 +87,9 @@ export interface CreateInput {
   photo?: string | null;
   /** Reporte de persona desaparecida (activa) o encontrada (localizada). */
   reportType?: MissingReportType;
+  /** hashIp(req) de quien crea el reporte. Único rastro de responsabilidad
+   *  de un alta anónima (contact_messages / donations siguen el mismo patrón). */
+  ipHash?: string | null;
 }
 
 export const MAX_NAME = 120;
@@ -377,12 +381,19 @@ export async function addMissing(input: CreateInput): Promise<MissingDTO> {
     contact,
     photo: stored,
     photoMigratedAt: migratedAt,
+    ipHash: input.ipHash ?? null,
     createdAt,
     status,
     resolutionNote,
     resolvedAt,
   });
   invalidate();
+
+  // Best-effort (U7/R8): nunca debe tumbar esta creación ya confirmada —
+  // ensurePrn loguea y devuelve null ante cualquier fallo, nunca lanza. Si
+  // esto queda sin estampar (p.ej. una caída a mitad), el cron de
+  // reconciliación (KTD8) lo recoge en su próxima corrida.
+  await ensurePrn("missing_report", id);
 
   return {
     id,

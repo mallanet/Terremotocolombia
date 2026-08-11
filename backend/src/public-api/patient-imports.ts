@@ -1,4 +1,5 @@
 import { json, Router } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { z } from "zod";
 import { writeAudit } from "@/auth/audit";
 import {
@@ -6,6 +7,7 @@ import {
 	notFound,
 	notImplemented,
 	serviceUnavailable,
+	unsupportedMediaType,
 } from "@/lib/errors";
 import { enqueuePatientImport } from "@/lib/queues";
 import { asyncHandler, rateLimit, validate } from "@/middleware";
@@ -13,9 +15,9 @@ import { requireCapability } from "@/middleware/auth";
 import { getHospital } from "@/services/hospitals";
 import { getMinimaxOcrConfig } from "@/services/ocr/minimax-config";
 import {
-	CONTENT_TYPE,
 	FILE_CONTENT_TYPES,
 	isOcrPendingContentType,
+	isSupportedImportContentType,
 	MAX_IMPORT_ROWS,
 } from "@/services/patient-import-parse";
 import * as service from "@/services/patient-imports";
@@ -44,14 +46,37 @@ const rowSchema = z
 
 const MAX_FILE_BASE64_LEN = 4_000_000;
 
-const SUPPORTED_CONTENT_TYPES: ReadonlySet<string> = new Set([
-	CONTENT_TYPE.JSON,
-	CONTENT_TYPE.CSV,
-	CONTENT_TYPE.XLSX,
-]);
-
 function isImageContentType(contentType: string | undefined): boolean {
 	return (contentType?.trim().toLowerCase() ?? "").startsWith("image/");
+}
+
+const UNSUPPORTED_CONTENT_TYPE_MESSAGE =
+	"Formato no soportado. Envía JSON, CSV, XLSX o imágenes (JPG/PNG); si tienes un PDF, " +
+	"fotografía o exporta sus páginas como imagen.";
+
+/**
+ * Rechaza content-types sin ruta de procesamiento (p.ej. application/pdf)
+ * ANTES del zod validator, con 415 en vez de dejarlos "pasar" la validación
+ * de forma y morir más abajo con 501 (la contradicción que tenía PDF: el
+ * validator lo aceptaba como OCR-pendiente, pero el router jamás implementó
+ * rasterizado de PDF). `isSupportedImportContentType` es la única fuente de
+ * verdad de qué se acepta; este middleware es su único punto de aplicación.
+ */
+function rejectUnsupportedContentType(
+	req: Request,
+	_res: Response,
+	next: NextFunction,
+): void {
+	const contentType = (req.body as { contentType?: unknown } | undefined)
+		?.contentType;
+	if (
+		typeof contentType === "string" &&
+		!isSupportedImportContentType(contentType)
+	) {
+		next(unsupportedMediaType(UNSUPPORTED_CONTENT_TYPE_MESSAGE));
+		return;
+	}
+	next();
 }
 
 const createSchema = z
@@ -66,21 +91,10 @@ const createSchema = z
 		// nombres que no matchean el catálogo — queda válido en un paso.
 		defaultHospitalId: z.string().trim().min(1).max(120).optional(),
 
-		contentType: z
-			.string()
-			.trim()
-			.max(120)
-			.optional()
-			.refine(
-				(v) =>
-					v === undefined ||
-					SUPPORTED_CONTENT_TYPES.has(v) ||
-					isOcrPendingContentType(v),
-				{
-					message:
-						'contentType admitido: "application/json", "text/csv" o XLSX.',
-				},
-			),
+		// La aceptación de contentType (JSON/CSV/XLSX/image) se aplica ANTES de
+		// este validator, en `rejectUnsupportedContentType` (415). Aquí solo se
+		// acota forma/longitud para que zod no filtre basura arbitraria.
+		contentType: z.string().trim().max(120).optional(),
 
 		rows: z
 			.array(rowSchema)
@@ -175,6 +189,45 @@ const rowsQuery = z.object({
 	offset: z.coerce.number().int().min(0).optional(),
 });
 
+const rowParams = z.object({
+	id: z.string().trim().min(1, "Falta el id del lote."),
+	rowId: z.string().trim().min(1, "Falta el id de la fila."),
+});
+
+// Whitelist de campos editables de una fila en revisión (U2): nombre, edad,
+// condición/estado clínico y hospital (texto libre o id resuelto del
+// catálogo). Documento/notas/contacto NO son editables aquí — fuera de
+// alcance de la resolución de revisión OCR.
+const editRowBodySchema = z
+	.object({
+		name: z.string().trim().min(1).max(200).optional(),
+		age: z
+			.union([z.number(), z.string().max(10)])
+			.nullable()
+			.optional(),
+		condition: z.string().trim().max(60).optional(),
+		status: z.string().trim().max(60).optional(),
+		sourceHospital: z.string().trim().max(200).optional(),
+		hospitalId: z.string().trim().min(1).max(120).optional(),
+		// updated_at de la fila tal como la vio el cliente (concurrencia
+		// optimista real: sin esto, dos revisores con la fila abierta se pisan).
+		baselineUpdatedAt: z.number().int().positive().optional(),
+	})
+	.refine(
+		(o) => Object.keys(o).filter((k) => k !== "baselineUpdatedAt").length > 0,
+		"Envía al menos un campo a editar.",
+	);
+
+const dedupDecisionSchema = z
+	.object({
+		accept: z.boolean(),
+		patientId: z.string().trim().min(1).max(120).optional(),
+	})
+	.refine((o) => !o.accept || Boolean(o.patientId), {
+		message: "Falta patientId para aceptar el candidato.",
+		path: ["patientId"],
+	});
+
 /**
  * @swagger
  * /api/public/patient-imports:
@@ -185,6 +238,7 @@ const rowsQuery = z.object({
  *     responses:
  *       202: { description: Lote encolado }
  *       400: { description: Payload inválido }
+ *       415: { description: Content-type no soportado (p.ej. application/pdf) }
  *       501: { description: OCR no habilitado }
  */
 patientImportsRouter.post(
@@ -192,6 +246,7 @@ patientImportsRouter.post(
 	rateLimit({ scope: "public:patient-import:create", limit: 30 }),
 	requireCapability("patient:import"),
 	jsonLargeBatch,
+	rejectUnsupportedContentType,
 	validate({ body: createSchema }),
 	asyncHandler(async (req, res) => {
 		const parsedHeaders = idempotencyKeyHeader.safeParse(req.headers);
@@ -203,12 +258,14 @@ patientImportsRouter.post(
 			parsed.contentType !== undefined &&
 			isOcrPendingContentType(parsed.contentType)
 		) {
+			// isOcrPendingContentType ya solo reconoce image/*: `rejectUnsupportedContentType`
+			// rechazó cualquier otro content-type (PDF incluido) más arriba con 415, así
+			// que llegar aquí implica isImage === true. No hay rama "PDF sin OCR" que cubrir.
 			const ocrConfig = getMinimaxOcrConfig();
-			const isImage = isImageContentType(parsed.contentType);
-			if (!ocrConfig || !isImage) {
+			if (!ocrConfig) {
 				throw notImplemented(
-					"Importación por OCR/ICR (imagen o PDF) no está habilitada en este servidor. " +
-						"El reconocimiento de imágenes/PDF y de texto manuscrito requiere revisión humana. " +
+					"Importación por OCR/ICR (imagen) no está habilitada en este servidor. " +
+						"El reconocimiento de imágenes y de texto manuscrito requiere revisión humana. " +
 						"Por ahora envía datos tabulares: JSON (rows) o un archivo CSV/XLSX (fileBase64).",
 				);
 			}
@@ -458,5 +515,142 @@ patientImportsRouter.post(
 			metadata: { valid: summary.counts.valid },
 		});
 		res.status(202).json({ jobId });
+	}),
+);
+
+/**
+ * @swagger
+ * /api/public/patient-imports/{id}/rows/{rowId}:
+ *   patch:
+ *     summary: Editar una fila en revisión (patient:import)
+ *     tags: [Public:PatientImports]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { name: id, in: path, required: true, schema: { type: string } }
+ *       - { name: rowId, in: path, required: true, schema: { type: string } }
+ *     responses:
+ *       200: { description: Fila actualizada, re-validada y re-clasificada }
+ *       400: { description: Payload inválido o hospitalId inexistente }
+ *       404: { description: Lote o fila no encontrados }
+ *       409: { description: Fila en estado terminal o edición concurrente (baseline obsoleta) }
+ */
+patientImportsRouter.patch(
+	"/:id/rows/:rowId",
+	rateLimit({ scope: "public:patient-import:row-edit", limit: 60 }),
+	requireCapability("patient:import"),
+	validate({ params: rowParams, body: editRowBodySchema }),
+	asyncHandler(async (req, res) => {
+		const { id, rowId } = req.params as z.infer<typeof rowParams>;
+		const edits = req.body as z.infer<typeof editRowBodySchema>;
+		const row = await service.editImportRow(id, rowId, edits, req.user!.id);
+		await writeAudit(req, {
+			action: "patient-import.row.edit",
+			targetType: "patient-import-row",
+			targetId: rowId,
+			metadata: { importId: id, fields: Object.keys(edits).filter((k) => k !== "baselineUpdatedAt") },
+		});
+		res.json({ row });
+	}),
+);
+
+/**
+ * @swagger
+ * /api/public/patient-imports/{id}/rows/{rowId}/confirm:
+ *   post:
+ *     summary: Confirmar una fila needs_review sin errores (patient:import)
+ *     tags: [Public:PatientImports]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { name: id, in: path, required: true, schema: { type: string } }
+ *       - { name: rowId, in: path, required: true, schema: { type: string } }
+ *     responses:
+ *       200: { description: Fila confirmada (valid) }
+ *       400: { description: Quedan errores de validación }
+ *       404: { description: Lote o fila no encontrados }
+ *       409: { description: Fila en estado no confirmable }
+ */
+patientImportsRouter.post(
+	"/:id/rows/:rowId/confirm",
+	rateLimit({ scope: "public:patient-import:row-confirm", limit: 60 }),
+	requireCapability("patient:import"),
+	validate({ params: rowParams }),
+	asyncHandler(async (req, res) => {
+		const { id, rowId } = req.params as z.infer<typeof rowParams>;
+		const row = await service.confirmImportRow(id, rowId);
+		await writeAudit(req, {
+			action: "patient-import.row.confirm",
+			targetType: "patient-import-row",
+			targetId: rowId,
+			metadata: { importId: id },
+		});
+		res.json({ row });
+	}),
+);
+
+/**
+ * @swagger
+ * /api/public/patient-imports/{id}/rows/{rowId}/reject:
+ *   post:
+ *     summary: Rechazar una fila (needs_review|valid → invalid, terminal) (patient:import)
+ *     tags: [Public:PatientImports]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { name: id, in: path, required: true, schema: { type: string } }
+ *       - { name: rowId, in: path, required: true, schema: { type: string } }
+ *     responses:
+ *       200: { description: Fila rechazada (invalid) }
+ *       404: { description: Lote o fila no encontrados }
+ *       409: { description: Fila en estado no rechazable }
+ */
+patientImportsRouter.post(
+	"/:id/rows/:rowId/reject",
+	rateLimit({ scope: "public:patient-import:row-reject", limit: 60 }),
+	requireCapability("patient:import"),
+	validate({ params: rowParams }),
+	asyncHandler(async (req, res) => {
+		const { id, rowId } = req.params as z.infer<typeof rowParams>;
+		const row = await service.rejectImportRow(id, rowId);
+		await writeAudit(req, {
+			action: "patient-import.row.reject",
+			targetType: "patient-import-row",
+			targetId: rowId,
+			metadata: { importId: id },
+		});
+		res.json({ row });
+	}),
+);
+
+/**
+ * @swagger
+ * /api/public/patient-imports/{id}/rows/{rowId}/dedup:
+ *   post:
+ *     summary: Decidir un candidato de deduplicación (patient:import)
+ *     tags: [Public:PatientImports]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { name: id, in: path, required: true, schema: { type: string } }
+ *       - { name: rowId, in: path, required: true, schema: { type: string } }
+ *     responses:
+ *       200: { description: Decisión aplicada (valid con candidato aceptado, o re-clasificada) }
+ *       400: { description: Payload inválido o patientId fuera de los candidatos de la fila }
+ *       404: { description: Lote o fila no encontrados }
+ *       409: { description: Fila en estado no decidible }
+ */
+patientImportsRouter.post(
+	"/:id/rows/:rowId/dedup",
+	rateLimit({ scope: "public:patient-import:row-dedup", limit: 60 }),
+	requireCapability("patient:import"),
+	validate({ params: rowParams, body: dedupDecisionSchema }),
+	asyncHandler(async (req, res) => {
+		const { id, rowId } = req.params as z.infer<typeof rowParams>;
+		const decision = req.body as z.infer<typeof dedupDecisionSchema>;
+		const row = await service.decideImportRowDedup(id, rowId, decision);
+		await writeAudit(req, {
+			action: "patient-import.row.dedup",
+			targetType: "patient-import-row",
+			targetId: rowId,
+			metadata: { importId: id, accept: decision.accept },
+		});
+		res.json({ row });
 	}),
 );

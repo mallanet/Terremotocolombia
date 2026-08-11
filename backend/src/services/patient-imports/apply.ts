@@ -2,10 +2,14 @@ import { createHash } from "node:crypto";
 import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { invalidate } from "@/lib/cache";
+import type { DedupCandidate } from "@/services/patient-import-logic";
 import type { PatientCondition, PatientStatus } from "@/services/patients";
+import { ensurePrn } from "@/services/person-records";
 import { getImport } from "./create";
 import { assertImportState, loadHeader, PATIENT_IMPORT_FAILED_STAGE } from "./internal";
 import {
+	DEDUP_ACCEPTED_REASON,
+	DEDUP_STATUS_ACCEPTED,
 	type ImportSummaryDTO,
 	PATIENT_CONDITION,
 	PATIENT_CONDITIONS,
@@ -42,6 +46,21 @@ interface ApplyableRow {
 	status: string | null;
 	hospitalId: string | null;
 	documentHash: string | null;
+	dedupStatus: string;
+	dedupCandidates: unknown;
+}
+
+/**
+ * Busca la marca de aceptación de dedup (U2, `POST .../dedup` accept:true) en
+ * `dedup_candidates`: un único candidato con `reason: DEDUP_ACCEPTED_REASON`.
+ * Ver `decideImportRowDedup` en rows.ts — es quien la escribe.
+ */
+function findAcceptedDedupPatientId(dedupCandidates: unknown): string | null {
+	if (!Array.isArray(dedupCandidates)) return null;
+	const accepted = (dedupCandidates as Partial<DedupCandidate>[]).find(
+		(c) => c?.reason === DEDUP_ACCEPTED_REASON,
+	);
+	return accepted?.patientId ?? null;
 }
 
 function normalizePatientCondition(value: string | null): PatientCondition {
@@ -96,6 +115,8 @@ async function applyOneRow(rowId: string): Promise<string | null> {
 			status: patientImportRows.status,
 			hospitalId: patientImportRows.hospitalId,
 			documentHash: patientImportRows.documentHash,
+			dedupStatus: patientImportRows.dedupStatus,
+			dedupCandidates: patientImportRows.dedupCandidates,
 		});
 	const row = claimed[0] as ApplyableRow | undefined;
 	if (!row?.hospitalId || !row.name) {
@@ -108,6 +129,37 @@ async function applyOneRow(rowId: string): Promise<string | null> {
 				.where(eq(patientImportRows.id, rowId));
 		}
 		return null;
+	}
+
+	// --- Camino de ADJUNTAR (U2): la fila trae un candidato de dedup aceptado
+	// por un revisor humano (rows.ts, decideImportRowDedup). Se adjunta al
+	// paciente EXISTENTE — SIN insert nuevo, SIN pisar sus campos (conservador:
+	// el revisor eligió "es el mismo paciente", no "actualiza sus datos").
+	const acceptedPatientId = findAcceptedDedupPatientId(row.dedupCandidates);
+	if (row.dedupStatus === DEDUP_STATUS_ACCEPTED && acceptedPatientId) {
+		const existing = await db
+			.select({ id: hospitalPatients.id })
+			.from(hospitalPatients)
+			.where(eq(hospitalPatients.id, acceptedPatientId))
+			.limit(1);
+		if (!existing[0]) {
+			// El paciente aceptado ya no existe (borrado entre el accept y el
+			// apply) — no hay a qué adjuntar. Reintentar en bucle no lo arregla;
+			// se marca inválida de forma visible, igual que sin hospital/nombre.
+			await db
+				.update(patientImportRows)
+				.set({ rowStatus: "invalid", updatedAt: now })
+				.where(eq(patientImportRows.id, rowId));
+			return null;
+		}
+		await db
+			.update(patientImportRows)
+			.set({ patientId: acceptedPatientId, rowStatus: "applied", updatedAt: now })
+			.where(eq(patientImportRows.id, rowId));
+		// Capa de identidad: best-effort e idempotente (el paciente existente
+		// normalmente ya tiene PRN; ensurePrn nunca falla el apply).
+		await ensurePrn("hospital_patient", acceptedPatientId);
+		return acceptedPatientId;
 	}
 
 	const patientId = deterministicPatientId(row.id);
@@ -152,6 +204,10 @@ async function applyOneRow(rowId: string): Promise<string | null> {
 		.update(patientImportRows)
 		.set({ patientId, rowStatus: "applied", updatedAt: now })
 		.where(eq(patientImportRows.id, rowId));
+	// Capa de identidad: cada fila aplicada entra al registro PRN y (cuando
+	// U8 conecte la cola) al barrido del matcher. Best-effort: nunca falla
+	// el apply.
+	await ensurePrn("hospital_patient", patientId);
 	return patientId;
 }
 
