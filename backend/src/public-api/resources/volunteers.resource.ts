@@ -11,15 +11,24 @@
  */
 import { z } from "zod";
 import { createCrudRouter, type CrudResource } from "@/public-api/crud-factory";
+import { VOLUNTEER_OFFER_TYPES } from "@/routes/volunteers";
 import * as service from "@/services/volunteers";
 
 const statusEnum = z.enum(["pending", "contacted", "active", "declined"]);
 
 const createSchema = z.object({
   name: z.string().trim().min(1, "Indica el nombre.").max(120),
-  phone: z.string().trim().min(1, "Indica el teléfono.").max(40),
-  offer: z.string().trim().min(1, "Indica qué puede ofrecer.").max(2000),
-  zone: z.string().trim().min(1, "Indica la zona.").max(200),
+  contact: z.string().trim().min(1, "Indica WhatsApp o correo.").max(120),
+  offer: z.string().trim().max(2000).optional().default(""),
+  zone: z.string().trim().min(1, "Indica la ciudad y país.").max(200),
+  availability: z.string().trim().min(1, "Indica la disponibilidad.").max(120),
+  offerTypes: z.array(z.enum(VOLUNTEER_OFFER_TYPES)).min(1).max(5),
+  digitalSkills: z.array(z.string().trim().min(1).max(60)).max(10).optional(),
+  crisisExperience: z.boolean().optional(),
+  fieldCity: z.string().trim().max(200).optional(),
+  rescueTraining: z.boolean().optional(),
+  fieldRole: z.string().trim().max(120).optional(),
+  ownVehicle: z.boolean().optional(),
 });
 
 // Campos editables: status y notes (internas, solo admin). Al menos uno.
@@ -35,9 +44,17 @@ const updateSchema = z
 const responseSchema = z.object({
   id: z.string(),
   name: z.string(),
-  phone: z.string(),
+  contact: z.string(),
   offer: z.string(),
   zone: z.string(),
+  availability: z.string().nullable(),
+  offerTypes: z.array(z.string()).nullable(),
+  digitalSkills: z.array(z.string()).nullable(),
+  crisisExperience: z.boolean().nullable(),
+  fieldCity: z.string().nullable(),
+  rescueTraining: z.boolean().nullable(),
+  fieldRole: z.string().nullable(),
+  ownVehicle: z.boolean().nullable(),
   status: statusEnum,
   notes: z.string().nullable(),
   createdAt: z.number(),
