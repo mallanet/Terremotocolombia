@@ -11,6 +11,7 @@ import {
   ImportParseError,
   MAX_IMPORT_ROWS,
   isOcrPendingContentType,
+  isSupportedImportContentType,
   parseDelimited,
   parseImportFile,
   parseXlsxBuffer,
@@ -314,14 +315,10 @@ describe("parseImportFile", () => {
 });
 
 // --------------------------------------------------------------------------
-// isOcrPendingContentType (predicado OCR/ICR — imagen/PDF)
+// isOcrPendingContentType (predicado OCR/ICR — SOLO imagen; PDF no cuenta)
 // --------------------------------------------------------------------------
 
 describe("isOcrPendingContentType", () => {
-  it("reconoce application/pdf como OCR-pendiente", () => {
-    expect(isOcrPendingContentType("application/pdf")).toBe(true);
-  });
-
   it("reconoce image/png como OCR-pendiente", () => {
     expect(isOcrPendingContentType("image/png")).toBe(true);
   });
@@ -335,7 +332,15 @@ describe("isOcrPendingContentType", () => {
   });
 
   it("ignora espacios alrededor (padded)", () => {
-    expect(isOcrPendingContentType("  application/pdf  ")).toBe(true);
+    expect(isOcrPendingContentType("  image/png  ")).toBe(true);
+  });
+
+  it("NO reconoce application/pdf como OCR-pendiente (sin ruta de rasterizado/OCR)", () => {
+    // R6: PDF ya no cuenta como OCR-pendiente. Antes esto devolvía true y dejaba
+    // que el validator del router lo aceptara como "válido" solo para morir con
+    // 501 más abajo (contradicción aceptar-luego-501). Ahora PDF se rechaza con
+    // 415 antes de llegar aquí — ver isSupportedImportContentType.
+    expect(isOcrPendingContentType("application/pdf")).toBe(false);
   });
 
   it("NO marca text/csv", () => {
@@ -352,5 +357,39 @@ describe("isOcrPendingContentType", () => {
 
   it("NO marca un tipo arbitrario no-OCR (application/zip)", () => {
     expect(isOcrPendingContentType("application/zip")).toBe(false);
+  });
+});
+
+// --------------------------------------------------------------------------
+// isSupportedImportContentType (fuente única de verdad de content-types
+// aceptados por la importación de pacientes)
+// --------------------------------------------------------------------------
+
+describe("isSupportedImportContentType", () => {
+  it("acepta JSON, CSV y XLSX", () => {
+    expect(isSupportedImportContentType(CONTENT_TYPE.JSON)).toBe(true);
+    expect(isSupportedImportContentType(CONTENT_TYPE.CSV)).toBe(true);
+    expect(isSupportedImportContentType(CONTENT_TYPE.XLSX)).toBe(true);
+  });
+
+  it("acepta imágenes (image/*)", () => {
+    expect(isSupportedImportContentType("image/png")).toBe(true);
+    expect(isSupportedImportContentType("image/jpeg")).toBe(true);
+  });
+
+  it("es case-insensitive y tolera espacios (padded)", () => {
+    expect(isSupportedImportContentType("  APPLICATION/JSON  ")).toBe(true);
+  });
+
+  it("rechaza application/pdf (sin ruta de procesamiento)", () => {
+    expect(isSupportedImportContentType("application/pdf")).toBe(false);
+  });
+
+  it("rechaza un tipo arbitrario no soportado (application/zip)", () => {
+    expect(isSupportedImportContentType("application/zip")).toBe(false);
+  });
+
+  it("rechaza cadena vacía", () => {
+    expect(isSupportedImportContentType("")).toBe(false);
   });
 });
