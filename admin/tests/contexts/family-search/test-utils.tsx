@@ -4,6 +4,7 @@ import { AdminSessionContext } from "@/src/shared/auth/admin-session-context";
 import type {
   QueueItemDTO,
   DecisionHistoryEntryDTO,
+  PendingSignalDTO,
   RecordDisplayDTO,
 } from "@/src/contexts/family-search/types";
 
@@ -85,3 +86,21 @@ const baseLink = {
   matcherVersion: "det-1",
   proposedAt: 1000,
 };
+
+/** Fixture DEMO de U15 — mismo criterio que `buildQueueItem` arriba: nombres
+ *  estilo DEMO, PRNs solo como strings de display. */
+const baseSignal = {
+  id: "signal-1",
+  prn: "TC-DEMO0001X",
+  source: "partner:demo-socio",
+  kind: "status_report",
+  claimedStatus: "found",
+  storedStatus: "active",
+  payload: { resolutionNote: null, reportedAt: 1000 },
+  createdAt: 1000,
+  record: DEMO_RECORD_A,
+};
+
+export function buildSignal(overrides: Partial<typeof baseSignal> = {}): PendingSignalDTO {
+  return { ...baseSignal, ...overrides };
+}

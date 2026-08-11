@@ -17,6 +17,9 @@ import type {
   ProposeResponse,
   QueueResponse,
   RecordSearchResponse,
+  SignalDecisionResponse,
+  SignalDecisionValue,
+  SignalsQueueResponse,
   UnmergeResponse,
 } from "./types";
 
@@ -72,5 +75,41 @@ export function fetchRecordsSearch(q: string, limit = 20): Promise<RecordSearchR
 export function fetchClusterFicha(clusterId: string): Promise<ClusterFichaResponse> {
   return requestDecisionJson<ClusterFichaResponse>(
     `${BASE}/clusters/${encodeURIComponent(clusterId)}`,
+  );
+}
+
+// -------------------------------------------------------- U15 (señales) ---
+
+/** Query key BASE de la cola de señales — SIN parámetros (a diferencia de
+ *  `queueQueryKey`, que varía por `status`): `record-signals.router.ts` no
+ *  tiene un filtro de status en la URL, la cola siempre es "pending". Usada
+ *  también por `shell.tsx` (nav badge) y `cluster-ficha.tsx` (chip de
+ *  cluster) para leer/invalidar el MISMO cache — ver esos archivos. */
+export function signalsQueryKey() {
+  return ["family-search-signals"] as const;
+}
+
+export async function fetchSignalsPage(params: {
+  after?: string | null;
+  limit?: number;
+}): Promise<SignalsQueueResponse> {
+  const qs = new URLSearchParams();
+  if (params.after) qs.set("after", params.after);
+  qs.set("limit", String(params.limit ?? 25));
+  return requestDecisionJson<SignalsQueueResponse>(`${BASE}/signals?${qs.toString()}`);
+}
+
+export interface SignalDecisionPayload {
+  decision: SignalDecisionValue;
+  note?: string;
+}
+
+export function postSignalDecision(
+  signalId: string,
+  payload: SignalDecisionPayload,
+): Promise<SignalDecisionResponse> {
+  return requestDecisionJson<SignalDecisionResponse>(
+    `${BASE}/signals/${encodeURIComponent(signalId)}/decision`,
+    jsonRequestInit("POST", payload),
   );
 }

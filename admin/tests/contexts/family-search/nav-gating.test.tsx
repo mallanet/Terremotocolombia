@@ -23,11 +23,16 @@ function FamilySearchPageLikeGate() {
 }
 
 describe("Family Search — gating por capacidad", () => {
-  it("sin person:search la página completa se bloquea (fallback, sin montar la cola)", async () => {
+  it("sin person:search la página completa se bloquea (fallback, sin montar la cola NI el panel de señales)", async () => {
     let queueCalls = 0;
+    let signalsCalls = 0;
     server.use(
       http.get("/api/admin/family-search/queue", () => {
         queueCalls += 1;
+        return HttpResponse.json({ items: [] });
+      }),
+      http.get("/api/admin/family-search/signals", () => {
+        signalsCalls += 1;
         return HttpResponse.json({ items: [] });
       }),
     );
@@ -35,7 +40,12 @@ describe("Family Search — gating por capacidad", () => {
 
     expect(await screen.findByText("No tienes permiso (person:search).")).toBeInTheDocument();
     expect(screen.queryByText("Búsqueda de familias")).not.toBeInTheDocument();
+    // U15: el panel "Señales" es una pestaña hermana DENTRO de FamilySearchAdmin
+    // — el mismo gate de página (person:search) lo cubre, así que ni su tab
+    // ni su query deberían montar.
+    expect(screen.queryByText("Señales")).not.toBeInTheDocument();
     expect(queueCalls).toBe(0);
+    expect(signalsCalls).toBe(0);
   });
 
   it("con person:search la página se ve normal (cola visible)", async () => {
@@ -44,6 +54,19 @@ describe("Family Search — gating por capacidad", () => {
 
     expect(await screen.findByText("Búsqueda de familias")).toBeInTheDocument();
     expect(await screen.findByText("No hay propuestas pendientes.")).toBeInTheDocument();
+  });
+
+  it("con person:search, la pestaña 'Señales' también es accesible (cambia de vista sin recargar la página)", async () => {
+    server.use(
+      http.get("/api/admin/family-search/queue", () => HttpResponse.json({ items: [] })),
+      http.get("/api/admin/family-search/signals", () => HttpResponse.json({ items: [] })),
+    );
+    withSession(<FamilySearchPageLikeGate />, ["person:search"]);
+
+    await screen.findByText("No hay propuestas pendientes.");
+    fireEvent.click(screen.getByRole("tab", { name: "Señales" }));
+
+    expect(await screen.findByText("No hay señales pendientes.")).toBeInTheDocument();
   });
 
   it("sin person:review las acciones de decisión de la tarjeta están ocultas (solo lectura)", async () => {
