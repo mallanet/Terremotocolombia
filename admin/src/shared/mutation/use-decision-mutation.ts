@@ -77,6 +77,12 @@ export function useDecisionMutation<TVars, TResult = unknown>(options: {
    * versión vigente que ganó la carrera). */
   invalidateKeys: QueryKey[];
   onSuccess?: (result: TResult, vars: TVars) => void;
+  /** Error que NO es 409 (el 409 lo maneja el hook: invalida y expone
+   *  `isConflict`). Para interceptar una respuesta especial ANTES de que
+   *  caiga en el banner genérico — p.ej. la escalación de fusión anclada
+   *  abre un modal y resetea la mutación aquí, en el callback, en vez de en
+   *  un efecto (react-hooks/set-state-in-effect). */
+  onError?: (error: Error) => void;
 }): DecisionMutationState<TVars> {
   const queryClient = useQueryClient();
 
@@ -94,7 +100,9 @@ export function useDecisionMutation<TVars, TResult = unknown>(options: {
     onError: async (error) => {
       if (error instanceof DecisionRequestError && error.status === 409) {
         await invalidate();
+        return;
       }
+      options.onError?.(error as Error);
     },
   });
 

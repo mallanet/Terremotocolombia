@@ -94,7 +94,7 @@ export function ManualLinkSearch({
       )}
 
       {submittedQuery && !search.isLoading && !search.isError && results.length === 0 && (
-        <p className="text-sm text-gray-500">Sin resultados para "{submittedQuery}".</p>
+        <p className="text-sm text-gray-500">Sin resultados para “{submittedQuery}”.</p>
       )}
 
       {propose.isError && (

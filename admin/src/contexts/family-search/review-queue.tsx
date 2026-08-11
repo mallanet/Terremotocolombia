@@ -86,7 +86,7 @@ export function ReviewQueue({
       {highlightLinkId && !items.some((i) => i.link.id === highlightLinkId) && (
         <p className="text-xs text-gray-500">
           Buscando la propuesta reciente en la cola — puede tardar unos segundos en aparecer.
-          Usa "Cargar más" si no aparece.
+          Usa “Cargar más” si no aparece.
         </p>
       )}
 

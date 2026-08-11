@@ -258,7 +258,7 @@ function ClusterView({
           <p className="text-sm text-gray-700">
             Esto separa los dos registros; ambos vuelven a ser identidades independientes. La
             confirmación original queda en la historia (nunca se borra) y se agrega una nueva
-            entrada "fusión deshecha".
+            entrada “fusión deshecha”.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="flex-1 rounded border p-2">

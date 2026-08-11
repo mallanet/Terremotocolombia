@@ -120,7 +120,7 @@ export function SearchPanel({ onOpenFicha }: { onOpenFicha: (target: FichaTarget
         </p>
       )}
       {outcome.type === "name-empty" && (
-        <p className="text-sm text-gray-500">Sin resultados para "{outcome.query}".</p>
+        <p className="text-sm text-gray-500">Sin resultados para “{outcome.query}”.</p>
       )}
       {outcome.type === "error" && (
         <p role="alert" className="text-sm text-red-600">

@@ -90,19 +90,18 @@ export function MatchCard({
       setShowEscalation(false);
       onAdvance();
     },
+    // Escalación de fusión anclada: se intercepta ANTES de que caiga en el
+    // banner genérico — abre el modal y limpia el error de la mutación (el
+    // modal es ahora la superficie de esa respuesta, no queremos los dos a la
+    // vez). En el callback y no en un efecto (react-hooks/set-state-in-effect);
+    // `decision` ya está asignado cuando el callback corre.
+    onError: (err) => {
+      if (isAnchoredMergeEscalation(err)) {
+        setShowEscalation(true);
+        decision.reset();
+      }
+    },
   });
-
-  // Escalación de fusión anclada: se intercepta el error ANTES de que caiga
-  // en el banner genérico de "cualquier otro error" — abre el modal y limpia
-  // el error de la mutación (el modal es ahora la superficie de esa
-  // respuesta, no queremos los dos a la vez).
-  useEffect(() => {
-    if (isAnchoredMergeEscalation(decision.error)) {
-      setShowEscalation(true);
-      decision.reset();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [decision.error]);
 
   // 409 real: se muestra el aviso un momento y LUEGO se avanza — el
   // throughput de la cola es una propiedad de seguridad (plan U11), pero un
@@ -203,7 +202,7 @@ export function MatchCard({
           Rechazado antes ({item.priorRejection.decision === "rescinded" ? "fusión deshecha" : "rechazado"})
           {" "}— nueva evidencia: {evidenceClassLabel(item.link.evidenceClass)}
           {priorEvidenceClass ? ` (antes: ${evidenceClassLabel(priorEvidenceClass)})` : ""}.
-          {item.priorRejection.note && <span> Nota anterior: "{item.priorRejection.note}"</span>}
+          {item.priorRejection.note && <span> Nota anterior: “{item.priorRejection.note}”</span>}
         </div>
       )}
 

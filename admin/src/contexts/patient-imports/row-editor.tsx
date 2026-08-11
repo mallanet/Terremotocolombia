@@ -12,7 +12,7 @@
  * botón deshabilitado; 409 → "modificada/decidida por otra persona" + refetch
  * de la lista; cualquier otro error → inline reintentable.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { RequireCapability } from "@/src/shared/auth/admin-gate";
 import { Button, Input } from "@/src/ui";
 import {
@@ -167,14 +167,15 @@ export function RowEditor({
   // esté en vuelo, se deshabilitan todos los botones de acción para no
   // disparar escrituras concurrentes (p. ej. guardar y confirmar a la vez).
   const anyPending = save.isPending || confirm.isPending || reject.isPending || dedup.isPending;
-  useEffect(() => {
-    if (!anyConflict) return;
-    if (row.updatedAt === currentRow.updatedAt) return;
+  // Ajuste DURANTE el render (patrón "adjust state when props change" de
+  // react.dev, exigido por react-hooks/set-state-in-effect): la condición se
+  // autoextingue en cuanto currentRow alcanza a la prop, así que esto corre
+  // exactamente una vez por versión fresca de la fila.
+  if (anyConflict && row.updatedAt !== currentRow.updatedAt) {
     setCurrentRow(row);
     resetFormFrom(row);
     setBaselineUpdatedAt(row.updatedAt);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anyConflict, row]);
+  }
 
   function submitSave(): void {
     const payload: EditPayload = {
