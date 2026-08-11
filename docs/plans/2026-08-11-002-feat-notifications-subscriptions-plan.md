@@ -29,10 +29,13 @@ Technical Decisions.
 on push to `main` — a merge *is* a production release.
 
 **Stop conditions — get a human.** Running migrations and the capability seed;
-creating a new Cloudflare Queue (`wrangler queues create` must precede the
-`wrangler.jsonc` declaration or the deploy fails); touching Doppler or Worker
-secrets; deciding **who** goes on a `configured_list` for a legally-clocked
-event; any change to Ley 1581 posture or the privacy policy.
+touching Doppler or Worker secrets; deciding **who** goes on a `configured_list`
+for a legally-clocked event; any change to Ley 1581 posture or the privacy
+policy.
+
+*Discharged 2026-08-11:* the Cloudflare Queue creation gate. The maintainer
+authorised it and the four queues now exist (see KTD8), so the
+`wrangler.jsonc` declaration in U4 can merge without failing the deploy.
 
 **Tail ownership.** The implementing agent owns through "verified on staging."
 A maintainer owns the production migration/seed and the recipient lists.
@@ -166,12 +169,29 @@ legal notice, which is precisely the message whose absence nobody can notice.
 
 **KTD7 — Email only in v1.** No WhatsApp. See Scope Boundaries.
 
-**KTD8 — Recipients are staff, not citizens.**
+**KTD8 — A dedicated queue, and it already exists.**
+Reusing `NEEDS_QUEUE` would have avoided an infra step but coupled notification
+retry/backoff to a queue tuned for an unrelated job — the kind of coupling that
+stays invisible until it misbehaves during an incident. The maintainer authorised
+creation on 2026-08-11 and these four now exist on the account (verified with
+`wrangler queues list`):
+
+| Environment | Queue | DLQ |
+| --- | --- | --- |
+| production | `terremotocolombia-notifications` | `terremotocolombia-notifications-dlq` |
+| staging | `terremotocolombia-notifications-staging` | `terremotocolombia-notifications-dlq-staging` |
+
+Binding: `NOTIFICATIONS_QUEUE`. Suggested consumer params, following the
+imports pair (one notification per message, retries spaced): `max_retries: 3`,
+`max_batch_size: 1`. Creating the queue is the *only* part that needed a human —
+the `wrangler.jsonc` declaration is now an ordinary code change.
+
+**KTD9 — Recipients are staff, not citizens.**
 v1 resolves to rows in `users` (the RBAC/staff table). No new citizen PII
 surface, no new consent/unsubscribe obligation. `users` has no preferences
 column and should not grow one — resolution is computed, not stored per user.
 
-**KTD9 — `notification` goes in `MODELS`, not `CROSS_CUTTING`.**
+**KTD10 — `notification` goes in `MODELS`, not `CROSS_CUTTING`.**
 It is a real data model with its own table, following the `volunteer` precedent
 added 2026-08-11. `buildCatalog()` auto-produces
 `notification:read|create|edit|delete`. **This requires a human seed run** — see
@@ -368,7 +388,8 @@ delivery log visible in the panel; `verify-notifications.sh production` green;
 | Risk | Mitigation |
 | --- | --- |
 | **Capability seed is human-gated.** `notification:read` does not exist in the DB until a human runs `migrate.ts` (which calls `seedAuth`). Until then any `requireCapability("notification:read")` denies everyone. | Same release runbook as the volunteers slice: migrate **before** deploying the code that reads it. Note the seed admin bypasses capability tables entirely (`auth/resolve.ts` returns `"*"` for `isSystemAdmin`), so a system admin will see it regardless — do not use that as proof it works for others. |
-| **A new Cloudflare Queue needs `wrangler queues create` by a human before the declaration merges**, or the deploy fails. | Open Question B — reuse an existing queue, or accept the human step. |
+| ~~A new Cloudflare Queue needs `wrangler queues create` before the declaration merges~~ | **Resolved 2026-08-11** — all four queues created (KTD8). |
+| **Only 2 of 5 prod accounts are actually usable.** `e.muth.martinez@` and `mmbtc90@` are `active`; `mockraw@` and `mariopulice21@` are still `invited` (never activated) and `+hospitales@` is `disabled`. A fanout that does not filter `status='active'` would "send" to three people who cannot log in — coverage that looks fine and is not. | U3 filters `status='active'`. The empty-list alert then means what it says. |
 | Notification volume becomes its own firehose. | KTD4 digest; thresholds tunable without a deploy. |
 | Nodemailer under Workers is proven only by invitation traffic. | Validate on staging under a burst before G3. |
 | `configured_list` goes stale as the team changes. | Empty-list alert (U3) catches the zero case; it does **not** catch "wrong person listed" — that stays a human review item. |
@@ -378,18 +399,17 @@ delivery log visible in the panel; `verify-notifications.sh production` green;
 
 ## Open Questions
 
-1. **Which queue?** A dedicated `terremotocolombia-notifications` queue is
-   cleaner and gets its own retry/backoff semantics, but needs a human to run
-   `wrangler queues create` (plus its DLQ) before the PR can merge. Reusing
-   `NEEDS_QUEUE` avoids the gate but couples notification retry behaviour to a
-   queue tuned for an unrelated job. **Recommend the dedicated queue** — the
-   coupling is the kind of thing that is invisible until it misbehaves during an
-   incident — but it is the maintainer's call because it is a stop condition.
+1. ~~**Which queue?**~~ **Closed 2026-08-11** — dedicated queue, created. See KTD8.
 2. **Digest interval.** 15 min? 30? Hourly? Wants one real crisis of data to
    answer honestly. Start at 30 min, make it config not code.
-3. **Who is on the `configured_list` for Ley 1581?** A human decision, and the
-   whole point of KTD2 is that it must be explicit. Needs a named owner, not a
-   role.
+3. **Who is on the `configured_list` for Ley 1581?** *Still open — the last thing
+   blocking implementation.* A human decision by design: the whole point of KTD2
+   is that this list does not move when RBAC moves. It needs named people, not a
+   role. Today only two accounts could receive anything
+   (`e.muth.martinez@gmail.com`, `mmbtc90@gmail.com` — the rest are `invited` or
+   `disabled`), so the realistic options are those two, a shared inbox that is
+   not a panel account, or waiting for `mariopulice21@` to activate. Two names
+   minimum — one is a single point of failure on a statutory clock.
 4. **Should `data_deletion_requests` gain an actual statutory deadline field?**
    There is none today, so "overdue" cannot currently be computed — only "old".
    Adding one is a legal-posture decision. Until then the sweep can only alert
