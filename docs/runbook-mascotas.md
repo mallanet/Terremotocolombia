@@ -85,14 +85,17 @@ Nota: en `stg` **no existe `ADMIN_PASSWORD`**, así que `requireAdmin` rechaza
 todo y los endpoints de moderación (DELETE, restore) no se pueden ejercitar
 ahí. Se prueban en local con el stack de compose.
 
-## 2. Deploy del backend (HUMANO)
+## 2. Deploy del backend
+
+Automático desde 2026-08-11: mergear a `main` un cambio que toque `backend/**`
+lo despliega solo (`deploy-backend.yml`). Redeploy a mano:
 
 ```bash
-gh workflow run deploy-backend.yml --ref main -f confirmar=desplegar
+gh workflow run deploy-backend.yml --ref main
 ```
 
-**Mergea a `main` ANTES de desplegar.** El workflow despliega el ref sobre el
-que se lanza, y por defecto es `main`. Si lo lanzas sobre una rama y después
+**Mergea a `main` ANTES de un dispatch manual.** El workflow despliega el ref
+sobre el que se lanza, y por defecto es `main`. Si lo lanzas sobre una rama y después
 alguien lo lanza sobre `main`, el segundo pisa al primero y producción se queda
 con el backend de `main` — que si aún no tiene el merge, es el viejo. Pasó
 exactamente eso el 2026-08-10: `/api/pets` volvió a dar 404 tras un despliegue

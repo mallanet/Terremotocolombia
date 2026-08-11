@@ -1,23 +1,29 @@
-name: Deploy backend (manual)
+name: Deploy backend
 
 # Despliega SOLO la API (Worker terremotocolombia-api).
 #
-# MANUAL A PROPOSITO. No se dispara con push a main.
+# AUTOMATICO en push a main desde 2026-08-11 (decision del mantenedor; antes
+# era manual con confirmacion). El filtro de rutas cubre todo lo que acaba en
+# el bundle del Worker: backend/**, el esquema de infra/db (importado como
+# ../../infra/db/schema), config/deployment.config.json (identidad, inlinada
+# p.ej. en el mailer) y este workflow.
 #
-# El frontend se redespliega solo en cada push que lo toque; la API no, porque
-# sus despliegues no son equivalentes: comparte base de datos con lo que ya
-# esta sirviendo, y una version mala deja de aceptar reportes de personas
-# desaparecidas. Que alguien tenga que pulsar el boton es la funcionalidad.
+# OJO: las migraciones SIGUEN siendo un paso aparte y deliberado
+# (backend/worker/migrate.ts contra Neon DIRECTO). Este workflow solo
+# despliega codigo; nunca toca el esquema.
 #
-# Lanzarlo:  Actions -> "Deploy backend (manual)" -> Run workflow
-#       o:   gh workflow run deploy-backend.yml
+# Redeploy a mano (sin tocar ficheros):
+#   Actions -> "Deploy backend" -> Run workflow
+#   o: gh workflow run deploy-backend.yml
 on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "infra/db/**"
+      - "config/deployment.config.json"
+      - ".github/workflows/deploy-backend.yml"
   workflow_dispatch:
-    inputs:
-      confirmar:
-        description: 'Escribe "desplegar" para confirmar'
-        required: true
-        default: ""
 
 permissions:
   contents: read
@@ -31,8 +37,6 @@ jobs:
     name: Deploy de la API
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Segunda red de seguridad: sin la palabra exacta, ni se ejecuta.
-    if: github.event.inputs.confirmar == 'desplegar'
 
     steps:
       - uses: actions/checkout@v4
