@@ -34,6 +34,7 @@ import { hospitalSuppliesRouter } from "@/public-api/routers/hospital-supplies.r
 import { deletionRequestsRouter } from "@/public-api/routers/deletion-requests.router";
 import { partnerSyncRouter } from "@/public-api/routers/partner-sync.router";
 import { personLinksRouter } from "@/public-api/routers/person-links.router";
+import { recordSignalsRouter } from "@/public-api/routers/record-signals.router";
 
 /**
  * Registro path → CONFIG del recurso. Fuente de verdad ÚNICA: de aquí salen
@@ -79,6 +80,10 @@ export function mountPublicApi(app: Express): void {
   // unmerge, búsqueda de registros y ficha de cluster. person:search/
   // person:review/person:merge (capabilities.ts).
   app.use("/api/public/person-links", personLinksRouter);
+  // U14 — "señal, no verdad": cola de transiciones de status reclamadas por
+  // una fuente externa + decisión (confirmar/descartar). person:search/
+  // person:review (mismas capabilities que person-links, ver capabilities.ts).
+  app.use("/api/public/record-signals", recordSignalsRouter);
   // RBAC con verbos irregulares (no CRUD): routers a mano. Cada ruta lleva
   // rateLimit + requireCapability + writeAudit (gates que exige el ESLint).
   app.use("/api/public/users", usersRouter); // user:read/edit/delete (invite→auth)

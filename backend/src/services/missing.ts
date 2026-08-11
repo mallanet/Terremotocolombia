@@ -20,7 +20,8 @@ import {
 } from "@/lib/r2";
 import { isAllowedImageDataUrl, parseImageDataUri } from "@/lib/image";
 import { invalidate } from "@/lib/cache";
-import { ensurePrn, enqueueMatcherSweep } from "@/services/person-records";
+import { ensurePrn, ensurePrns, enqueueMatcherSweep } from "@/services/person-records";
+import { createStatusSignal } from "@/services/record-signals";
 
 const { missingPersons, missingPersonSuppressions } = schema;
 
@@ -957,7 +958,24 @@ const EXTERNAL_COLS = [
   "status", "resolution_note", "resolved_at", "created_at",
 ] as const;
 
-/** Cláusula DO UPDATE: misma semántica que el upsert de una fila. */
+/**
+ * Cláusula DO UPDATE (U14 — "señal, no verdad", R24/R25/R26): `status`,
+ * `resolution_note` y `resolved_at` YA NO se pisan aquí. Antes de U14 esta
+ * cláusula traía `status = EXCLUDED.status` (+ COALESCE de las dos columnas
+ * de resolución) — una transición reportada por una fuente externa quedaba
+ * en vivo de inmediato, sin que nadie la confirmara. Ahora una fila EXISTENTE
+ * conserva su status/resolución guardados sin importar lo que reclame el
+ * upsert; la transición reclamada se registra aparte, como una fila pendiente
+ * en `record_status_signals` (ver `upsertExternalMissingBatch` más abajo) —
+ * un reviewer la confirma o descarta explícitamente
+ * (`services/record-signals.ts`). El resto de columnas sigue el MISMO
+ * COALESCE-merge que antes de U14 (comportamiento caracterizado en
+ * `test/record-signals.test.ts`, bloque "CHARACTERIZATION").
+ *
+ * Una fila NUEVA (sin conflicto) no pasa por esta cláusula — su status
+ * inicial se guarda tal cual llega en el INSERT (estado inicial ≠ transición,
+ * no hay nada que "retener" para un registro que no existía).
+ */
 const CONFLICT_UPDATE_SET = `
   name = EXCLUDED.name,
   age = EXCLUDED.age,
@@ -966,10 +984,7 @@ const CONFLICT_UPDATE_SET = `
   contact = EXCLUDED.contact,
   photo_external_url = COALESCE(missing_persons.photo_external_url, EXCLUDED.photo_external_url),
   source = COALESCE(missing_persons.source, EXCLUDED.source),
-  source_url = COALESCE(missing_persons.source_url, EXCLUDED.source_url),
-  status = EXCLUDED.status,
-  resolution_note = COALESCE(EXCLUDED.resolution_note, missing_persons.resolution_note),
-  resolved_at = COALESCE(EXCLUDED.resolved_at, missing_persons.resolved_at)`;
+  source_url = COALESCE(missing_persons.source_url, EXCLUDED.source_url)`;
 
 /**
  * Prepara los valores de una fila a partir de un registro externo. El
@@ -977,16 +992,26 @@ const CONFLICT_UPDATE_SET = `
  * índice compuesto en infra/db/schema.ts. Devuelve null si el registro es
  * inválido (sin source/externalId/name) para que el caller lo cuente como
  * saltado.
+ *
+ * Devuelve, además de `values` (el orden fijo de EXTERNAL_COLS), el `status`
+ * y `resolutionNote` RECLAMADOS por esta fila ya normalizados/clampados —
+ * `upsertExternalMissingBatch` los usa después del upsert para detectar una
+ * transición de status contra lo que el RETURNING trae guardado (U14), sin
+ * tener que releer los `values` posicionalmente.
  */
 function buildExternalRow(
   input: ExternalMissingInput,
-): { key: string; values: unknown[] } | null {
+): { key: string; values: unknown[]; status: MissingStatus; resolutionNote: string | null } | null {
   const externalId = (input.externalId ?? "").trim();
   const source = clipText(input.source, 120);
   const name = clipText(input.name, MAX_NAME);
   if (!externalId || !source || !name) return null;
 
   const status: MissingStatus = input.status === "found" ? "found" : "active";
+  const resolutionNote =
+    status === "found" && input.resolutionNote
+      ? clipText(input.resolutionNote, MAX_RESOLUTION_NOTE) || null
+      : null;
   // El contacto solo llega si el adaptador decidió importarlo (ver RFC §6).
   const values: unknown[] = [
     crypto.randomUUID(),
@@ -1002,13 +1027,11 @@ function buildExternalRow(
     source,
     typeof input.sourceUrl === "string" ? input.sourceUrl.slice(0, 300) : null,
     status,
-    status === "found" && input.resolutionNote
-      ? clipText(input.resolutionNote, MAX_RESOLUTION_NOTE) || null
-      : null,
+    resolutionNote,
     status === "found" ? (input.resolvedAt ?? Date.now()) : null,
     input.createdAt ?? Date.now(),
   ];
-  return { key: JSON.stringify([source, externalId]), values };
+  return { key: JSON.stringify([source, externalId]), values, status, resolutionNote };
 }
 
 /**
@@ -1022,8 +1045,28 @@ function buildExternalRow(
  *
  * Se mantiene SQL crudo (getDb().execute) porque arma un INSERT multi-fila
  * dinámico con ON CONFLICT sobre un índice parcial (WHERE external_id IS NOT
- * NULL) y RETURNING (xmax = 0); el query builder no expresa el predicado del
- * índice parcial ni el xmax de forma directa. Semántica idéntica a la previa.
+ * NULL) y RETURNING; el query builder no expresa el predicado del índice
+ * parcial de forma directa. Semántica idéntica a la previa salvo status/
+ * resolución (U14, ver CONFLICT_UPDATE_SET) y el wiring de identidad de abajo.
+ *
+ * U14 (KTD18 — "señal, no verdad" + R24 identidad en lote):
+ *  - Detección de diff SIN una segunda consulta: el RETURNING trae, por fila,
+ *    el `status` que quedó REALMENTE guardado tras el upsert. Para una fila
+ *    NUEVA eso es el status recién insertado (== el reclamado por
+ *    definición). Para una fila EXISTENTE, como `CONFLICT_UPDATE_SET` ya NO
+ *    toca `status`, el RETURNING trae el status PREVIO intacto. Comparar ese
+ *    valor contra el `status` reclamado (que sí conocemos, viene de
+ *    `buildExternalRow`) detecta la transición sin pre-leer un mapa
+ *    (source,external_id)->status aparte. Se optó por esto en vez de un
+ *    SELECT previo porque el RETURNING ya viaja gratis con el UPDATE/INSERT.
+ *  - Identidad: TODA fila tocada por este batch (nueva o re-sincronizada)
+ *    entra a la capa de identidad — un solo `ensurePrns` (un INSERT
+ *    multi-fila + un SELECT de remanente, nunca un round-trip por fila) +
+ *    UN `enqueueMatcherSweep` con los PRNs de todo el batch (ya reconciliado
+ *    o no: un re-sync con nombre/edad distintos también es señal para el
+ *    matcher). Las señales de status se crean DESPUÉS, usando el mapa de
+ *    PRNs que devuelve `ensurePrns` — sin PRN no hay a quién atribuirle la
+ *    señal.
  */
 export async function upsertExternalMissingBatch(
   people: ExternalMissingInput[],
@@ -1048,7 +1091,10 @@ export async function upsertExternalMissingBatch(
     ),
   );
 
-  const byKey = new Map<string, unknown[]>();
+  const byKey = new Map<
+    string,
+    { values: unknown[]; status: MissingStatus; resolutionNote: string | null }
+  >();
   for (const person of people) {
     const row = buildExternalRow(person);
     if (!row) {
@@ -1059,27 +1105,83 @@ export async function upsertExternalMissingBatch(
       result.skipped++;
       continue;
     }
-    byKey.set(row.key, row.values);
+    byKey.set(row.key, { values: row.values, status: row.status, resolutionNote: row.resolutionNote });
   }
-  const rows = [...byKey.values()];
-  if (rows.length === 0) return result;
+  const entries = [...byKey.entries()];
+  if (entries.length === 0) return result;
 
-  for (let i = 0; i < rows.length; i += batchSize) {
-    const chunk = rows.slice(i, i + batchSize);
+  // Acumulado a través de TODOS los chunks: ids tocados (para el batch de
+  // identidad) + transiciones de status reclamadas pendientes de convertirse
+  // en señal (necesitan el PRN, que solo se conoce DESPUÉS del batch de
+  // ensurePrns de abajo).
+  const upsertedIds: string[] = [];
+  const pendingSignals: Array<{
+    id: string;
+    source: string;
+    claimedStatus: MissingStatus;
+    resolutionNote: string | null;
+  }> = [];
+
+  for (let i = 0; i < entries.length; i += batchSize) {
+    const chunk = entries.slice(i, i + batchSize);
+    const claimedByKey = new Map(chunk);
     const tuples = chunk.map(
-      (values) => sql`(${sql.join(values.map((v) => sql`${v}`), sql`,`)})`,
+      ([, row]) => sql`(${sql.join(row.values.map((v) => sql`${v}`), sql`,`)})`,
     );
-    const query = sql`INSERT INTO missing_persons (${sql.raw(EXTERNAL_COLS.join(", "))}) VALUES ${sql.join(tuples, sql`,`)} ON CONFLICT (source, external_id) WHERE external_id IS NOT NULL DO UPDATE SET${sql.raw(CONFLICT_UPDATE_SET)} RETURNING (xmax = 0) AS inserted`;
+    const query = sql`INSERT INTO missing_persons (${sql.raw(EXTERNAL_COLS.join(", "))}) VALUES ${sql.join(tuples, sql`,`)} ON CONFLICT (source, external_id) WHERE external_id IS NOT NULL DO UPDATE SET${sql.raw(CONFLICT_UPDATE_SET)} RETURNING id, source, external_id, status, (xmax = 0) AS inserted`;
     try {
       const out = await db.execute(query);
-      for (const r of execRows<{ inserted: boolean }>(out)) {
+      for (const r of execRows<{
+        id: string;
+        source: string;
+        external_id: string;
+        status: string;
+        inserted: boolean;
+      }>(out)) {
         if (r.inserted) result.inserted++;
         else result.updated++;
+        upsertedIds.push(r.id);
+
+        const claimed = claimedByKey.get(JSON.stringify([r.source, r.external_id]));
+        if (claimed && claimed.status !== r.status) {
+          pendingSignals.push({
+            id: r.id,
+            source: r.source,
+            claimedStatus: claimed.status,
+            resolutionNote: claimed.resolutionNote,
+          });
+        }
       }
     } catch {
       result.errors += chunk.length;
     }
   }
+
+  if (upsertedIds.length > 0) {
+    // R24 — identidad en lote: un solo ensurePrns para TODO lo tocado en esta
+    // llamada, un solo matcher sweep con el conjunto resultante de PRNs.
+    // Best-effort (ensurePrns nunca lanza): lo que quede sin PRN aquí lo
+    // recoge reconcilePersonRecords en su próxima corrida.
+    const prnById = await ensurePrns("missing_report", upsertedIds);
+    const prns = [...new Set(prnById.values())];
+    if (prns.length > 0) enqueueMatcherSweep(prns);
+
+    // R25/R26 — señal de status DESPUÉS del batch de PRNs, usando el mapa que
+    // devolvió: sin PRN para esa fila (caso raro, ensurePrns falló) la
+    // transición reclamada queda sin señal esta vez; el próximo re-sync (el
+    // socio repite el mismo envío) la vuelve a intentar.
+    for (const pending of pendingSignals) {
+      const prn = prnById.get(pending.id);
+      if (!prn) continue;
+      await createStatusSignal({
+        prn,
+        source: pending.source,
+        claimedStatus: pending.claimedStatus,
+        resolutionNote: pending.resolutionNote,
+      });
+    }
+  }
+
   if (result.inserted > 0 || result.updated > 0) invalidate();
   return result;
 }
