@@ -90,7 +90,13 @@ const contentSecurityPolicy = [
   // (translate-pa.googleapis.com como <script>, por eso va aquí ADEMÁS de en
   // connect-src para el XHR de traducción). Si falta CUALQUIERA de esos
   // orígenes el widget no inicializa y la página no se traduce.
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://translate.google.com https://translate.googleapis.com https://translate-pa.googleapis.com https://www.gstatic.com https://challenges.cloudflare.com",
+  // static.cloudflareinsights.com: beacon RUM que Cloudflare auto-inyecta en el
+  // HTML (Web Analytics de la zona). Sin este origen la consola de CADA visita
+  // enseña una violación de CSP y no llega ninguna métrica RUM. (No intentar
+  // apagar la inyección vía Terraform: el campo disable_rum de nuestras reglas
+  // no aplica a esta zona — precedente: Bot Fight Mode se apagó por el mismo
+  // choque CSP.)
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://translate.google.com https://translate.googleapis.com https://translate-pa.googleapis.com https://www.gstatic.com https://challenges.cloudflare.com https://static.cloudflareinsights.com",
   // fonts.googleapis.com se quitó al auto-alojar las tipografías: era la hoja de
   // estilo de Google Fonts y ya no se pide. Google Translate NO la usa — su CSS
   // viene de translate.googleapis.com y www.gstatic.com, que siguen aquí. Si el
