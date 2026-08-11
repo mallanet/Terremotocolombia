@@ -48,11 +48,17 @@ echo
 # El hook lee process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY en BUILD TIME
 # (frontend/hooks/useTurnstile.tsx). Si no estaba en Doppler al construir, el
 # valor queda como "" y el widget nunca monta — da igual lo que haya en runtime.
+#
+# OJO: se escanea una página CON formulario (/solicitar-borrado), no el home.
+# Con el chunking por ruta de Turbopack, el chunk del hook solo aparece en las
+# páginas que montan un form — escanear el home daba un FALSO NEGATIVO aunque
+# la key estuviera perfectamente inlineada.
 
 echo "== Paso 1: site key en el bundle del frontend =="
-html="$(curl -fsS -m 25 "$WEB" || true)"
+FORM_PAGE="$WEB/solicitar-borrado"
+html="$(curl -fsS -m 25 "$FORM_PAGE" || true)"
 if [ -z "$html" ]; then
-  echo "  ERROR: no se pudo cargar $WEB"
+  echo "  ERROR: no se pudo cargar $FORM_PAGE"
   exit 1
 fi
 
@@ -60,8 +66,17 @@ chunks="$(printf '%s' "$html" \
   | grep -oE '/_next/static/chunks/[a-zA-Z0-9_.\-]+\.js' \
   | sort -u)"
 
+# La key puede venir inlineada en el HTML del server render, sin bajar chunks.
+inline="$(printf '%s' "$html" | grep -oE '0x4AAAAAA[A-Za-z0-9_-]+' | head -1 || true)"
+
 sitekey=""
+if [ -n "$inline" ]; then
+  sitekey="$inline"
+  echo "  OK: site key encontrada en el HTML de $FORM_PAGE"
+  echo "      $sitekey"
+fi
 for c in $chunks; do
+  [ -n "$sitekey" ] && break
   body="$(curl -fsS -m 20 "$WEB$c" || true)"
   found="$(printf '%s' "$body" | grep -oE '0x4AAAAAA[A-Za-z0-9_-]+' | head -1 || true)"
   if [ -n "$found" ]; then
