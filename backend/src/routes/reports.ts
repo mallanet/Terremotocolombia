@@ -19,6 +19,7 @@ import { z } from "zod";
 import { asyncHandler, rateLimit, requireAdmin, requireHuman, setPublicPhotoHeaders, validate } from "@/middleware";
 import { jsonWithEtag } from "@/lib/http";
 import { hashIp } from "@/lib/client-ip";
+import { logDbFailure } from "@/lib/db-error";
 import { badRequest, HttpError, notFound, payloadTooLarge, serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/reports";
 import { publishNeedAtLocation } from "@/modules/needs";
@@ -131,7 +132,8 @@ reportsRouter.post(
       res.status(201).json({ report }); // report ya es DTO
       // Espejo fire-and-forget tras responder: no bloquea ni afecta al reporte.
       if (body.type === "supplies") mirrorSuppliesReportToNeed(body);
-    } catch {
+    } catch (err) {
+      logDbFailure("reports.create", err);
       // Falla visible: nunca confirmamos un reporte que no se guardó en la base.
       throw serviceUnavailable(
         "No se pudo guardar el reporte. Revisa tu conexión e inténtalo de nuevo.",

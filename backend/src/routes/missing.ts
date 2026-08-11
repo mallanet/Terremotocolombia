@@ -22,6 +22,7 @@ import { z } from "zod";
 import { asyncHandler, rateLimit, requireHuman, requireAdmin, setPublicPhotoHeaders, validate } from "@/middleware";
 import { jsonWithEtag } from "@/lib/http";
 import { cached } from "@/lib/cache";
+import { logDbFailure } from "@/lib/db-error";
 import { badRequest, payloadTooLarge, notFound, serviceUnavailable } from "@/lib/errors";
 import { HttpError } from "@/lib/errors";
 import { writeAudit } from "@/auth/audit";
@@ -162,7 +163,8 @@ missingRouter.post(
         reportType: body.reportType,
       });
       res.status(201).json({ person }); // person ya es DTO
-    } catch {
+    } catch (err) {
+      logDbFailure("missing.create", err);
       throw serviceUnavailable(
         "No se pudo guardar el reporte. Revisa tu conexión e inténtalo de nuevo.",
       );

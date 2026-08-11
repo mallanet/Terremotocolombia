@@ -10,6 +10,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, rateLimit, requireAdmin, validate } from "@/middleware";
+import { logDbFailure } from "@/lib/db-error";
 import { serviceUnavailable } from "@/lib/errors";
 import * as adminSvc from "@/services/admin";
 import * as donationsSvc from "@/services/donations";
@@ -122,7 +123,8 @@ adminRouter.get(
         donationsSvc.listAllDonations(),
       ]);
       res.set(NO_STORE).json({ generatedAt: Date.now(), stats, donations });
-    } catch {
+    } catch (err) {
+      logDbFailure("admin.donations", err);
       throw serviceUnavailable("No se pudieron cargar las donaciones.");
     }
   }),
@@ -157,7 +159,8 @@ adminRouter.get(
         contactSvc.listContactMessages(),
       ]);
       res.set(NO_STORE).json({ generatedAt: Date.now(), stats, messages });
-    } catch {
+    } catch (err) {
+      logDbFailure("admin.contact-messages", err);
       throw serviceUnavailable("No se pudieron cargar los mensajes.");
     }
   }),
@@ -361,7 +364,8 @@ adminRouter.get(
         },
         hospitals: rows,
       });
-    } catch {
+    } catch (err) {
+      logDbFailure("admin.hospital-supplies", err);
       throw serviceUnavailable("No se pudieron cargar los insumos hospitalarios.");
     }
   }),

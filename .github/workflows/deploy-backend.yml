@@ -24,6 +24,14 @@ on:
       - "config/deployment.config.json"
       - ".github/workflows/deploy-backend.yml"
   workflow_dispatch:
+    inputs:
+      omitir_drift:
+        description: >-
+          Saltar el gate de deriva de esquema. SOLO para un hotfix que no toca
+          las tablas de la migracion pendiente. Queda registrado en Actions con
+          tu usuario: es una decision visible, no un flag de conveniencia.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -56,6 +64,38 @@ jobs:
       - name: Typecheck
         working-directory: backend
         run: npm run typecheck
+
+      # GATE DE DERIVA — corre ANTES del deploy, a proposito.
+      #
+      # El 2026-08-11 este workflow desplegó el codigo del formulario ramificado
+      # de voluntarios mientras su migracion 0003 seguia sin aplicar: 6h de 503
+      # en TODOS los registros publicos y ~44 inscripciones perdidas. El smoke
+      # check de mas abajo dio verde todo el rato, porque /api/readyz hace
+      # SELECT 1 y eso pasa con el esquema derivado.
+      #
+      # Corre antes y falla cerrado: si la base no tiene las columnas que el
+      # codigo nuevo va a nombrar, NO se despliega y produccion se queda
+      # sirviendo el codigo anterior, que si casa con el esquema anterior.
+      # Fallar el deploy es estrictamente mejor que desplegar y romper.
+      #
+      # Compara COLUMNAS contra information_schema, no el contador de
+      # migraciones (ver worker/check-schema-drift.ts). No escribe nada y NO
+      # aplica migraciones: el gate humano de CLAUDE.md sigue intacto.
+      #
+      # Salida de emergencia: Actions -> Run workflow -> omitir_drift. Solo por
+      # dispatch manual (un push nunca puede saltarselo) y queda con nombre y
+      # hora en el historial.
+      - name: Gate de deriva de esquema
+        if: ${{ inputs.omitir_drift != true }}
+        working-directory: backend
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+        run: doppler run --command 'npm run check:schema-drift'
+
+      - name: Aviso de gate omitido
+        if: ${{ inputs.omitir_drift == true }}
+        run: |
+          echo "::warning title=Gate de deriva OMITIDO::Se despliega sin comprobar el esquema. Verifica que este hotfix no toca las tablas de ninguna migracion pendiente."
 
       # OJO: las migraciones NO corren aqui. Son un paso aparte y deliberado
       # (backend/worker/migrate.ts con DATABASE_URL apuntando a Neon DIRECTO,

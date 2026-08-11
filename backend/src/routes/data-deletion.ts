@@ -9,6 +9,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, rateLimit, requireHuman, validate } from "@/middleware";
 import { hashIp } from "@/lib/client-ip";
+import { logDbFailure } from "@/lib/db-error";
 import { serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/data-deletion";
 
@@ -97,7 +98,8 @@ dataDeletionRouter.post(
         message:
           "Solicitud recibida. Te contactaremos para procesar la eliminación de tus datos.",
       });
-    } catch {
+    } catch (err) {
+      logDbFailure("data-deletion.create", err);
       throw serviceUnavailable("No se pudo guardar la solicitud.");
     }
   }),

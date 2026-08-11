@@ -101,3 +101,28 @@ describe("user-facing-mutation-needs-guard", () => {
     });
   });
 });
+
+describe("no-blind-catch", () => {
+  it("exige binding del error en routes; fuera de routes no aplica", () => {
+    ruleTester.run("no-blind-catch", plugin.rules["no-blind-catch"], {
+      valid: [
+        { code: `try { a() } catch (err) { logDbFailure("x", err); throw e }`, filename: ROUTES },
+        // Fuera de la superficie de rutas la regla no opina.
+        { code: `try { a() } catch { fallback() }`, filename: "/repo/backend/src/lib/cache.ts" },
+      ],
+      invalid: [
+        {
+          // El fallo real del 2026-08-11: el SQLSTATE se perdia aqui.
+          code: `try { await createVolunteer() } catch { throw serviceUnavailable("nope") }`,
+          filename: ROUTES,
+          errors: [{ messageId: "blind" }],
+        },
+        {
+          code: `try { await enqueue() } catch { markFailed() }`,
+          filename: PUBLIC_API,
+          errors: [{ messageId: "blind" }],
+        },
+      ],
+    });
+  });
+});

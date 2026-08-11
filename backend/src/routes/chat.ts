@@ -13,6 +13,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, rateLimit, requireAdmin, requireHuman, validate } from "@/middleware";
 import { jsonWithEtag } from "@/lib/http";
+import { logDbFailure } from "@/lib/db-error";
 import { notFound, serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/chat";
 
@@ -83,7 +84,8 @@ chatRouter.post(
         replyTo,
       });
       res.status(201).json({ message }); // message ya es DTO (allowlist)
-    } catch {
+    } catch (err) {
+      logDbFailure("chat.create", err);
       throw serviceUnavailable(
         "No se pudo enviar el mensaje. Revisa tu conexión e inténtalo de nuevo.",
       );

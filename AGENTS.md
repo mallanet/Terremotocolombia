@@ -315,9 +315,38 @@ El backend tiene DOS superficies HTTP y cada una sigue su patrón:
   1. edita `infra/db/schema.ts`,
   2. corre `cd backend && npm run db:generate`,
   3. commitea el `.sql` + el journal en `infra/db/migrations/`.
-- El servicio `migrate` de `docker-compose.prod.yml` aplica las migraciones
-  antes de que arranquen `backend`/`worker`. Las migraciones deben ser
-  expand-contract si vas a hacer rollouts sin downtime.
+
+#### ORDEN de despliegue: el esquema va PRIMERO, y no lo aplica nadie por ti
+
+En `docker-compose.prod.yml` el servicio `migrate` corre antes de que arranquen
+`backend`/`worker`. **Eso NO es lo que pasa en producción hoy.** Producción es
+Cloudflare Workers: pushear a `main` despliega **código** y nada más. Las
+migraciones están gateadas por un humano y no las corre ni CI ni el deploy.
+
+Consecuencia que ya costó una caída (2026-08-11, `a81e17c`): si un commit trae
+el `.sql` **y** el código que lo necesita, al mergear queda código nuevo contra
+esquema viejo. Ese día fueron ~6h de 503 en todos los registros de voluntarios y
+~44 inscripciones de personas afectadas perdidas.
+
+Reglas, en orden de importancia:
+
+1. **Migración primero, en su propio commit, aplicada antes de mergear el
+   código que la usa.** El código que lee/escribe las columnas nuevas va
+   DESPUÉS, en otro commit.
+2. **Escribe migraciones expand-contract**, siempre, no solo "si quieres
+   rollouts sin downtime". Añadir columnas nullable es compatible hacia atrás:
+   el código viejo las ignora. Un `RENAME COLUMN` **no** lo es y rompe en el
+   instante en que el esquema y el código discrepan — fue el `phone` ->
+   `contact` de aquel día. Expand-contract de verdad: añade `contact` nullable,
+   backfillea, cambia el código, y borra `phone` en una migración posterior.
+3. **`npm run check:schema-drift`** compara las columnas que el código espera
+   contra las que la base tiene. Córrelo antes de mergear si tienes dudas; el
+   deploy de backend lo corre solo y **se niega a desplegar** si hay deriva
+   (`backend/worker/check-schema-drift.ts`). Para saltártelo en un hotfix que no
+   toca esas tablas: Actions -> Deploy backend -> Run workflow -> `omitir_drift`.
+4. **`/api/readyz` NO comprueba el esquema y no debe hacerlo.** Una migración
+   pendiente es un estado legítimo (para eso existe el gate humano); acoplarla a
+   la readiness convertiría un fallo acotado a una tabla en una caída total.
 
 ### PROHIBIDO: `db.transaction(...)` interactiva en `src/**` (invariante Workers)
 

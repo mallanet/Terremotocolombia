@@ -54,6 +54,10 @@ export default tseslint.config(
       "local/require-capability-in-public-api": "error",
       "local/no-turnstile-in-public-api": "error",
       "local/user-facing-mutation-needs-guard": "error",
+      // El 503 ciego de /api/volunteers (2026-08-11) duro 6h porque el `catch {}`
+      // del route tiraba el SQLSTATE. La diagnosticabilidad se gatea, no se
+      // recuerda.
+      "local/no-blind-catch": "error",
     },
   },
   {

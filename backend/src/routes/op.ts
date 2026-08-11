@@ -11,6 +11,7 @@ import { Router } from "express";
 import { createHash } from "crypto";
 import { asyncHandler, rateLimit } from "@/middleware";
 import { env } from "@/config/env";
+import { logUpstreamFailure } from "@/lib/db-error";
 import { badGateway, HttpError } from "@/lib/errors";
 
 export const opRouter = Router();
@@ -153,7 +154,8 @@ opRouter.post(
       } else {
         res.send(await upstream.text());
       }
-    } catch {
+    } catch (err) {
+      logUpstreamFailure("op.openpanel-proxy", err);
       throw badGateway("No se pudo contactar OpenPanel.");
     }
   }),

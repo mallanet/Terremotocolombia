@@ -76,3 +76,21 @@ export function describeDbError(err: unknown): string {
 export function logDbFailure(context: string, err: unknown): void {
   console.error(`[db-failure] ${context}: ${describeDbError(err)}`);
 }
+
+/**
+ * Variante para fallos SALIENTES (fetch a un upstream, encolado en Queues). No
+ * son errores de Postgres, asi que no tienen SQLSTATE ni `detail`; la proyeccion
+ * se queda en name + message.
+ *
+ * Ojo con el mismo riesgo por otra puerta: el `message` de un fallo de fetch
+ * puede arrastrar la URL, y una URL puede llevar un token en la query. Por eso
+ * se recorta cualquier cosa que parezca query string antes de loguear.
+ */
+export function logUpstreamFailure(context: string, err: unknown): void {
+  if (!(err instanceof Error)) {
+    console.error(`[upstream-failure] ${context}: non-error thrown (${typeof err})`);
+    return;
+  }
+  const safe = err.message.replace(/\?[^\s]*/g, "?<redacted>");
+  console.error(`[upstream-failure] ${context}: ${err.name} ${safe}`);
+}

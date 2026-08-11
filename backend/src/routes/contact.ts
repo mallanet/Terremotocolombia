@@ -11,6 +11,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, rateLimit, requireHuman, validate } from "@/middleware";
 import { hashIp } from "@/lib/client-ip";
+import { logDbFailure } from "@/lib/db-error";
 import { serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/contact";
 
@@ -106,7 +107,8 @@ contactRouter.post(
         id: message.id,
         message: "Mensaje recibido. Te responderemos pronto.",
       });
-    } catch {
+    } catch (err) {
+      logDbFailure("contact.create", err);
       throw serviceUnavailable("No se pudo guardar el mensaje.");
     }
   }),

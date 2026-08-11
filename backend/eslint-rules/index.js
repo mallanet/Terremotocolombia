@@ -187,11 +187,45 @@ const userFacingMutationNeedsGuard = {
   },
 };
 
+const noBlindCatch = {
+  meta: {
+    type: "problem",
+    docs: {
+      description:
+        "Un `catch` sin binding en un route TIRA el error. El cliente debe seguir viendo un " +
+        "5xx generico, pero el log del Worker tiene que quedarse con el SQLSTATE.",
+    },
+    schema: [],
+    messages: {
+      blind:
+        "`catch {}` sin binding: el error se pierde y el 5xx queda sin diagnostico. Usa " +
+        "`catch (err) { logDbFailure(\"<contexto>\", err); ... }` (lib/db-error, PII-safe).",
+    },
+  },
+  create(context) {
+    const file = context.filename || context.getFilename();
+    if (
+      !file.includes("/routes/") &&
+      !file.includes("/public-api/") &&
+      !file.includes("/modules/")
+    )
+      return {};
+    return {
+      // `catch {}` (sin parametro) es un nodo distinto de `catch (e) {}`: el
+      // param es null. No hace falta heuristica, lo dice el AST.
+      CatchClause(node) {
+        if (node.param === null) context.report({ node, messageId: "blind" });
+      },
+    };
+  },
+};
+
 export default {
   rules: {
     "require-rate-limit": requireRateLimit,
     "require-capability-in-public-api": requireCapabilityInPublicApi,
     "no-turnstile-in-public-api": noTurnstileInPublicApi,
     "user-facing-mutation-needs-guard": userFacingMutationNeedsGuard,
+    "no-blind-catch": noBlindCatch,
   },
 };

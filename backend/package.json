@@ -16,7 +16,8 @@
     "migrate": "tsx worker/migrate.ts",
     "seed": "tsx src/seed/index.ts",
     "worker": "tsx worker/index.ts",
-    "db:generate": "drizzle-kit generate --config ../infra/db/drizzle.config.ts"
+    "db:generate": "drizzle-kit generate --config ../infra/db/drizzle.config.ts",
+    "check:schema-drift": "tsx worker/check-schema-drift.ts"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.4",
