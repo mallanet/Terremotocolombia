@@ -233,18 +233,19 @@ Turnstile + rate-limit).
 
 ## Workers y colas
 
-> **ESTADO EN PRODUCCIÓN: este worker NO está desplegado en ningún sitio.**
+> **ESTADO EN PRODUCCIÓN: el worker BullMQ NO está desplegado; los jobs se
+> están portando a Cloudflare** (plan `docs/plans/2026-08-10-002-…`, estado
+> por unidad en `docs/runbook-fase0.md`). Esta sección describe el camino
+> docker-compose, que sigue siendo válido (R5). Situación por superficie:
 >
-> Todo lo de esta sección describe el camino docker-compose. En Cloudflare
-> Workers no hay Valkey ni proceso de colas, así que **encolar un job no lo
-> ejecuta nadie**. Lo que queda degradado hoy:
->
-> | Superficie | Efecto |
+> | Superficie | Estado en Workers |
 > | --- | --- |
-> | `GET /api/earthquakes` | sin sync: devuelve lo que haya en base (hoy, vacío) |
-> | `POST /api/needs` | la publicación en ResponseGrid no se procesa |
-> | Importación de pacientes | **manual y OCR por igual** — las dos pasan por `enqueuePatientImport` |
-> | Federación de hub | no corre |
+> | `GET /api/earthquakes` | **sync vivo** por Cron Trigger (`*/5`) |
+> | Geocodificación pendiente | **viva** por Cron Trigger (`2-59/5`) |
+> | `POST /api/needs` (publicación) | Cloudflare Queue + consumidor `queue` en `src/worker.ts`; DLQ persistido en `audit_log` (`queue.dead_letter`). Verificación staging → cutover G4 |
+> | Sync de fuentes (personas) | pendiente (U5) |
+> | Importación de pacientes | **inerte a propósito** — transacciones interactivas fallan en Workers; plan propio |
+> | Federación de hub | no corre (flag apagado) |
 >
 > El rate-limit distribuido también cae a su modo degradado (en memoria, por
 > isolate) porque no hay `VALKEY_URL`.

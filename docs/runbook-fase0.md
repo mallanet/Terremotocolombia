@@ -6,8 +6,8 @@ Prerrequisitos antes de dirigir tráfico institucional al despliegue. Ver
 | # | Ítem | Estado | Bloqueado por |
 | --- | --- | --- | --- |
 | 1 | Protección anti-bot (Turnstile) | apagada en ambos lados | Doppler (humano) |
-| 2 | Worker de colas desplegado | sin desplegar | **infraestructura inexistente** |
-| 3 | Panel de autoridad desplegado | construido, sin desplegar | pendiente |
+| 2 | Worker de colas desplegado | **port a Cloudflare en curso** (ver abajo) | cutover a prod = gate humano (G4) |
+| 3 | Panel de autoridad desplegado | **desplegado** (admin.terremotocolombia.co, tras Cloudflare Access) | — (ver `docs/runbook-admin.md`) |
 | 4 | Canal de supresión (Ley 1581) | sin operar | pendiente |
 | 5 | Revisión de seguridad independiente | no iniciada | pendiente |
 
@@ -70,19 +70,26 @@ infraestructura que hoy no existe**, con costo recurrente.
 - federación de hub (`hub/`)
 - mantenimiento programado (`maintenance.queue`)
 
-### Dos caminos (decisión del mantenedor — implica gasto)
+### Decisión tomada: camino B (Cloudflare Queues + Cron Triggers)
 
-**A. Levantar el camino de contenedores.**
-Host de contenedores (VPS / Fly / Railway) + Valkey gestionado. El código ya
-existe y `docker-compose.prod.yml` lo describe. Es el único camino donde el
-sistema completo funciona hoy, incluidas las transacciones interactivas que
-fallan en Workers. Costo recurrente; suma un segundo entorno que operar.
+El mantenedor eligió portar los jobs a Cloudflare (KTD1 del plan
+`docs/plans/2026-08-10-002-refactor-queue-worker-cloudflare-port-plan.md`) en
+vez de levantar contenedores + Valkey con costo recurrente. Estado por unidad:
 
-**B. Portar los jobs a Cloudflare Queues + Cron Triggers.**
-Sin infraestructura nueva y sin costo adicional relevante. Pero es una
-reescritura real: BullMQ desaparece, cada job se reimplementa contra otro
-modelo de entrega, y hay que resolver reintentos y dead-letter de nuevo.
-No es trabajo de una tarde.
+| Unidad | Qué | Estado |
+| --- | --- | --- |
+| U1 seam de despacho (`lib/job-dispatch.ts`) | binding de Queues gana; BullMQ con `VALKEY_URL`; sin ambos, error claro | **en producción** |
+| U4 geocode por Cron Trigger | `2-59/5 * * * *` | **en producción** |
+| — sismos por Cron Trigger | `*/5 * * * *` (pre-plan) | **en producción** |
+| U2 publicación de necesidades por Queue | colas `terremotocolombia-needs[-staging]`, consumidor `queue` en `worker.ts` | código listo, verificación en staging (G2) |
+| U3 visibilidad de cartas muertas | DLQ → `audit_log` (`queue.dead_letter`), visible en Auditoría del panel | código listo, verificación en staging (G2) |
+| U5 sync de fuentes por Cron | + semántica de `/api/sync/status` sin BullMQ | pendiente |
+| U6 retirar Valkey del bundle de Workers | + documentar rate-limit permanente | pendiente |
+| U7 `scripts/verify-jobs.sh` | verificación por frescura derivada | pendiente |
 
-> **No elijas por defecto.** A cuesta dinero; B cuesta tiempo de ingeniería en
-> mitad de una emergencia. Ninguna de las dos se decide sin el mantenedor.
+**Cutover a producción (G4) = gate humano**: deploy manual del backend con
+confirmación. Igual que siempre.
+
+**Fuera de alcance a propósito**: importación de pacientes (manual y OCR) —
+usa transacciones interactivas que fallan en Workers; le toca su propio plan.
+El camino compose (`docker-compose.prod.yml`) queda intacto (R5).

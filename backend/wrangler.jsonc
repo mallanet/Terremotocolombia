@@ -33,6 +33,31 @@
   // A nivel superior a proposito: `triggers` se HEREDA en env.staging, asi que
   // los dos entornos sincronizan sin duplicar configuracion.
   "triggers": { "crons": ["*/5 * * * *", "2-59/5 * * * *"] },
+  // Cloudflare Queues (U2/U3 del plan de port de colas). El productor es el
+  // seam de despacho (src/lib/job-dispatch.ts) via el binding NEEDS_QUEUE; el
+  // consumidor es el handler `queue` de src/worker.ts, en este MISMO Worker.
+  //
+  // Reintentos deliberados, no defaults (plan U2): un fallo de publicacion
+  // suele ser una caida del tercero, que quiere reintentos ESPACIADOS
+  // (5 x 60 s), no tres seguidos. Agotados los reintentos, el mensaje pasa al
+  // DLQ, cuyo consumidor lo persiste en audit_log (accion queue.dead_letter)
+  // — la retencion del DLQ es de 4 dias y sin consumidor se PIERDE (KTD4).
+  //
+  // OJO: `queues` NO se hereda en env.staging (los nombres difieren por
+  // entorno); cada bloque declara los suyos.
+  "queues": {
+    "producers": [{ "binding": "NEEDS_QUEUE", "queue": "terremotocolombia-needs" }],
+    "consumers": [
+      {
+        "queue": "terremotocolombia-needs",
+        "max_retries": 5,
+        "retry_delay": 60,
+        "max_batch_size": 5,
+        "dead_letter_queue": "terremotocolombia-needs-dlq"
+      },
+      { "queue": "terremotocolombia-needs-dlq", "max_retries": 0 }
+    ]
+  },
   "vars": {
     // Bounding box de Colombia para el catalogo de sismos del USGS.
     // getBbox() LANZA si falta cualquiera de las cuatro, asi que sin esto el
@@ -79,6 +104,23 @@
   "env": {
     "staging": {
       "name": "terremotocolombia-api-staging",
+      // Colas de staging: mismos parametros que produccion (un staging que no
+      // se parece a produccion no prueba nada), nombres con sufijo -staging.
+      "queues": {
+        "producers": [
+          { "binding": "NEEDS_QUEUE", "queue": "terremotocolombia-needs-staging" }
+        ],
+        "consumers": [
+          {
+            "queue": "terremotocolombia-needs-staging",
+            "max_retries": 5,
+            "retry_delay": 60,
+            "max_batch_size": 5,
+            "dead_letter_queue": "terremotocolombia-needs-dlq-staging"
+          },
+          { "queue": "terremotocolombia-needs-dlq-staging", "max_retries": 0 }
+        ]
+      },
       "vars": {
         "EARTHQUAKES_MIN_LAT": "-5",
         "EARTHQUAKES_MAX_LAT": "14",
