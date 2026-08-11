@@ -87,6 +87,28 @@ export const CROSS_CUTTING: { key: string; category: string; description: string
   // se exige incluso al admin semilla, que debe tener además el flag de super
   // admin (users.is_super_admin). Ver MIRROR_MANAGE + userHasCapability.
   { key: "mirror:manage", category: "auth", description: "Emitir/revocar acceso a la réplica pública (SQL hub)" },
+  // Family Search (U9) — capa de identidad sobre missing_persons/hospital_patients/
+  // unidentified_persons. Tres claves, no CRUD estándar (la unidad no es un
+  // modelo con create/edit/delete, es un flujo de revisión con tres verbos
+  // propios). Mismo criterio que deletion:read/edit: leer ya es sensible (cruza
+  // PII entre registros de poblaciones distintas), decidir es una potestad
+  // operativa aparte, y fusionar clusters ya establecidos es la más delicada de
+  // las tres (una fusión ancorada equivocada notifica a la familia equivocada).
+  {
+    key: "person:search",
+    category: "identity",
+    description: "Buscar registros/clusters de personas (cola de revisión, búsqueda por nombre/PRN, ficha de cluster)",
+  },
+  {
+    key: "person:review",
+    category: "identity",
+    description: "Decidir vínculos propuestos (confirmar/rechazar/inseguro) y proponerlos manualmente",
+  },
+  {
+    key: "person:merge",
+    category: "identity",
+    description: "Confirmar una fusión ANCORADA (dos clusters ya establecidos) y deshacer una fusión (unmerge)",
+  },
 ];
 
 /** Capacidad que gobierna el acceso a la réplica pública. Gateada a super admin. */
