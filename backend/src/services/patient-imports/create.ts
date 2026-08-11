@@ -159,6 +159,7 @@ export async function listImportRows(
 			validationWarnings: patientImportRows.validationWarnings,
 			dedupCandidates: patientImportRows.dedupCandidates,
 			patientId: patientImportRows.patientId,
+			updatedAt: patientImportRows.updatedAt,
 		})
 		.from(patientImportRows)
 		.where(eq(patientImportRows.importId, importId))

@@ -214,7 +214,7 @@ export async function confirmImportRow(
 			),
 		)
 		.returning({ id: patientImportRows.id });
-	if (updated[0]) return toDTOFromRecord(row, { rowStatus: "valid" });
+	if (updated[0]) return toDTOFromRecord(row, { rowStatus: "valid", updatedAt: now });
 
 	const reread = await loadRow(importId, rowId);
 	if (reread?.rowStatus === "valid") return toDTOFromRecord(reread, {});
@@ -256,7 +256,7 @@ export async function rejectImportRow(
 			),
 		)
 		.returning({ id: patientImportRows.id });
-	if (updated[0]) return toDTOFromRecord(row, { rowStatus: "invalid" });
+	if (updated[0]) return toDTOFromRecord(row, { rowStatus: "invalid", updatedAt: now });
 
 	const reread = await loadRow(importId, rowId);
 	if (reread?.rowStatus === "invalid") return toDTOFromRecord(reread, {});
@@ -366,6 +366,7 @@ export async function decideImportRowDedup(
 				rowStatus: "valid",
 				dedupStatus: DEDUP_STATUS_ACCEPTED,
 				dedupCandidates: acceptedCandidates,
+				updatedAt: now,
 			});
 		}
 		const reread = await loadRow(importId, rowId);
@@ -740,6 +741,9 @@ export async function editImportRow(
 			validationErrors: errors,
 			validationWarnings: warnings,
 			dedupCandidates: nextDedupCandidates,
+			// El cliente refresca su baseline con esto: sin él, el siguiente
+			// guardado llevaría una baseline obsoleta y recibiría un 409 falso.
+			updatedAt: now,
 		});
 	}
 
