@@ -26,6 +26,11 @@ import {
 } from "./services/cron-jobs.js";
 import { registerJobBindings } from "./lib/job-dispatch.js";
 import {
+  isCacheablePhotoPath,
+  servePhotoCached,
+  type EdgeCache,
+} from "./lib/photo-edge-cache.js";
+import {
   classifyQueue,
   consumeDlqBatch,
   consumeImportsBatch,
@@ -139,6 +144,23 @@ export default {
     // existe dentro del handler: leerlo en ambito global lanza "Disallowed
     // operation called within global scope".
     registerJobBindings(env);
+    // Fotos públicas: cache-first sobre caches.default ANTES de Express. Las
+    // cache rules de zona no alcanzan a un Worker con custom domain, así que
+    // el borde es este isolate (ver lib/photo-edge-cache.ts). El guard de
+    // `caches` mantiene el fichero inerte fuera de Workers (Node/compose no
+    // pasa por aquí, pero mejor no depender de un global que no existe).
+    const edgeCache = (globalThis as { caches?: { default?: EdgeCache } }).caches?.default;
+    if (edgeCache && request.method === "GET") {
+      const { pathname } = new URL(request.url);
+      if (isCacheablePhotoPath(pathname)) {
+        return servePhotoCached({
+          url: request.url,
+          cache: edgeCache,
+          fetchOrigin: () => nodeHandler.fetch(request, env, ctx),
+          waitUntil: (p) => ctx.waitUntil(p),
+        });
+      }
+    }
     return nodeHandler.fetch(request, env, ctx);
   },
 
