@@ -359,9 +359,12 @@ poblaciones existentes — las tablas fuente no cambian su camino de escritura.
 - **Consecuencia:** sin transacciones interactivas (los 8 `db.transaction` de
   `services/roles.ts` y `services/patient-imports/*` fallan aquí), sin colas
   BullMQ/Valkey y sin `admin/` desplegado.
-- Despliegue: `deploy-frontend.yml`, `deploy-backend.yml` y `deploy-admin.yml`,
-  todos automáticos en push a `main` con filtro de rutas (backend y admin eran
-  manuales hasta 2026-08-11). Las migraciones **no** las corre CI ni ningún
+- Despliegue: `deploy-frontend.yml` y `deploy-admin.yml` son automáticos en push
+  a `main` con filtro de rutas. **`deploy-backend.yml` es manual** (solo
+  `workflow_dispatch`, desde la tarde del 2026-08-11): la API no sale con el
+  merge, sale cuando un humano lanza el workflow, y antes pasa por un gate de
+  deriva de esquema que falla cerrado. En staging (`deploy-staging.yml`) el
+  backend sí es automático. Las migraciones **no** las corre CI ni ningún
   deploy.
 - La zona de Cloudflare (DNS, anti-suplantación, TLS, WAF, cache, rate limit) se
   gestiona con un módulo de OpenTofu **fuera de este repo**.
