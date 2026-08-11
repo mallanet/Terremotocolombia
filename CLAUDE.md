@@ -14,9 +14,12 @@ integraciones, Drizzle, reglas ESLint), lee **`AGENTS.md`**.
 
 `.github/workflows/deploy-frontend.yml` se dispara **solo** en cada push a `main`
 que toque `frontend/**`, `config/deployment.config.json`, o el propio workflow.
-No hay paso de aprobación ni entorno de staging: `main` **es** producción. Un
-commit al frontend es un despliegue a un sitio que usa gente buscando a
-familiares.
+No hay paso de aprobación: `main` **es** producción. Un commit al frontend es
+un despliegue a un sitio que usa gente buscando a familiares.
+
+El **panel admin también se despliega solo** desde 2026-08-11 (decisión del
+mantenedor): `deploy-admin.yml` corre en cada push a `main` que toque
+`admin/**` o el propio workflow.
 
 El **backend NO** se despliega solo: `deploy-backend.yml` es manual
 (`workflow_dispatch`) y exige escribir `desplegar`. Es deliberado — la API
@@ -46,7 +49,7 @@ comparte base de datos con lo que ya está sirviendo.
 | Secretos | Doppler config `prd` | Doppler config `stg` |
 | Despliegue frontend | automático al pushear | automático al pushear |
 | Despliegue backend | **manual + confirmación** | automático |
-| Despliegue admin | **manual + confirmación** (`deploy-admin.yml`) | automático |
+| Despliegue admin | automático al pushear (`deploy-admin.yml`, filtro `admin/**`) | automático |
 
 Ambos entornos comparten `wrangler.jsonc` (bloque `env.staging`) a propósito: si
 se configuran en sitios distintos dejan de parecerse, y un staging que no se
@@ -222,7 +225,7 @@ admin/open-next.config.ts        Adaptador Next -> Workers del panel
 
 .github/workflows/deploy-frontend.yml   Automático en push a main (con filtro de rutas)
 .github/workflows/deploy-backend.yml    MANUAL, con confirmación
-.github/workflows/deploy-admin.yml      MANUAL, con confirmación
+.github/workflows/deploy-admin.yml      Automático en push a main (filtro admin/**)
 .github/workflows/ci.yml                typecheck + build + content audit
 
 docker-compose.prod.yml          Camino ALTERNATIVO (VPS). No es producción hoy.

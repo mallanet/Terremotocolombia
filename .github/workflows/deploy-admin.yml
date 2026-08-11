@@ -1,26 +1,27 @@
-name: Deploy admin (manual)
+name: Deploy admin
 
 # Despliega SOLO el panel admin (Worker terremotocolombia-admin,
 # admin.terremotocolombia.co).
 #
-# MANUAL A PROPOSITO, igual que el backend: el panel es la superficie de
-# escritura interna sobre datos reales de la crisis. Que alguien tenga que
-# pulsar el boton es la funcionalidad.
+# AUTOMATICO en push a main desde 2026-08-11 (decision del mantenedor; antes
+# era manual con confirmacion, como el backend). El filtro de rutas hace que
+# solo un commit que toque admin/** (o este workflow) redespliegue el panel.
 #
 # El panel NO lleva secretos de runtime: su BFF solo necesita
 # EMERGENCY_API_URL (var en admin/wrangler.jsonc); la sesion es el JWT del
 # backend en cookie httpOnly. Doppler aqui solo aporta los tokens de
 # Cloudflare para wrangler.
 #
-# Lanzarlo:  Actions -> "Deploy admin (manual)" -> Run workflow
-#       o:   gh workflow run deploy-admin.yml -f confirmar=desplegar
+# Redeploy a mano (sin tocar ficheros):
+#   Actions -> "Deploy admin" -> Run workflow
+#   o: gh workflow run deploy-admin.yml
 on:
+  push:
+    branches: [main]
+    paths:
+      - "admin/**"
+      - ".github/workflows/deploy-admin.yml"
   workflow_dispatch:
-    inputs:
-      confirmar:
-        description: 'Escribe "desplegar" para confirmar'
-        required: true
-        default: ""
 
 permissions:
   contents: read
@@ -34,8 +35,6 @@ jobs:
     name: Deploy del panel admin
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Segunda red de seguridad: sin la palabra exacta, ni se ejecuta.
-    if: github.event.inputs.confirmar == 'desplegar'
 
     steps:
       - uses: actions/checkout@v4
