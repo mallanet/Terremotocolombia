@@ -30,6 +30,7 @@ import { capabilitiesRouter } from "@/public-api/routers/capabilities.router";
 import { apiKeysRouter } from "@/public-api/routers/api-keys.router";
 import { hubCredentialsRouter } from "@/public-api/routers/hub-credentials.router";
 import { hospitalSuppliesRouter } from "@/public-api/routers/hospital-supplies.router";
+import { deletionRequestsRouter } from "@/public-api/routers/deletion-requests.router";
 
 /**
  * Registro path → CONFIG del recurso. Fuente de verdad ÚNICA: de aquí salen
@@ -65,6 +66,8 @@ export function mountPublicApi(app: Express): void {
   // Insumos hospitalarios (agregado por hospital, no CRUD plano): router a mano
   // reutilizando las capacidades hospital:read / hospital:edit del catálogo.
   app.use("/api/public/hospital-supplies", hospitalSuppliesRouter);
+  // Supresión de datos (Ley 1581): gestión de solicitudes, deletion:read/edit.
+  app.use("/api/public/deletion-requests", deletionRequestsRouter);
   // RBAC con verbos irregulares (no CRUD): routers a mano. Cada ruta lleva
   // rateLimit + requireCapability + writeAudit (gates que exige el ESLint).
   app.use("/api/public/users", usersRouter); // user:read/edit/delete (invite→auth)

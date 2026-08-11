@@ -31,6 +31,10 @@ const schema = z.object({
 
   // Invitaciones: base del frontend para construir el link de aceptación.
   APP_BASE_URL: z.string().default("http://localhost:3000"),
+  // Base del PANEL ADMIN para links de invitación por email: la página
+  // /invite/<token> vive en el panel, no en el sitio público. Sin configurar,
+  // cae a APP_BASE_URL (dev local, donde el panel corre aparte igual).
+  ADMIN_BASE_URL: z.string().optional(),
   // Caducidad de una invitación (horas).
   INVITE_TTL_HOURS: z.coerce.number().default(72),
 

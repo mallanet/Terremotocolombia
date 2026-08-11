@@ -83,6 +83,7 @@
     "NODE_ENV": "production",
     "COOKIE_SECURE": "true",
     "APP_BASE_URL": "https://terremotocolombia.co",
+    "ADMIN_BASE_URL": "https://admin.terremotocolombia.co",
     "CORS_ORIGINS": "https://terremotocolombia.co,https://www.terremotocolombia.co",
     // Detras de Cloudflare la unica cabecera de IP no falsificable es esta.
     // X-Forwarded-For la puede poner el cliente.
@@ -151,6 +152,7 @@
         "NODE_ENV": "production",
         "COOKIE_SECURE": "true",
         "APP_BASE_URL": "https://staging.terremotocolombia.co",
+        "ADMIN_BASE_URL": "https://admin-staging.terremotocolombia.co",
         "CORS_ORIGINS": "https://staging.terremotocolombia.co",
         "TRUSTED_IP_HEADER": "cf-connecting-ip"
       },

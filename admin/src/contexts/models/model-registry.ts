@@ -225,6 +225,23 @@ export const MODELS = [
     ],
     editFields: [{ key: "read", label: "Leído (true)", required: true }],
   },
+  {
+    path: "deletion-requests",
+    label: "Supresión de datos",
+    readCapability: "deletion:read",
+    capabilityRoot: "deletion",
+    columns: [
+      { key: "name", label: "Nombre" },
+      { key: "email", label: "Correo" },
+      { key: "details", label: "Detalle" },
+      { key: "status", label: "Estado" },
+    ],
+    // Sin createFields: las solicitudes ENTRAN por el formulario público
+    // (/solicitar-borrado). Aquí solo se resuelven (Ley 1581).
+    editFields: [
+      { key: "status", label: "Estado (pending | resolved | rejected)", required: true },
+    ],
+  },
 ] as const satisfies readonly ModelConfig[];
 
 export type ModelPath = (typeof MODELS)[number]["path"];
