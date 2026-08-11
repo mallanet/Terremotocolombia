@@ -13,14 +13,14 @@
  *    la búsqueda. Sin historia de decisiones en ese caso (no hay ninguna).
  */
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { RequireCapability } from "@/src/shared/auth/admin-gate";
 import { Button } from "@/src/ui";
 import {
   DecisionRequestError,
   useDecisionMutation,
 } from "@/src/shared/mutation/use-decision-mutation";
-import { fetchClusterFicha, postUnmerge, queueQueryKey } from "./api";
+import { fetchClusterFicha, postUnmerge, queueQueryKey, signalsQueryKey } from "./api";
 import { ManualLinkSearch } from "./manual-link-search";
 import { Modal } from "./modal";
 import { RecordSummary } from "./record-summary";
@@ -28,6 +28,7 @@ import type {
   ClusterMemberFichaDTO,
   DecisionHistoryEntryDTO,
   FichaTarget,
+  SignalsQueueResponse,
   UnmergeResponse,
 } from "./types";
 
@@ -114,9 +115,14 @@ function DecisionRow({
 function ClusterView({
   clusterId,
   onJumpToQueue,
+  onOpenSignals,
 }: {
   clusterId: string;
   onJumpToQueue: (linkId: string) => void;
+  /** U15: abre la pestaña "Señales" (family-search-admin.tsx) — usado por el
+   *  chip "Señales pendientes (N)" abajo. Opcional: StandaloneView no lo
+   *  necesita (el plan U15 §4 acota el chip a clusters, ver ese archivo). */
+  onOpenSignals?: () => void;
 }) {
   const query = useQuery({
     queryKey: clusterFichaQueryKey(clusterId),
@@ -124,6 +130,25 @@ function ClusterView({
   });
   const [unmergeTarget, setUnmergeTarget] = useState<DecisionHistoryEntryDTO | null>(null);
   const [unmergeNote, setUnmergeNote] = useState("");
+
+  // U15 — chip "Señales pendientes (N)": el contrato de GET .../clusters/:id
+  // (ClusterFichaDTO, person-clusters.ts) NO trae info de señales, así que se
+  // deriva client-side de lo que YA esté en cache de la cola de señales
+  // (misma query key que signal-queue.tsx/shell.tsx, ver
+  // api.ts:signalsQueryKey) — sin disparar una llamada nueva.
+  // LIMITACIÓN documentada (plan U15 §4, deviation reportada): si el revisor
+  // nunca visitó la pestaña "Señales" en esta sesión (cache vacío) o la señal
+  // pendiente cae más allá de las páginas ya cargadas, el chip NO aparece
+  // aunque la señal exista — el contrato actual no ofrece un total ni un
+  // filtro por cluster que permita saberlo sin esa carga previa.
+  const queryClient = useQueryClient();
+  const cachedSignals = queryClient.getQueryData<InfiniteData<SignalsQueueResponse>>(
+    signalsQueryKey(),
+  );
+  const pendingSignalsForCluster =
+    cachedSignals?.pages
+      .flatMap((p) => p.items)
+      .filter((s) => s.record?.clusterId === clusterId).length ?? 0;
 
   const unmerge = useDecisionMutation<{ note?: string }, UnmergeResponse>({
     mutationFn: (vars) => postUnmerge(unmergeTarget!.linkId, vars.note),
@@ -161,6 +186,17 @@ function ClusterView({
         <p className="text-sm text-gray-500">
           Estado: {ficha.status} — creado {formatDate(ficha.createdAt)}
         </p>
+        {pendingSignalsForCluster > 0 && (
+          <button
+            type="button"
+            data-testid="cluster-ficha-signals-chip"
+            className="mt-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-200"
+            onClick={onOpenSignals}
+            disabled={!onOpenSignals}
+          >
+            Señales pendientes ({pendingSignalsForCluster})
+          </button>
+        )}
       </div>
 
       <section className="flex flex-col gap-2">
@@ -300,14 +336,21 @@ function StandaloneView({
 export function ClusterFicha({
   target,
   onJumpToQueue,
+  onOpenSignals,
 }: {
   target: FichaTarget;
   onJumpToQueue: (linkId: string) => void;
+  /** U15: abre la pestaña "Señales" — ver el chip en ClusterView. */
+  onOpenSignals?: () => void;
 }) {
   return (
     <div className="rounded-lg border p-4">
       {target.type === "cluster" ? (
-        <ClusterView clusterId={target.clusterId} onJumpToQueue={onJumpToQueue} />
+        <ClusterView
+          clusterId={target.clusterId}
+          onJumpToQueue={onJumpToQueue}
+          onOpenSignals={onOpenSignals}
+        />
       ) : (
         <StandaloneView record={target} onJumpToQueue={onJumpToQueue} />
       )}

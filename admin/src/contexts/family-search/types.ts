@@ -136,6 +136,71 @@ export type FichaTarget =
   | { type: "cluster"; clusterId: string }
   | { type: "standalone"; record: RecordDisplayDTO };
 
+// ------------------------------------------------------------- U15 (señales) ---
+
+/**
+ * DTOs espejo de `backend/src/services/record-signals.ts`, leídos línea a
+ * línea contra `record-signals.router.ts` (U15 read-first, mismo criterio
+ * que el bloque de arriba para U11). `PendingSignalDTO.record` es
+ * exactamente `RecordDisplay` del backend (person-clusters.ts) — MISMA forma
+ * que `RecordDisplayDTO` de arriba, así que se reusa el tipo tal cual (nunca
+ * se importa del backend, ver nota del encabezado del archivo).
+ */
+export type SignalDecisionValue = "confirmar" | "descartar";
+export type SignalStatus = "pending" | "confirmed" | "dismissed";
+
+export interface PendingSignalDTO {
+  id: string;
+  prn: string;
+  source: string;
+  kind: string;
+  claimedStatus: string;
+  /** Status guardado HOY en el registro fuente — null si el PRN no resuelve
+   *  o el tipo de registro no tiene este concepto (solo `missing_report` hoy,
+   *  ver `loadStoredMissingStatus` en record-signals.ts). */
+  storedStatus: string | null;
+  payload: unknown;
+  createdAt: number;
+  record: RecordDisplayDTO | null;
+}
+
+export interface SignalsQueueResponse {
+  items: PendingSignalDTO[];
+}
+
+export interface SignalDTO {
+  id: string;
+  prn: string;
+  source: string;
+  kind: string;
+  claimedStatus: string;
+  payload: unknown;
+  status: SignalStatus | string;
+  createdAt: number;
+  decidedBy: string | null;
+  decidedAt: number | null;
+  decisionNote: string | null;
+}
+
+export interface SignalDecisionResponse {
+  item: SignalDTO;
+  idempotentReplay: boolean;
+}
+
+/** Vocabulario ES para `claimedStatus`/`storedStatus` — hoy solo
+ *  'active'/'found' existen (missing.ts es el único productor de señales,
+ *  ver KTD18 en record-signals.ts); cualquier otro valor se muestra tal
+ *  cual (defensivo). */
+const SIGNAL_TARGET_STATUS_LABELS: Record<string, string> = {
+  active: "activa",
+  found: "encontrada",
+};
+
+export function signalStatusLabel(status: string | null): string {
+  if (status === null) return "sin dato";
+  return SIGNAL_TARGET_STATUS_LABELS[status] ?? status;
+}
+
 /** Extrae, con guardas de tipo (evidenceSnapshot es `unknown` a propósito en
  *  el backend — ver DecisionHistoryEntryDTO), la evidenceClass congelada en
  *  el snapshot de una decisión previa — usada por el banner de re-propuesta. */
