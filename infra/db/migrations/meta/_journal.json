@@ -57,6 +57,13 @@
       "when": 1786554000003,
       "tag": "0007_outstanding_veda",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786554000004,
+      "tag": "0008_volunteer_tasks",
+      "breakpoints": true
     }
   ]
 }

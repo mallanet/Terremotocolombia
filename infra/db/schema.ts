@@ -718,6 +718,52 @@ export const volunteers = pgTable(
   ],
 );
 
+/* ----------------------------------------------------- volunteer_tasks */
+// Tareas que el equipo crea en el panel y asigna a voluntarios por email
+// (flujo "hombre del medio": recoger en un punto físico y entregar en otro).
+// Los puntos son opcionales: una tarea digital no tiene traslado.
+export const volunteerTasks = pgTable(
+  "volunteer_tasks",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    kind: text("kind").notNull().default("terreno"), // digital | terreno
+    city: text("city"),
+    originName: text("origin_name"),
+    originLat: doublePrecision("origin_lat"),
+    originLng: doublePrecision("origin_lng"),
+    destName: text("dest_name"),
+    destLat: doublePrecision("dest_lat"),
+    destLng: doublePrecision("dest_lng"),
+    transportNote: text("transport_note"),
+    status: text("status").notNull().default("open"), // open | assigned | done | cancelled
+    createdAt: epochMs("created_at").notNull(),
+    updatedAt: epochMs("updated_at"),
+  },
+  (t) => [index("volunteer_tasks_status_idx").on(t.status, t.createdAt.desc())],
+);
+
+/* ----------------------------------------------------- volunteer_assignments */
+// Asignación tarea↔voluntario. El `token` es la credencial del link del
+// correo (sin cuentas): quien lo tiene ve y responde SU asignación.
+export const volunteerAssignments = pgTable(
+  "volunteer_assignments",
+  {
+    id: text("id").primaryKey(),
+    taskId: text("task_id").notNull(),
+    volunteerId: text("volunteer_id").notNull(),
+    token: text("token").notNull().unique(),
+    status: text("status").notNull().default("offered"), // offered | accepted | done | declined
+    createdAt: epochMs("created_at").notNull(),
+    updatedAt: epochMs("updated_at"),
+  },
+  (t) => [
+    index("volunteer_assignments_task_idx").on(t.taskId),
+    index("volunteer_assignments_volunteer_idx").on(t.volunteerId),
+  ],
+);
+
 /* ----------------------------------------------------- data_deletion_requests */
 // Solicitudes de eliminación de datos personales (GDPR/CCPA).
 // Los usuarios pueden solicitar que eliminemos sus datos personales;
