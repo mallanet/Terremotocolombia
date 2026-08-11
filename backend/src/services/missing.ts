@@ -86,6 +86,9 @@ export interface CreateInput {
   photo?: string | null;
   /** Reporte de persona desaparecida (activa) o encontrada (localizada). */
   reportType?: MissingReportType;
+  /** hashIp(req) de quien crea el reporte. Único rastro de responsabilidad
+   *  de un alta anónima (contact_messages / donations siguen el mismo patrón). */
+  ipHash?: string | null;
 }
 
 export const MAX_NAME = 120;
@@ -377,6 +380,7 @@ export async function addMissing(input: CreateInput): Promise<MissingDTO> {
     contact,
     photo: stored,
     photoMigratedAt: migratedAt,
+    ipHash: input.ipHash ?? null,
     createdAt,
     status,
     resolutionNote,
