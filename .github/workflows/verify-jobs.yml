@@ -19,11 +19,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
       - uses: dopplerhq/cli-action@v3
-      - name: Instalar pg (para el conteo de cartas muertas)
+      # npm ci COMPLETO, sin --omit=dev: con --omit=dev el npm del runner
+      # valida mal la copia anidada de yaml (openapi3-ts/node_modules/yaml)
+      # cuando la copia top-level es solo-dev, y aborta con "Missing:
+      # yaml@X from lock file" — el mismo lockfile pasa npm ci completo en
+      # los jobs de CI. Instalar devDeps de más es más barato que un
+      # nocturno en rojo por un falso positivo del instalador.
+      - name: Instalar dependencias (para el conteo de cartas muertas)
         working-directory: backend
-        run: npm ci --omit=dev --ignore-scripts
+        run: npm ci --ignore-scripts
       - name: verify-jobs staging
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN_STAGING }}
@@ -34,11 +47,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
       - uses: dopplerhq/cli-action@v3
-      - name: Instalar pg (para el conteo de cartas muertas)
+      # npm ci COMPLETO, sin --omit=dev: con --omit=dev el npm del runner
+      # valida mal la copia anidada de yaml (openapi3-ts/node_modules/yaml)
+      # cuando la copia top-level es solo-dev, y aborta con "Missing:
+      # yaml@X from lock file" — el mismo lockfile pasa npm ci completo en
+      # los jobs de CI. Instalar devDeps de más es más barato que un
+      # nocturno en rojo por un falso positivo del instalador.
+      - name: Instalar dependencias (para el conteo de cartas muertas)
         working-directory: backend
-        run: npm ci --omit=dev --ignore-scripts
+        run: npm ci --ignore-scripts
       - name: verify-jobs production
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
