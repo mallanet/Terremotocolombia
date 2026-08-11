@@ -445,6 +445,76 @@ export async function unmergeLink(input: UnmergeInput): Promise<UnmergeResult> {
   return { link: toLinkDTO(finalRow!), prnA: row.prnA, prnB: row.prnB };
 }
 
+// --------------------------------------------------- rescindir (U9/U10) ---
+
+/** Estados "vivos" de un link — cualquiera puede rescindirse: un unmerge (R15,
+ *  siempre 'confirmed') o el tombstone de un registro fuente borrado (U10,
+ *  que puede tocar un link que nunca llegó a 'confirmed'). */
+const LIVE_LINK_STATUSES = ["proposed", "unsure", "confirmed"] as const;
+
+export interface RescindLinkResult {
+  row: typeof personLinks.$inferSelect;
+}
+
+/**
+ * Rescinde UN link vivo (proposed/unsure/confirmed) a 'rejected' + una fila de
+ * decisión 'rescinded' atribuida — CLAIM condicional (mismo idioma que
+ * `claimLink` de arriba, generalizado a los 3 status vivos en vez de solo
+ * proposed/unsure) + el MISMO insert append-only que `unmergeLink` escribe
+ * para el caso 'confirmed'.
+ *
+ * Export NUEVO para U10 (`services/person-records.ts:tombstonePersonRecord`,
+ * import DINÁMICO desde allá — ver su docstring sobre el ciclo que evita):
+ * cuando se borra un registro fuente con vínculos abiertos que nunca llegaron
+ * a 'confirmed', esta es la MISMA disciplina de escritura de
+ * `person_link_decisions` que `unmergeLink` ya usa, sin duplicarla. NO
+ * modifica `unmergeLink` (que sigue exigiendo 'confirmed' antes de intentar
+ * nada, con su propio manejo de replay idempotente) — comportamiento de esa
+ * función intacto.
+ *
+ * `null` si el link ya no está en ningún status vivo (perdió la carrera contra
+ * otra decisión/rescind concurrente, o ya fue decidido) — no es un error; el
+ * llamador decide si ese no-op es aceptable (`tombstonePersonRecord` sí lo
+ * es: nada que rescindir es un resultado válido).
+ */
+export async function rescindLiveLink(
+  linkId: string,
+  actorId: string,
+  note = "",
+): Promise<RescindLinkResult | null> {
+  const db = getDb();
+  let claimed: typeof personLinks.$inferSelect | undefined;
+  for (const prior of LIVE_LINK_STATUSES) {
+    const rows = await db
+      .update(personLinks)
+      .set({ status: "rejected" })
+      .where(and(eq(personLinks.id, linkId), eq(personLinks.status, prior)))
+      .returning();
+    if (rows[0]) {
+      claimed = rows[0];
+      break;
+    }
+  }
+  if (!claimed) return null;
+
+  await db.insert(personLinkDecisions).values({
+    id: randomUUID(),
+    linkId,
+    decision: "rescinded",
+    note,
+    evidenceSnapshot: {
+      score: claimed.score,
+      evidence: claimed.evidence,
+      evidenceClass: claimed.evidenceClass,
+      matcherVersion: claimed.matcherVersion,
+    },
+    decidedBy: actorId,
+    decidedAt: Date.now(),
+  });
+
+  return { row: claimed };
+}
+
 // --------------------------------------------------------- cola de revisión ---
 
 export interface QueueCursor {

@@ -20,12 +20,13 @@
  * es una máquina de estados idempotente: ON CONFLICT DO NOTHING + reintento
  * ante colisión de PK, nunca SELECT-then-INSERT con lock.
  */
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { generatePrn, normalizePrn } from "@/lib/prn";
 import { getQueueProducer, type QueueProducer } from "@/lib/job-dispatch";
+import { recomputeClusterFor } from "@/services/person-clusters";
 
-const { personRecords } = schema;
+const { personRecords, personLinks, personClusterMembers } = schema;
 
 /** Máximo de reintentos ante colisión de PK (`person_records.prn`) — KTD7:
  *  astronómicamente improbable (8 símbolos de 32^8 combinaciones), pero el
@@ -169,6 +170,149 @@ export async function resolvePrn(prn: string): Promise<PersonRecordRef | null> {
     .where(eq(personRecords.prn, canonical))
     .limit(1);
   return rows[0] ?? null;
+}
+
+/**
+ * Estados "vivos" de `person_links` — cualquiera se rescinde cuando el
+ * registro fuente en uno de sus dos extremos se tombstonea (ver
+ * `tombstonePersonRecord`). MISMO catálogo que `LIVE_LINK_STATUSES` de
+ * `services/person-links.ts`, duplicado a propósito: un import ESTÁTICO de
+ * vuelta hacia ese archivo sería un ciclo real — mismo motivo por el que
+ * `runClusterInvariantChecks` (más abajo) ya importa ese módulo de forma
+ * DINÁMICA.
+ */
+const LIVE_LINK_STATUSES = ["proposed", "unsure", "confirmed"] as const;
+
+export interface TombstoneResult {
+  /** PRN del registro tombstoneado — `null` si el registro nunca tuvo uno
+   *  estampado (ensurePrn/reconcile aún no lo alcanzaron, o backend sin capa
+   *  de identidad todavía). */
+  prn: string | null;
+}
+
+/**
+ * Tombstone de identidad (U10, R21/AE3). Se llama SIEMPRE desde la capa de
+ * ROUTER —nunca desde otro service— ANTES del borrado físico del registro
+ * fuente: mismo orden "insert-before-mutate" que las suppressions de
+ * `services/missing.ts:removeMissing`. Sitios de llamada: la ruta DELETE
+ * hecha a mano de `routes/missing.ts`, y el hook `onBeforeRemove` de la
+ * fábrica CRUD (`missing.resource.ts` / `patients.resource.ts`).
+ *
+ * BEST-EFFORT A PROPÓSITO (mismo espíritu que `ensurePrn`): NUNCA lanza — el
+ * borrado del registro fuente no debe bloquearse por un hiccup de la capa de
+ * identidad. Cualquier fallo se loguea; `runClusterInvariantChecks` (KTD8) es
+ * la red de seguridad que repara cualquier divergencia que esto deje a medias.
+ *
+ * Sin PRN (nunca estampado) → no-op, éxito (`{ prn: null }`). Ya tombstoneado
+ * (`removed_at` no nulo) → no-op idempotente, éxito (mismo `prn`, nada se
+ * repite).
+ *
+ * Orden de los pasos —la parte que importa (hallazgo de la revisión
+ * adversarial del plan): borrar un VÉRTICE puede partir su componente
+ * confirmado en tantos fragmentos como vecinos confirmados tenía.
+ *   1. Captura el conjunto de vecinos por link CONFIRMADO ANTES de rescindir
+ *      nada — después de rescindir ya no queda ningún link confirmado que
+ *      mirar.
+ *   2. Rescinde TODOS los links vivos (proposed/unsure/confirmed, no solo los
+ *      confirmados) que tocan este PRN → 'rejected' + una fila de decisión
+ *      'rescinded' por cada uno, atribuida a `actorId`. Reusa
+ *      `rescindLiveLink` de `person-links.ts` (import DINÁMICO — mismo motivo
+ *      de ciclo que `runClusterInvariantChecks`) en vez de duplicar el INSERT
+ *      de `person_link_decisions`.
+ *   3. Desaloja la membresía VIVA propia del cluster: `removed_at` directo
+ *      (NUNCA vía `recomputeClusterFor` sobre este mismo PRN — tras el paso 2
+ *      ya no tiene vínculos vivos, así que recomputarlo lo materializaría en
+ *      un cluster NUEVO de un solo miembro en vez de simplemente salir).
+ *      Historia preservada (nunca DELETE), mismo idioma que
+ *      `person-clusters.ts`.
+ *   4. Marca `person_records.removed_at`.
+ *   5. `recomputeClusterFor` para CADA vecino capturado en el paso 1 — no
+ *      basta con uno solo ("one BFS from a single survivor is NOT enough"):
+ *      cada fragmento del componente partido retiene al menos un vecino de la
+ *      lista original, así que recorrerlos TODOS es la única cobertura
+ *      completa garantizada.
+ *   6. Sweep del matcher para esos mismos vecinos — ahora que este registro
+ *      ya no está en el camino, podrían emparejar contra otro candidato.
+ */
+export async function tombstonePersonRecord(
+  recordType: string,
+  recordId: string,
+  actorId: string,
+): Promise<TombstoneResult> {
+  let resolvedPrn: string | null = null;
+  try {
+    const db = getDb();
+    const rows = await db
+      .select({ prn: personRecords.prn, removedAt: personRecords.removedAt })
+      .from(personRecords)
+      .where(
+        and(eq(personRecords.recordType, recordType), eq(personRecords.recordId, recordId)),
+      )
+      .limit(1);
+    const ref = rows[0];
+    if (!ref) return { prn: null }; // nunca estampado -> no-op
+
+    const prn = ref.prn;
+    resolvedPrn = prn;
+    if (ref.removedAt !== null) return { prn }; // ya tombstoneado -> no-op idempotente
+
+    // 1. Vecinos por link CONFIRMADO — ANTES de tocar nada.
+    const neighborRows = await db
+      .select({ prnA: personLinks.prnA, prnB: personLinks.prnB })
+      .from(personLinks)
+      .where(
+        and(eq(personLinks.status, "confirmed"), or(eq(personLinks.prnA, prn), eq(personLinks.prnB, prn))),
+      );
+    const formerNeighbors = new Set<string>();
+    for (const row of neighborRows) {
+      formerNeighbors.add(row.prnA === prn ? row.prnB : row.prnA);
+    }
+
+    // 2. Rescinde TODOS los links vivos que tocan este PRN (reusa
+    // rescindLiveLink de person-links.ts — no duplica el insert de decisión).
+    const { rescindLiveLink } = await import("@/services/person-links");
+    const liveLinkRows = await db
+      .select({ id: personLinks.id })
+      .from(personLinks)
+      .where(
+        and(
+          inArray(personLinks.status, [...LIVE_LINK_STATUSES]),
+          or(eq(personLinks.prnA, prn), eq(personLinks.prnB, prn)),
+        ),
+      );
+    for (const link of liveLinkRows) {
+      await rescindLiveLink(link.id, actorId, "person.purge: registro fuente eliminado.");
+    }
+
+    // 3. Desaloja la membresía viva propia (directo — sin recompute; ver
+    // docstring). Historia preservada: removed_at, jamás DELETE.
+    await db
+      .update(personClusterMembers)
+      .set({ removedAt: Date.now() })
+      .where(and(eq(personClusterMembers.prn, prn), isNull(personClusterMembers.removedAt)));
+
+    // 4. Tombstone del registro.
+    await db.update(personRecords).set({ removedAt: Date.now() }).where(eq(personRecords.prn, prn));
+
+    // 5. Recompute para CADA vecino — cut-vertex: uno solo no basta.
+    for (const neighbor of formerNeighbors) {
+      await recomputeClusterFor(neighbor);
+    }
+
+    // 6. Sweep del matcher para los mismos vecinos.
+    if (formerNeighbors.size > 0) {
+      enqueueMatcherSweep([...formerNeighbors]);
+    }
+
+    return { prn };
+  } catch (err) {
+    console.error(
+      `[person-records] tombstonePersonRecord best-effort falló para record_type="${recordType}" ` +
+        `record_id="${recordId}":`,
+      err,
+    );
+    return { prn: resolvedPrn };
+  }
 }
 
 /**

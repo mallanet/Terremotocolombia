@@ -31,6 +31,8 @@ import { env } from "@/config/env";
 import { badRequest, serviceUnavailable } from "@/lib/errors";
 import { documentDigits, hashDocumentDigits } from "@/services/patient-import-logic";
 import * as service from "@/services/missing";
+import { tombstonePersonRecord } from "@/services/person-records";
+import { writeAudit } from "@/auth/audit";
 
 /**
  * Cédula/documento CRUDO → HMAC, MISMA normalización y clave que
@@ -149,6 +151,20 @@ export const missingResource: CrudResource<
       return service.updateMissing(id, { ...rest, documentHash });
     },
     remove: (id) => service.removeMissing(id),
+    // U10 (R21/AE3): tombstone de identidad ANTES del borrado físico —
+    // insert-before-mutate, mismo orden que routes/missing.ts. Best-effort
+    // (tombstonePersonRecord nunca lanza); req.user existe siempre aquí
+    // (requireCapability autentica primero).
+    onBeforeRemove: async (req, id) => {
+      const tombstone = await tombstonePersonRecord("missing_report", id, req.user!.id);
+      if (tombstone.prn) {
+        await writeAudit(req, {
+          action: "person.purge",
+          targetType: "person_record",
+          targetId: tombstone.prn,
+        });
+      }
+    },
   },
 };
 

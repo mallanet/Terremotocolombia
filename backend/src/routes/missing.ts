@@ -27,6 +27,7 @@ import { HttpError } from "@/lib/errors";
 import { writeAudit } from "@/auth/audit";
 import { hashIp } from "@/lib/client-ip";
 import * as service from "@/services/missing";
+import { tombstonePersonRecord } from "@/services/person-records";
 
 export const missingRouter = Router();
 
@@ -313,6 +314,13 @@ missingRouter.delete(
   validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const { id } = req.params as z.infer<typeof idParams>;
+    // U10 (R21/AE3): tombstone de identidad ANTES del borrado físico —
+    // insert-before-mutate, mismo orden que las suppressions de
+    // service.removeMissing. Best-effort (nunca lanza): un hiccup de la capa
+    // de identidad no debe bloquear este borrado.
+    // req.user NO existe en esta superficie legacy (requireAdmin = token
+    // compartido x-admin-token, no sesión JWT) — 'admin' es la atribución.
+    const tombstone = await tombstonePersonRecord("missing_report", id, req.user?.id ?? "admin");
     const removed = await service.removeMissing(id);
     if (!removed) throw notFound("No encontrado");
     await writeAudit(req, {
@@ -320,6 +328,13 @@ missingRouter.delete(
       targetType: "missing_person",
       targetId: id,
     });
+    if (tombstone.prn) {
+      await writeAudit(req, {
+        action: "person.purge",
+        targetType: "person_record",
+        targetId: tombstone.prn,
+      });
+    }
     res.status(200).json({ ok: true });
   }),
 );
