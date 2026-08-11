@@ -402,14 +402,11 @@ delivery log visible in the panel; `verify-notifications.sh production` green;
 1. ~~**Which queue?**~~ **Closed 2026-08-11** — dedicated queue, created. See KTD8.
 2. **Digest interval.** 15 min? 30? Hourly? Wants one real crisis of data to
    answer honestly. Start at 30 min, make it config not code.
-3. **Who is on the `configured_list` for Ley 1581?** *Still open — the last thing
-   blocking implementation.* A human decision by design: the whole point of KTD2
-   is that this list does not move when RBAC moves. It needs named people, not a
-   role. Today only two accounts could receive anything
-   (`e.muth.martinez@gmail.com`, `mmbtc90@gmail.com` — the rest are `invited` or
-   `disabled`), so the realistic options are those two, a shared inbox that is
-   not a panel account, or waiting for `mariopulice21@` to activate. Two names
-   minimum — one is a single point of failure on a statutory clock.
+3. ~~**Who is on the `configured_list` for Ley 1581?**~~ **Decided 2026-08-11 by
+   the maintainer: Eduardo Muth Martínez and Christian Ríos.**
+   Eduardo is `e.muth.martinez@gmail.com` (active, admin, super).
+   **Christian has no account and no email on file** — a query of prod `users`
+   for `%rios%`/`%christ%` returns nothing. See Blocking Dependency below.
 4. **Should `data_deletion_requests` gain an actual statutory deadline field?**
    There is none today, so "overdue" cannot currently be computed — only "old".
    Adding one is a legal-posture decision. Until then the sweep can only alert
@@ -420,6 +417,35 @@ delivery log visible in the panel; `verify-notifications.sh production` green;
    a better safety argument than `volunteer.registered`.
 
 ---
+
+## Blocking Dependency — Christian Ríos needs panel access
+
+The Ley 1581 list is *decided* but not yet *real*. A content-free notification
+is only useful to someone who can walk through the door it links to, and
+Christian currently cannot:
+
+1. **No panel account.** Prod `users` has no row matching `%rios%` or
+   `%christ%`. Without one he cannot open a deletion request, let alone resolve
+   it.
+2. **Not on the Cloudflare Access allowlist.** Production sits behind Access
+   (email OTP against an allowlist); without his address there he never reaches
+   the panel login at all. Both layers are required — see
+   `docs/runbook-admin.md` → "Alta de un usuario nuevo".
+3. **His email address is not recorded anywhere in this repo or its
+   infrastructure.** It has to come from the maintainer.
+
+Until all three are resolved, putting Christian on the list creates *the exact
+illusion of coverage this design exists to prevent*: two names on a legally
+load-bearing list, one of whom cannot act. Treat "Christian can log in and
+resolve a deletion request" as a precondition of G3, not a follow-up.
+
+Deliberately not done by an agent: creating the user, adding the Access
+allowlist entry, and sending the invitation are access-provisioning and
+outward-facing actions — maintainer's call, per `CLAUDE.md`.
+
+Interim posture: until Christian is provisioned, the list is Eduardo alone,
+which is a single point of failure on a statutory clock and should be recorded
+as such rather than quietly accepted.
 
 ## Sources & Research
 
