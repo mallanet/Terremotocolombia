@@ -33,12 +33,37 @@
  * Bloqueo de un socio problemático: `missing_person_suppressions` (source,
  * external_id) ya existe y `upsertExternalMissingBatch` ya la respeta — sirve
  * como kill-switch por registro. Revocar la API key es el kill-switch total.
+ *
+ * ENDURECIDO EN U13 (R23/R27):
+ *  - `photoUrl`/`sourceUrl` se validan contra un allowlist de dominios POR
+ *    SOCIO antes de guardarse (`@/config/partner-media-allowlist`). Motivo:
+ *    `GET /api/missing/:id/photo` hace 302 a `photo_external_url` SIN validar
+ *    su dominio (ver services/missing.ts `getMissingPhoto`) — sin este filtro,
+ *    un socio podría convertir esa ruta pública en un open redirect hacia
+ *    cualquier host. Dominio no permitido (o socio sin entrada en el
+ *    allowlist, el caso por defecto) => el campo se guarda `null`; el
+ *    registro se acepta igual, nunca se rechaza el batch por una foto.
+ *  - `Idempotency-Key`: NO se implementa en esta fase. El idioma que usa
+ *    `patient-imports.ts` (header opcional → persistir la key → reusar el
+ *    resultado si se repite) depende de que el service de destino GUARDE esa
+ *    key y sepa "reproducir" una respuesta ya calculada
+ *    (`service.createImport` tiene esa columna + esa rama). `upsertExternalMissingBatch`
+ *    no tiene ese concepto y añadírselo es tocar `services/missing.ts`, fuera
+ *    del alcance de este endurecimiento. No es gratis reimplementarlo aquí
+ *    solo para este router. Mitigante real: la escritura YA es idempotente
+ *    por diseño en el caso que importa (reintentar un batch tras un timeout)
+ *    — el upsert por `(source, external_id)` hace que re-enviar el mismo lote
+ *    actualice en vez de duplicar, que es la garantía que un cliente de retry
+ *    necesita. Lo que NO cubre (un reintento con datos YA cambiados en el
+ *    medio no se distingue de un cambio real) es el mismo trade-off que ya
+ *    acepta cualquier otra fuente de `upsertExternalMissingBatch` hoy.
  */
 import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, rateLimit, validate } from "@/middleware";
 import { requireCapability } from "@/middleware/auth";
 import { writeAudit } from "@/auth/audit";
+import { allowedPartnerMediaUrl } from "@/config/partner-media-allowlist";
 import * as service from "@/services/missing";
 import type { ExternalMissingInput } from "@/services/missing";
 
@@ -91,21 +116,29 @@ partnerSyncRouter.post(
     const { people } = req.body as z.infer<typeof syncBody>;
     const source = partnerSource(req.user!.email);
 
-    const rows: ExternalMissingInput[] = people.map((p) => ({
-      externalId: p.externalId,
-      source,
-      sourceUrl: p.sourceUrl ?? null,
-      name: p.name,
-      age: p.age ?? null,
-      lastSeen: p.lastSeen,
-      description: p.description,
-      contact: p.contact,
-      photoUrl: p.photoUrl ?? null,
-      status: p.status,
-      resolutionNote: p.resolutionNote ?? null,
-      resolvedAt: p.resolvedAt ?? null,
-      createdAt: p.createdAt ?? null,
-    }));
+    // Cuenta cuántas URLs de media se anularon por dominio no permitido — solo
+    // un número en el audit (nunca la URL ni ningún dato de la persona).
+    let mediaDropped = 0;
+    const rows: ExternalMissingInput[] = people.map((p) => {
+      const sourceUrl = allowedPartnerMediaUrl(source, p.sourceUrl ?? null);
+      const photoUrl = allowedPartnerMediaUrl(source, p.photoUrl ?? null);
+      if ((p.sourceUrl && !sourceUrl) || (p.photoUrl && !photoUrl)) mediaDropped++;
+      return {
+        externalId: p.externalId,
+        source,
+        sourceUrl,
+        name: p.name,
+        age: p.age ?? null,
+        lastSeen: p.lastSeen,
+        description: p.description,
+        contact: p.contact,
+        photoUrl,
+        status: p.status,
+        resolutionNote: p.resolutionNote ?? null,
+        resolvedAt: p.resolvedAt ?? null,
+        createdAt: p.createdAt ?? null,
+      };
+    });
 
     const result = await service.upsertExternalMissingBatch(rows);
 
@@ -113,7 +146,7 @@ partnerSyncRouter.post(
       action: "partner_sync.missing.upsert",
       targetType: "missing_person",
       targetId: source,
-      metadata: { source, sent: people.length, ...result },
+      metadata: { source, sent: people.length, mediaDropped, ...result },
     });
 
     res.json({ source, ...result });
