@@ -7,8 +7,52 @@
  */
 import { z } from "zod";
 import { createCrudRouter, type CrudResource } from "@/public-api/crud-factory";
+import { env } from "@/config/env";
 import { invalidate } from "@/lib/cache";
+import { badRequest, conflict, serviceUnavailable } from "@/lib/errors";
+import { getHospital } from "@/services/hospitals";
+import {
+  documentDigits,
+  hashDocumentDigits,
+} from "@/services/patient-import-logic";
 import * as service from "@/services/patients";
+
+/**
+ * Cédula/documento → HMAC, MISMA normalización y clave que la importación en
+ * lote (documentDigits + PATIENT_DOCUMENT_HASH_SECRET): un documento editado a
+ * mano deduplica contra los importados. El crudo NUNCA baja al service ni a la
+ * tabla. `null` = borrar el documento del registro.
+ */
+function toDocumentHash(raw: string | null): string | null {
+  if (raw === null) return null;
+  const digits = documentDigits(raw);
+  if (!digits) {
+    throw badRequest(
+      "Documento inválido: se esperan al menos 4 dígitos (se ignoran puntos y guiones).",
+    );
+  }
+  const secret = env.PATIENT_DOCUMENT_HASH_SECRET;
+  if (!secret) {
+    throw serviceUnavailable(
+      "PATIENT_DOCUMENT_HASH_SECRET no está configurado; no se puede guardar el documento.",
+    );
+  }
+  return hashDocumentDigits(digits, secret);
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  // drizzle envuelve el error de pg en DrizzleQueryError: el code 23505 vive
+  // en `cause`. Recorrer la cadena cubre ambas formas.
+  let current: unknown = err;
+  for (let depth = 0; depth < 4 && typeof current === "object" && current !== null; depth++) {
+    if ((current as { code?: string }).code === "23505") return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+const DOCUMENT_CONFLICT_MESSAGE =
+  "Ya existe otro paciente con ese documento — probablemente es el mismo registro; búscalo antes de duplicarlo.";
 
 const condition = z.enum(["stable", "serious", "critical", "recovering", "unknown"]);
 const status = z.enum([
@@ -23,6 +67,10 @@ const status = z.enum([
 // clamp que el service: Math.max(0, trunc)).
 const age = z.coerce.number().int().min(0).max(150).nullable();
 
+// Documento/cédula CRUDO de entrada: se convierte a HMAC en esta capa y jamás
+// se persiste ni se devuelve. En update, `null` explícito borra el documento.
+const documentId = z.string().trim().min(1).max(60);
+
 const createSchema = z.object({
   hospitalId: z.string().trim().min(1, "Indica el hospital.").max(120),
   name: z.string().trim().min(1, "Indica el nombre.").max(120),
@@ -31,6 +79,7 @@ const createSchema = z.object({
   status: status.optional(),
   notes: z.string().max(600).optional(),
   contact: z.string().max(120).optional(),
+  documentId: documentId.optional(),
 });
 
 const updateSchema = z
@@ -41,6 +90,8 @@ const updateSchema = z
     status: status.optional(),
     notes: z.string().max(600).optional(),
     contact: z.string().max(120).optional(),
+    hospitalId: z.string().trim().min(1).max(120).optional(),
+    documentId: documentId.nullable().optional(),
   })
   .refine((o) => Object.keys(o).length > 0, "Envía al menos un campo a actualizar.");
 
@@ -55,6 +106,8 @@ const responseSchema = z.object({
   status: z.string(),
   notes: z.string(),
   contact: z.string(),
+  // Presencia de documento (el HMAC ni el crudo se exponen jamás).
+  hasDocument: z.boolean().optional(),
   admittedAt: z.number(),
   updatedAt: z.number(),
 });
@@ -71,14 +124,36 @@ export const patientsResource: CrudResource<
     list: () => service.listPatients(),
     get: (id) => service.getPatientById(id),
     create: async (input) => {
-      const patient = await service.createPatient(input);
-      invalidate();
-      return patient;
+      const { documentId, ...rest } = input;
+      const documentHash =
+        documentId === undefined ? undefined : toDocumentHash(documentId);
+      try {
+        const patient = await service.createPatient({ ...rest, documentHash });
+        invalidate();
+        return patient;
+      } catch (err) {
+        if (isUniqueViolation(err)) throw conflict(DOCUMENT_CONFLICT_MESSAGE);
+        throw err;
+      }
     },
     update: async (id, input) => {
-      const patient = await service.updatePatient(id, input);
-      if (patient) invalidate();
-      return patient;
+      const { documentId, ...rest } = input;
+      // Traslado: validar el hospital ANTES de tocar la fila (la FK daría un
+      // 500 opaco; esto da un 400 con causa).
+      if (rest.hospitalId !== undefined) {
+        const hospital = await getHospital(rest.hospitalId);
+        if (!hospital) throw badRequest("El hospital indicado no existe en el catálogo.");
+      }
+      const documentHash =
+        documentId === undefined ? undefined : toDocumentHash(documentId);
+      try {
+        const patient = await service.updatePatient(id, { ...rest, documentHash });
+        if (patient) invalidate();
+        return patient;
+      } catch (err) {
+        if (isUniqueViolation(err)) throw conflict(DOCUMENT_CONFLICT_MESSAGE);
+        throw err;
+      }
     },
     remove: async (id) => {
       const removed = await service.removePatient(id);
