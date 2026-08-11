@@ -8,7 +8,7 @@ Prerrequisitos antes de dirigir tráfico institucional al despliegue. Ver
 | 1 | Protección anti-bot (Turnstile) | apagada en ambos lados | Doppler (humano) |
 | 2 | Worker de colas desplegado | **port a Cloudflare en curso** (ver abajo) | cutover a prod = gate humano (G4) |
 | 3 | Panel de autoridad desplegado | **desplegado** (admin.terremotocolombia.co, tras Cloudflare Access) | — (ver `docs/runbook-admin.md`) |
-| 4 | Canal de supresión (Ley 1581) | sin operar | pendiente |
+| 4 | Canal de supresión (Ley 1581) | **operativo en staging**; producción espera el seed (1 comando humano) | seed de capacidades en prod |
 | 5 | Revisión de seguridad independiente | no iniciada | pendiente |
 
 ---

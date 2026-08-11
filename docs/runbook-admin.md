@@ -92,3 +92,18 @@ Orden natural en el panel:
   resolver local. Esperar unos minutos o vaciar la caché DNS.
 - **Login local (desarrollo)**: `COOKIE_SECURE=false` o la cookie de sesión
   no se fija sobre http://localhost.
+
+## Supresión de datos (Ley 1581)
+
+La ciudadanía solicita eliminación en `/solicitar-borrado` del sitio público;
+las solicitudes llegan a la pantalla **Supresión de datos** del panel
+(capacidades `deletion:read` para verlas — llevan PII del solicitante — y
+`deletion:edit` para resolverlas: `pending → resolved | rejected`). Cada
+decisión queda en la Auditoría (`deletion-request.edit`).
+
+> Resolver la solicitud en el panel NO borra los datos por sí solo: el
+> operador localiza y elimina los registros del solicitante (Desaparecidos,
+> Pacientes, etc.) y DESPUÉS marca la solicitud como `resolved`.
+
+Alta en un entorno nuevo: las dos capacidades entran con el seed
+(`backend/worker/migrate.ts`), que es un paso humano contra Neon directo.
