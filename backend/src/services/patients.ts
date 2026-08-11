@@ -19,6 +19,7 @@
  */
 import { sql } from "drizzle-orm";
 import { getDb } from "@/db";
+import { ensurePrn, enqueueMatcherSweep } from "@/services/person-records";
 
 export type PatientStatus =
   | "hospitalized"
@@ -301,6 +302,18 @@ export async function createPatient(input: CreatePatientInput): Promise<PatientD
       (${id}, ${input.hospitalId}, ${name}, ${age}, ${condition}, ${status},
        ${notes}, ${contact}, ${input.documentHash ?? null}, ${now}, ${now})
   `);
+
+  // Best-effort (U7/R8): nunca debe tumbar esta creación ya confirmada —
+  // ensurePrn loguea y devuelve null ante cualquier fallo, nunca lanza. Si
+  // esto queda sin estampar (p.ej. una caída a mitad), el cron de
+  // reconciliación (KTD8) lo recoge en su próxima corrida.
+  // AE2/U8: sweep inmediato si el PRN se estampó aquí mismo — sin esto, el
+  // registro nunca aparece en listUnstamped (ya tiene PRN) y el reconcile
+  // jamás lo barre, así que un paciente cuya cédula coincide con un reporte
+  // existente no genera propuesta hasta el próximo cambio de document_hash.
+  const prn = await ensurePrn("hospital_patient", id);
+  if (prn) await enqueueMatcherSweep([prn]);
+
   return {
     id,
     hospitalId: input.hospitalId,

@@ -48,14 +48,16 @@ deletionRequestsRouter.patch(
   asyncHandler(async (req, res) => {
     const id = (req.params as { id: string }).id;
     const { status } = req.body as z.infer<typeof patchBody>;
-    const item = await updateDeletionRequestStatus(id, status);
-    if (!item) throw notFound("Solicitud no encontrada.");
+    const result = await updateDeletionRequestStatus(id, status);
+    if (!result) throw notFound("Solicitud no encontrada.");
     await writeAudit(req, {
       action: "deletion-request.edit",
       targetType: "deletion-request",
       targetId: id,
-      metadata: { status },
+      // Solo el CONTEO de envíos fallidos purgados (Ley 1581): nunca el
+      // payload ni el email en metadata.
+      metadata: { status, purgedFailedSubmissions: result.purgedFailedSubmissions },
     });
-    res.json({ item });
+    res.json({ item: result.item });
   }),
 );

@@ -52,6 +52,14 @@ export interface CrudOps<TList, TItem, TCreate, TUpdate> {
   update?: (id: string, input: TUpdate) => Promise<TItem | null>;
   /** DELETE /:id — elimina. false = 404. */
   remove?: (id: string) => Promise<boolean>;
+  /**
+   * Hook OPCIONAL invocado justo ANTES de `remove` (U10) — `req` en scope
+   * para poder auditar dentro del hook. Sin esto, ningún recurso cambia de
+   * comportamiento (queda `undefined`); solo lo declaran los recursos que lo
+   * necesitan (missing/patients: tombstone de identidad, ver
+   * `services/person-records.ts:tombstonePersonRecord`).
+   */
+  onBeforeRemove?: (req: Request, id: string) => Promise<void>;
 }
 
 export interface CrudResource<TList, TItem, TCreate, TUpdate> {
@@ -178,6 +186,7 @@ export function createCrudRouter<TList, TItem, TCreate, TUpdate>(
       validate({ params: idParams }),
       asyncHandler(async (req, res) => {
         const id = (req.params as { id: string }).id;
+        if (ops.onBeforeRemove) await ops.onBeforeRemove(req, id);
         const ok = await ops.remove!(id);
         if (!ok) throw notFound("No encontrado.");
         await auditMutation(req, `${auditType}.delete`, auditType, id);

@@ -271,8 +271,14 @@ Turnstile + rate-limit).
   con `hospitals.facility_type = refugio` y sus personas usan
   `hospital_patients.status = sheltered`. La entrada OCR/ICR por imagen se
   habilita solo si existe un proveedor de visión (VL) configurado; materializa
-  filas en staging como `needs_review` y nunca auto-aplica. Sin proveedor, o
-  para PDF, responde 501.
+  filas en staging como `needs_review` y nunca auto-aplica. Sin proveedor
+  responde 501; PDF (y cualquier formato sin ruta de procesamiento) responde
+  **415** con mensaje en español — la aceptación de content-types tiene una
+  única fuente de verdad (`isSupportedImportContentType`). Las filas
+  `needs_review` se resuelven en el panel (editar/confirmar/rechazar/decidir
+  dedup, ver capa de identidad abajo) y cada corrección humana de una fila
+  OCR queda registrada en `ocr_corrections` (log inmutable, id determinista —
+  el activo de aprendizaje de la fase 3).
 - **Sismos** (`earthquakes.queue.ts`): el worker poll-ea un feed público de
   sismos (por defecto el feed realtime del USGS, global) cada
   `EARTHQUAKES_EVERY_MS` (default 60s), filtra al bounding box configurado
@@ -284,6 +290,52 @@ Turnstile + rate-limit).
   El backfill de arranque es idempotente (solo si la tabla está vacía), así
   que el primer deploy siembra solo. La superficie pública es `GET
   /api/earthquakes` (read-only, anónima, cacheada con ETag).
+
+## Capa de identidad (Family Search)
+
+Plan `docs/plans/2026-08-11-001-…` (fases 0-1 del doc de requisitos
+`docs/family-search-admin-requirements.md`). Un overlay ADITIVO sobre las
+poblaciones existentes — las tablas fuente no cambian su camino de escritura.
+
+- **PRN** (`person_records`): cada registro con forma de persona
+  (`missing_persons`, `hospital_patients`, `unidentified_persons`) recibe un
+  identificador estable y comunicable por teléfono (`TC-` + 8 Crockford
+  base32 + carácter de control; codec puro en `lib/prn.ts`). Estampado
+  best-effort al crear + cron de reconciliación `4-59/5 * * * *`
+  (`reconcilePersonRecords`) que además ejecuta los chequeos de invariantes
+  de clusters y el escaneo de PII en notas. El backfill de lo preexistente
+  son las primeras corridas del mismo cron.
+- **Matcher determinista** (cola `terremotocolombia-matcher` + DLQ →
+  `audit_log`): propone `person_links` por hash de documento exacto
+  (cross-población) y nombre+edad exactos normalizados. Solo tokens de
+  resultado en `evidence` (jamás valores crudos). NUNCA toca links
+  confirmados; los rechazados solo se re-proponen con clase de evidencia
+  estrictamente más fuerte (banner "rechazado antes").
+- **Decisiones y clusters** (`person-links.ts` / `person-clusters.ts`): tres
+  acciones (confirmar / no es la misma persona / no estoy seguro+nota),
+  decisiones append-only con snapshot de evidencia y atribución obligatoria.
+  Los clusters son componentes conexos sobre links CONFIRMADOS; la membresía
+  se converge con `recomputeClusterFor` (claim por índice parcial único,
+  desalojo más allá de la semilla, verify-after-write) — sin
+  `db.transaction()`. Fusión de clusters anclados = acción escalada
+  (`person:merge`) con re-chequeo post-claim (TOCTOU). Unmerge de primera
+  clase. El borrado de un registro fuente (rutas de delete existentes)
+  tombstonea PRN/links/membresía con recompute por CADA vecino previo
+  (un vértice de corte puede partir el componente en varios fragmentos).
+- **Señal, no verdad** (`record_status_signals`): una transición de `status`
+  llegada por upsert externo (socio partner-sync o feed) NO pisa el status
+  local — queda pendiente hasta que un revisor la confirma o descarta.
+  Idempotencia DB-enforced (índice parcial único por claim pendiente).
+- **Panel** (`admin/src/contexts/family-search/`): cola de revisión
+  keyboard-first (1/2/3 + Enter) con tarjetas lado-a-lado y desglose de
+  evidencia, ficha de cluster con historial y attach manual, panel de
+  señales con badge de pendientes en el nav. Capacidades: `person:search`
+  (leer), `person:review` (decidir links/filas/señales), `person:merge`
+  (fusiones ancladas, unmerge). Inertes hasta que un humano corra
+  `seedAuth()` (job de migración) desde un checkout que incluya el catálogo.
+- **Despliegue**: migraciones `0003`/`0004` (solo aditivas) son paso humano
+  aparte; `wrangler queues create terremotocolombia-matcher` (+`-dlq`) debe
+  preceder al deploy que declara el consumidor; runbook completo en el plan.
 
 ## Despliegue
 

@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/src/ui";
 import { AdminGate } from "../src/shared/auth/admin-gate";
 import { useAdminSessionContext } from "../src/shared/auth/admin-session-context";
 import { MODELS } from "../src/contexts/models/model-registry";
+import { fetchSignalsPage, signalsQueryKey } from "../src/contexts/family-search/api";
 
 /**
  * Shell autenticado: header con email + logout y navegación lateral filtrada por
@@ -21,10 +23,52 @@ export function Shell({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * U15 (R26/AE4 — discoverability): conteo de señales pendientes para el
+ * badge del enlace "Búsqueda de familias". `GET /api/public/record-signals`
+ * (record-signals.router.ts) NO expone un total — solo `items` de la página
+ * pedida — así que se pide una página CHICA (`NAV_BADGE_PAGE_LIMIT`) y se usa
+ * `items.length` como aproximación: si llega exactamente al límite puede
+ * haber más de las que se pidieron, así que el badge muestra "9+" en ese
+ * caso (nunca un número exacto que podría estar mal) — mismo estilo que
+ * cualquier badge de notificación con overflow. Cadencia de refetch: family-
+ * search no tenía un polling propio del que heredar (review-queue.tsx usa
+ * solo fetch-on-mount/invalidación); se toma prestada la cadencia de
+ * `useSupplyBoard` (hospital-supplies/use-hospital-supplies.ts,
+ * `refetchInterval: 60_000`) como el precedente más cercano de "badge
+ * auxiliar liviano" en este repo — ver informe de U15 para la deviation.
+ */
+const NAV_BADGE_PAGE_LIMIT = 10;
+const NAV_BADGE_POLL_MS = 60_000;
+
+function usePendingSignalsBadge(enabled: boolean): string | null {
+  // Key = signalsQueryKey() + un sufijo — a propósito UN string MÁS LARGO que
+  // el key que usa signal-queue.tsx (["family-search-signals"]) y no el
+  // mismo: TanStack Query invalida por coincidencia PARCIAL (prefijo), así
+  // que `invalidateKeys: [signalsQueryKey()]` de useDecisionMutation (en
+  // signal-queue.tsx) también refresca ESTA query sin cambios adicionales —
+  // confirmar/descartar una señal actualiza el badge al instante, sin
+  // esperar los 60s del polling.
+  const query = useQuery({
+    queryKey: [...signalsQueryKey(), "nav-badge"] as const,
+    queryFn: () => fetchSignalsPage({ limit: NAV_BADGE_PAGE_LIMIT }),
+    enabled,
+    refetchInterval: enabled ? NAV_BADGE_POLL_MS : false,
+    refetchIntervalInBackground: false,
+  });
+
+  const count = query.data?.items.length ?? 0;
+  if (count === 0) return null;
+  return count >= NAV_BADGE_PAGE_LIMIT ? "9+" : String(count);
+}
+
 function AuthedShell({ children }: { children: ReactNode }) {
   const { user, can, logout } = useAdminSessionContext();
   const pathname = usePathname();
   const visible = MODELS.filter((m) => can(m.readCapability));
+  // Gateado a person:search (misma capacidad mínima que el link/panel) — sin
+  // ella la query ni se dispara, evitando un 403 previsible contra el BFF.
+  const pendingSignalsBadge = usePendingSignalsBadge(can("person:search"));
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -48,6 +92,21 @@ function AuthedShell({ children }: { children: ReactNode }) {
             ))}
             {can("patient:import") && (
               <NavLink href="/patient-imports" label="Importar pacientes" pathname={pathname} />
+            )}
+            {/* Family Search (U9/U11/U15): cola de revisión de coincidencias +
+                señales de estado de socios + ficha de identidad.
+                person:search es la capacidad de lectura mínima del contexto
+                (person:review/person:merge gatean acciones puntuales dentro
+                de la pantalla). El badge (U15, R26/AE4) es el requisito de
+                discoverability: un "reportada encontrada" de un socio nunca
+                debe quedar sin ver — ver usePendingSignalsBadge arriba. */}
+            {can("person:search") && (
+              <NavLink
+                href="/family-search"
+                label="Búsqueda de familias"
+                pathname={pathname}
+                badge={pendingSignalsBadge}
+              />
             )}
             {/* Insumos hospitalarios: agregado restringido sobre el modelo
                 hospital — misma capacidad de lectura que /hospitals. */}
@@ -104,18 +163,38 @@ function AuthedShell({ children }: { children: ReactNode }) {
   );
 }
 
-function NavLink({ href, label, pathname }: { href: string; label: string; pathname: string }) {
+function NavLink({
+  href,
+  label,
+  pathname,
+  badge,
+}: {
+  href: string;
+  label: string;
+  pathname: string;
+  /** U15: conteo de señales pendientes ("9+" en overflow), null = sin
+   *  badge (cero pendientes NO renderiza nada, ver usePendingSignalsBadge). */
+  badge?: string | null;
+}) {
   const active = pathname === href;
   return (
     <li>
       <Link
         href={href}
         className={[
-          "block rounded px-3 py-2 text-sm",
+          "flex items-center justify-between gap-2 rounded px-3 py-2 text-sm",
           active ? "bg-gray-900 text-white" : "hover:bg-gray-100",
         ].join(" ")}
       >
-        {label}
+        <span>{label}</span>
+        {badge && (
+          <span
+            data-testid="nav-pending-signals-badge"
+            className="rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-semibold leading-none text-white"
+          >
+            {badge}
+          </span>
+        )}
       </Link>
     </li>
   );

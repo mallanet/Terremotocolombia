@@ -16,6 +16,8 @@ import {
   hashDocumentDigits,
 } from "@/services/patient-import-logic";
 import * as service from "@/services/patients";
+import { tombstonePersonRecord } from "@/services/person-records";
+import { writeAudit } from "@/auth/audit";
 
 /**
  * Cédula/documento → HMAC, MISMA normalización y clave que la importación en
@@ -159,6 +161,20 @@ export const patientsResource: CrudResource<
       const removed = await service.removePatient(id);
       if (removed) invalidate();
       return removed;
+    },
+    // U10 (R21/AE3): tombstone de identidad ANTES del borrado físico — mismo
+    // orden que missing.resource.ts. Best-effort (tombstonePersonRecord nunca
+    // lanza); req.user existe siempre aquí (requireCapability autentica
+    // primero).
+    onBeforeRemove: async (req, id) => {
+      const tombstone = await tombstonePersonRecord("hospital_patient", id, req.user!.id);
+      if (tombstone.prn) {
+        await writeAudit(req, {
+          action: "person.purge",
+          targetType: "person_record",
+          targetId: tombstone.prn,
+        });
+      }
     },
   },
 };

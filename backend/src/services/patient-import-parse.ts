@@ -33,9 +33,34 @@ export const FILE_CONTENT_TYPES: ReadonlySet<string> = new Set([
 	CONTENT_TYPE.XLSX,
 ]);
 
+/**
+ * OCR/ICR pendiente: por ahora SOLO imágenes (`image/*`). `application/pdf`
+ * NO cuenta — no hay ruta de rasterizado/OCR para PDF implementada (deferred
+ * a propósito). Antes este predicado también reconocía PDF, lo que dejaba el
+ * body validator del router aceptar PDF como "válido" solo para morir con un
+ * 501 más abajo; ver `isSupportedImportContentType`, que ahora rechaza PDF de
+ * entrada con 415 antes de llegar a esta rama.
+ */
 export function isOcrPendingContentType(contentType: string): boolean {
 	const ct = contentType.trim().toLowerCase();
-	return ct === "application/pdf" || ct.startsWith("image/");
+	return ct.startsWith("image/");
+}
+
+/**
+ * Fuente única de verdad de los content-types que la importación de
+ * pacientes acepta: JSON (rows), CSV/XLSX (fileBase64) e imágenes (OCR/ICR,
+ * ver `isOcrPendingContentType`). Cualquier otro valor — incluido
+ * `application/pdf` — no tiene ruta de procesamiento y debe rechazarse con
+ * 415 en el router antes de crear nada.
+ */
+export function isSupportedImportContentType(contentType: string): boolean {
+	const ct = contentType.trim().toLowerCase();
+	return (
+		ct === CONTENT_TYPE.JSON ||
+		ct === CONTENT_TYPE.CSV ||
+		ct === CONTENT_TYPE.XLSX ||
+		isOcrPendingContentType(ct)
+	);
 }
 
 export class ImportParseError extends Error {

@@ -2,27 +2,26 @@ name: Deploy backend
 
 # Despliega SOLO la API (Worker terremotocolombia-api).
 #
-# AUTOMATICO en push a main desde 2026-08-11 (decision del mantenedor; antes
-# era manual con confirmacion). El filtro de rutas cubre todo lo que acaba en
-# el bundle del Worker: backend/**, el esquema de infra/db (importado como
-# ../../infra/db/schema), config/deployment.config.json (identidad, inlinada
-# p.ej. en el mailer) y este workflow.
+# MANUAL (workflow_dispatch) desde 2026-08-11 por la tarde, decision del
+# mantenedor tras el incidente de las 6h de 503: mergear a main ya NO
+# despliega el backend de produccion por si solo. El historial completo:
+# manual con confirmacion -> automatico en push (mañana del 2026-08-11) ->
+# manual de nuevo (tarde, post-incidente). Staging conserva su deploy
+# automatico (deploy-staging.yml): alli es donde se prueba; produccion se
+# despliega mirando.
+#
+# Como desplegar:
+#   Actions -> "Deploy backend" -> Run workflow (rama main)
+#   o: gh workflow run deploy-backend.yml
+#
+# El gate de deriva de esquema corre igualmente en cada dispatch y falla
+# cerrado: si el codigo espera columnas que produccion no tiene, no hay
+# deploy. `omitir_drift` es la salida de emergencia auditada.
 #
 # OJO: las migraciones SIGUEN siendo un paso aparte y deliberado
 # (backend/worker/migrate.ts contra Neon DIRECTO). Este workflow solo
 # despliega codigo; nunca toca el esquema.
-#
-# Redeploy a mano (sin tocar ficheros):
-#   Actions -> "Deploy backend" -> Run workflow
-#   o: gh workflow run deploy-backend.yml
 on:
-  push:
-    branches: [main]
-    paths:
-      - "backend/**"
-      - "infra/db/**"
-      - "config/deployment.config.json"
-      - ".github/workflows/deploy-backend.yml"
   workflow_dispatch:
     inputs:
       omitir_drift:

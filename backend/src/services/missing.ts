@@ -20,6 +20,8 @@ import {
 } from "@/lib/r2";
 import { isAllowedImageDataUrl, parseImageDataUri } from "@/lib/image";
 import { invalidate } from "@/lib/cache";
+import { ensurePrn, ensurePrns, enqueueMatcherSweep } from "@/services/person-records";
+import { createStatusSignal } from "@/services/record-signals";
 
 const { missingPersons, missingPersonSuppressions } = schema;
 
@@ -86,6 +88,9 @@ export interface CreateInput {
   photo?: string | null;
   /** Reporte de persona desaparecida (activa) o encontrada (localizada). */
   reportType?: MissingReportType;
+  /** hashIp(req) de quien crea el reporte. Único rastro de responsabilidad
+   *  de un alta anónima (contact_messages / donations siguen el mismo patrón). */
+  ipHash?: string | null;
 }
 
 export const MAX_NAME = 120;
@@ -377,12 +382,24 @@ export async function addMissing(input: CreateInput): Promise<MissingDTO> {
     contact,
     photo: stored,
     photoMigratedAt: migratedAt,
+    ipHash: input.ipHash ?? null,
     createdAt,
     status,
     resolutionNote,
     resolvedAt,
   });
   invalidate();
+
+  // Best-effort (U7/R8): nunca debe tumbar esta creación ya confirmada —
+  // ensurePrn loguea y devuelve null ante cualquier fallo, nunca lanza. Si
+  // esto queda sin estampar (p.ej. una caída a mitad), el cron de
+  // reconciliación (KTD8) lo recoge en su próxima corrida.
+  // AE2/U8: sweep inmediato si el PRN se estampó aquí mismo — sin esto, el
+  // registro nunca aparece en listUnstamped (ya tiene PRN) y el reconcile
+  // jamás lo barre, así que un match contra un reporte existente no genera
+  // propuesta hasta el próximo cambio de document_hash.
+  const prn = await ensurePrn("missing_report", id);
+  if (prn) await enqueueMatcherSweep([prn]);
 
   return {
     id,
@@ -636,6 +653,83 @@ export async function getMissingById(id: string): Promise<MissingDTO | null> {
   return rows.length > 0 ? rowToPerson(rows[0]!) : null;
 }
 
+// ---------------------------------------------------------------------------
+// U12 — camino de lectura CAPABILITY-GATED (missing.resource.ts: admin /
+// integraciones vía `missing:read`/`missing:edit`). Añade `hasDocument` /
+// `tipoDocumento` (presencia + tipo del documento; el HMAC ni el crudo se
+// exponen jamás) SOLO aquí. `rowToPerson`/`MissingDTO` de arriba siguen siendo
+// el builder COMPARTIDO con las rutas anónimas (`GET /api/missing` y el DTO que
+// crea/resuelve un reporte) y quedan byte-idénticos a propósito: sus SELECT
+// nunca piden `tipo_documento`/`document_hash`, así que esos campos no pueden
+// filtrarse por accidente al público. `rowToPersonWithDocument` reusa
+// `rowToPerson` sin modificarlo, solo le añade las dos columnas extra.
+// ---------------------------------------------------------------------------
+
+/** MissingDTO + presencia/tipo de documento. `hasDocument`/`tipoDocumento`
+ *  quedan OPCIONALES en el tipo (nunca en el valor de este camino) para que
+ *  `MissingDTO` simple —como el que devuelve `addMissing`— siga siendo
+ *  asignable donde se espera este tipo (mismo patrón que `PatientDTO.hasDocument`). */
+export type MissingAdminDTO = MissingDTO & {
+  hasDocument?: boolean;
+  tipoDocumento?: string | null;
+};
+
+type AdminRow = Row & {
+  tipo_documento: string | null;
+  has_document: boolean;
+};
+
+/** SELECT del camino gated: mismas columnas que el público + tipo_documento /
+ *  (document_hash IS NOT NULL). Fragmento reusado por get, list Y el RETURNING
+ *  de updateMissing — de ahí el `COALESCE(status, 'active')` (defensivo, igual
+ *  que markMissingFound/restoreMissing) en vez del `status` plano de
+ *  getMissingById/listMissing: preserva el comportamiento EXACTO que ya tenía
+ *  el RETURNING de updateMissing antes de U12. */
+const ADMIN_SELECT_COLUMNS = sql`id, name, age, nationality, description, last_seen, contact,
+               (photo IS NOT NULL) AS has_photo,
+               photo_external_url,
+               COALESCE(status, 'active') AS status,
+               resolution_note,
+               (resolution_photo IS NOT NULL) AS has_resolution_photo,
+               resolved_at, created_at,
+               tipo_documento,
+               (document_hash IS NOT NULL) AS has_document`;
+
+function rowToPersonWithDocument(row: AdminRow): MissingAdminDTO {
+  return {
+    ...rowToPerson(row),
+    hasDocument: Boolean(row.has_document),
+    tipoDocumento: row.tipo_documento,
+  };
+}
+
+/** Como getMissingById, pero con hasDocument/tipoDocumento — SOLO para el
+ *  camino gated (missing.resource.ts `get`/`update`). */
+export async function getMissingByIdWithDocument(
+  id: string,
+): Promise<MissingAdminDTO | null> {
+  const db = await getDb();
+  const res = await db.execute(
+    sql`SELECT ${ADMIN_SELECT_COLUMNS} FROM missing_persons WHERE id = ${id}`,
+  );
+  const rows = execRows<AdminRow>(res);
+  return rows.length > 0 ? rowToPersonWithDocument(rows[0]!) : null;
+}
+
+/** Como listMissing, pero con hasDocument/tipoDocumento — SOLO para el camino
+ *  gated (missing.resource.ts `list`). */
+export async function listMissingWithDocument(
+  options: { includeFound?: boolean } = {},
+): Promise<MissingAdminDTO[]> {
+  const db = await getDb();
+  const whereSql = options.includeFound ? sql`` : sql`WHERE status = 'active'`;
+  const res = await db.execute(
+    sql`SELECT ${ADMIN_SELECT_COLUMNS} FROM missing_persons ${whereSql}
+        ORDER BY created_at DESC, id DESC`,
+  );
+  return execRows<AdminRow>(res).map(rowToPersonWithDocument);
+}
+
 /** Campos editables de la ficha (no se permite mover id/createdAt/status/foto). */
 export interface UpdateMissingInput {
   name?: string;
@@ -644,17 +738,35 @@ export interface UpdateMissingInput {
   description?: string;
   lastSeen?: string;
   contact?: string;
+  /** tipo_documento normalizado (CC/TI/CE/PA/RC/NUIP/sin_documento). `undefined`
+   *  = no tocar. Sin `null`: no hay operación de "borrar solo el tipo" definida
+   *  (limpiar el documento se hace vía `documentHash: null`, ver abajo). */
+  tipoDocumento?: string;
+  /**
+   * HMAC del documento normalizado (computado en missing.resource.ts con la
+   * MISMA clave/normalización que hospital_patients.document_hash; el
+   * documento crudo NUNCA llega aquí). `null` borra el documento del reporte.
+   * `undefined` = no tocar. Cualquier cambio (fijar o borrar) reestampa el PRN
+   * y encola un matcher sweep (U8) — el cruce de cédula es la señal fuerte
+   * del matcher (AE2), así que un cambio de hash SIEMPRE debe re-evaluarse.
+   */
+  documentHash?: string | null;
 }
 
 /**
  * Actualiza campos permitidos de la ficha de una persona. Recorta/clampa con los
- * mismos límites que addMissing. Devuelve el DTO actualizado o null si no existe.
- * Escape `sql` por el tipo unión de drivers (igual que markMissingFound).
+ * mismos límites que addMissing. Devuelve el DTO (gated: con hasDocument/
+ * tipoDocumento) actualizado o null si no existe. Escape `sql` por el tipo
+ * unión de drivers (igual que markMissingFound).
+ *
+ * SIN unicidad/409 por colisión de document_hash a propósito (KTD9): dos
+ * reportes con la misma cédula son señal legítima de duplicado para el
+ * matcher, no un conflicto — diferencia deliberada con `patients.ts`.
  */
 export async function updateMissing(
   id: string,
   input: UpdateMissingInput,
-): Promise<MissingDTO | null> {
+): Promise<MissingAdminDTO | null> {
   const sets: ReturnType<typeof sql>[] = [];
   if (input.name !== undefined)
     sets.push(sql`name = ${input.name.trim().slice(0, MAX_NAME)}`);
@@ -667,23 +779,32 @@ export async function updateMissing(
     sets.push(sql`last_seen = ${input.lastSeen.trim().slice(0, MAX_LAST_SEEN)}`);
   if (input.contact !== undefined)
     sets.push(sql`contact = ${input.contact.trim().slice(0, MAX_CONTACT)}`);
-  if (sets.length === 0) return getMissingById(id);
+  if (input.tipoDocumento !== undefined)
+    sets.push(sql`tipo_documento = ${input.tipoDocumento}`);
+  const documentChanged = input.documentHash !== undefined;
+  if (documentChanged) sets.push(sql`document_hash = ${input.documentHash}`);
+  if (sets.length === 0) return getMissingByIdWithDocument(id);
 
   const db = await getDb();
   const result = await db.execute(
     sql`UPDATE missing_persons SET ${sql.join(sets, sql`, `)}
         WHERE id = ${id}
-        RETURNING id, name, age, nationality, description, last_seen, contact,
-                  (photo IS NOT NULL) AS has_photo,
-                  photo_external_url,
-                  COALESCE(status, 'active') AS status,
-                  resolution_note,
-                  (resolution_photo IS NOT NULL) AS has_resolution_photo,
-                  resolved_at, created_at`,
+        RETURNING ${ADMIN_SELECT_COLUMNS}`,
   );
-  const rows = execRows<Row>(result);
-  if (rows.length > 0) invalidate();
-  return rows.length > 0 ? rowToPerson(rows[0]!) : null;
+  const rows = execRows<AdminRow>(result);
+  if (rows.length === 0) return null;
+  invalidate();
+
+  // Cualquier cambio de document_hash (fijado o borrado) es candidato a
+  // re-evaluación del matcher — ver comentario de UpdateMissingInput.
+  // Best-effort: ensurePrn/enqueueMatcherSweep nunca lanzan, así que esto
+  // jamás tumba una actualización ya confirmada en la fila.
+  if (documentChanged) {
+    const prn = await ensurePrn("missing_report", id);
+    if (prn) await enqueueMatcherSweep([prn]);
+  }
+
+  return rowToPersonWithDocument(rows[0]!);
 }
 
 /** Totales consolidados para el panel del mapa y el hero. */
@@ -842,7 +963,24 @@ const EXTERNAL_COLS = [
   "status", "resolution_note", "resolved_at", "created_at",
 ] as const;
 
-/** Cláusula DO UPDATE: misma semántica que el upsert de una fila. */
+/**
+ * Cláusula DO UPDATE (U14 — "señal, no verdad", R24/R25/R26): `status`,
+ * `resolution_note` y `resolved_at` YA NO se pisan aquí. Antes de U14 esta
+ * cláusula traía `status = EXCLUDED.status` (+ COALESCE de las dos columnas
+ * de resolución) — una transición reportada por una fuente externa quedaba
+ * en vivo de inmediato, sin que nadie la confirmara. Ahora una fila EXISTENTE
+ * conserva su status/resolución guardados sin importar lo que reclame el
+ * upsert; la transición reclamada se registra aparte, como una fila pendiente
+ * en `record_status_signals` (ver `upsertExternalMissingBatch` más abajo) —
+ * un reviewer la confirma o descarta explícitamente
+ * (`services/record-signals.ts`). El resto de columnas sigue el MISMO
+ * COALESCE-merge que antes de U14 (comportamiento caracterizado en
+ * `test/record-signals.test.ts`, bloque "CHARACTERIZATION").
+ *
+ * Una fila NUEVA (sin conflicto) no pasa por esta cláusula — su status
+ * inicial se guarda tal cual llega en el INSERT (estado inicial ≠ transición,
+ * no hay nada que "retener" para un registro que no existía).
+ */
 const CONFLICT_UPDATE_SET = `
   name = EXCLUDED.name,
   age = EXCLUDED.age,
@@ -851,10 +989,7 @@ const CONFLICT_UPDATE_SET = `
   contact = EXCLUDED.contact,
   photo_external_url = COALESCE(missing_persons.photo_external_url, EXCLUDED.photo_external_url),
   source = COALESCE(missing_persons.source, EXCLUDED.source),
-  source_url = COALESCE(missing_persons.source_url, EXCLUDED.source_url),
-  status = EXCLUDED.status,
-  resolution_note = COALESCE(EXCLUDED.resolution_note, missing_persons.resolution_note),
-  resolved_at = COALESCE(EXCLUDED.resolved_at, missing_persons.resolved_at)`;
+  source_url = COALESCE(missing_persons.source_url, EXCLUDED.source_url)`;
 
 /**
  * Prepara los valores de una fila a partir de un registro externo. El
@@ -862,16 +997,26 @@ const CONFLICT_UPDATE_SET = `
  * índice compuesto en infra/db/schema.ts. Devuelve null si el registro es
  * inválido (sin source/externalId/name) para que el caller lo cuente como
  * saltado.
+ *
+ * Devuelve, además de `values` (el orden fijo de EXTERNAL_COLS), el `status`
+ * y `resolutionNote` RECLAMADOS por esta fila ya normalizados/clampados —
+ * `upsertExternalMissingBatch` los usa después del upsert para detectar una
+ * transición de status contra lo que el RETURNING trae guardado (U14), sin
+ * tener que releer los `values` posicionalmente.
  */
 function buildExternalRow(
   input: ExternalMissingInput,
-): { key: string; values: unknown[] } | null {
+): { key: string; values: unknown[]; status: MissingStatus; resolutionNote: string | null } | null {
   const externalId = (input.externalId ?? "").trim();
   const source = clipText(input.source, 120);
   const name = clipText(input.name, MAX_NAME);
   if (!externalId || !source || !name) return null;
 
   const status: MissingStatus = input.status === "found" ? "found" : "active";
+  const resolutionNote =
+    status === "found" && input.resolutionNote
+      ? clipText(input.resolutionNote, MAX_RESOLUTION_NOTE) || null
+      : null;
   // El contacto solo llega si el adaptador decidió importarlo (ver RFC §6).
   const values: unknown[] = [
     crypto.randomUUID(),
@@ -887,13 +1032,11 @@ function buildExternalRow(
     source,
     typeof input.sourceUrl === "string" ? input.sourceUrl.slice(0, 300) : null,
     status,
-    status === "found" && input.resolutionNote
-      ? clipText(input.resolutionNote, MAX_RESOLUTION_NOTE) || null
-      : null,
+    resolutionNote,
     status === "found" ? (input.resolvedAt ?? Date.now()) : null,
     input.createdAt ?? Date.now(),
   ];
-  return { key: JSON.stringify([source, externalId]), values };
+  return { key: JSON.stringify([source, externalId]), values, status, resolutionNote };
 }
 
 /**
@@ -907,8 +1050,28 @@ function buildExternalRow(
  *
  * Se mantiene SQL crudo (getDb().execute) porque arma un INSERT multi-fila
  * dinámico con ON CONFLICT sobre un índice parcial (WHERE external_id IS NOT
- * NULL) y RETURNING (xmax = 0); el query builder no expresa el predicado del
- * índice parcial ni el xmax de forma directa. Semántica idéntica a la previa.
+ * NULL) y RETURNING; el query builder no expresa el predicado del índice
+ * parcial de forma directa. Semántica idéntica a la previa salvo status/
+ * resolución (U14, ver CONFLICT_UPDATE_SET) y el wiring de identidad de abajo.
+ *
+ * U14 (KTD18 — "señal, no verdad" + R24 identidad en lote):
+ *  - Detección de diff SIN una segunda consulta: el RETURNING trae, por fila,
+ *    el `status` que quedó REALMENTE guardado tras el upsert. Para una fila
+ *    NUEVA eso es el status recién insertado (== el reclamado por
+ *    definición). Para una fila EXISTENTE, como `CONFLICT_UPDATE_SET` ya NO
+ *    toca `status`, el RETURNING trae el status PREVIO intacto. Comparar ese
+ *    valor contra el `status` reclamado (que sí conocemos, viene de
+ *    `buildExternalRow`) detecta la transición sin pre-leer un mapa
+ *    (source,external_id)->status aparte. Se optó por esto en vez de un
+ *    SELECT previo porque el RETURNING ya viaja gratis con el UPDATE/INSERT.
+ *  - Identidad: TODA fila tocada por este batch (nueva o re-sincronizada)
+ *    entra a la capa de identidad — un solo `ensurePrns` (un INSERT
+ *    multi-fila + un SELECT de remanente, nunca un round-trip por fila) +
+ *    UN `enqueueMatcherSweep` con los PRNs de todo el batch (ya reconciliado
+ *    o no: un re-sync con nombre/edad distintos también es señal para el
+ *    matcher). Las señales de status se crean DESPUÉS, usando el mapa de
+ *    PRNs que devuelve `ensurePrns` — sin PRN no hay a quién atribuirle la
+ *    señal.
  */
 export async function upsertExternalMissingBatch(
   people: ExternalMissingInput[],
@@ -933,7 +1096,10 @@ export async function upsertExternalMissingBatch(
     ),
   );
 
-  const byKey = new Map<string, unknown[]>();
+  const byKey = new Map<
+    string,
+    { values: unknown[]; status: MissingStatus; resolutionNote: string | null }
+  >();
   for (const person of people) {
     const row = buildExternalRow(person);
     if (!row) {
@@ -944,27 +1110,83 @@ export async function upsertExternalMissingBatch(
       result.skipped++;
       continue;
     }
-    byKey.set(row.key, row.values);
+    byKey.set(row.key, { values: row.values, status: row.status, resolutionNote: row.resolutionNote });
   }
-  const rows = [...byKey.values()];
-  if (rows.length === 0) return result;
+  const entries = [...byKey.entries()];
+  if (entries.length === 0) return result;
 
-  for (let i = 0; i < rows.length; i += batchSize) {
-    const chunk = rows.slice(i, i + batchSize);
+  // Acumulado a través de TODOS los chunks: ids tocados (para el batch de
+  // identidad) + transiciones de status reclamadas pendientes de convertirse
+  // en señal (necesitan el PRN, que solo se conoce DESPUÉS del batch de
+  // ensurePrns de abajo).
+  const upsertedIds: string[] = [];
+  const pendingSignals: Array<{
+    id: string;
+    source: string;
+    claimedStatus: MissingStatus;
+    resolutionNote: string | null;
+  }> = [];
+
+  for (let i = 0; i < entries.length; i += batchSize) {
+    const chunk = entries.slice(i, i + batchSize);
+    const claimedByKey = new Map(chunk);
     const tuples = chunk.map(
-      (values) => sql`(${sql.join(values.map((v) => sql`${v}`), sql`,`)})`,
+      ([, row]) => sql`(${sql.join(row.values.map((v) => sql`${v}`), sql`,`)})`,
     );
-    const query = sql`INSERT INTO missing_persons (${sql.raw(EXTERNAL_COLS.join(", "))}) VALUES ${sql.join(tuples, sql`,`)} ON CONFLICT (source, external_id) WHERE external_id IS NOT NULL DO UPDATE SET${sql.raw(CONFLICT_UPDATE_SET)} RETURNING (xmax = 0) AS inserted`;
+    const query = sql`INSERT INTO missing_persons (${sql.raw(EXTERNAL_COLS.join(", "))}) VALUES ${sql.join(tuples, sql`,`)} ON CONFLICT (source, external_id) WHERE external_id IS NOT NULL DO UPDATE SET${sql.raw(CONFLICT_UPDATE_SET)} RETURNING id, source, external_id, status, (xmax = 0) AS inserted`;
     try {
       const out = await db.execute(query);
-      for (const r of execRows<{ inserted: boolean }>(out)) {
+      for (const r of execRows<{
+        id: string;
+        source: string;
+        external_id: string;
+        status: string;
+        inserted: boolean;
+      }>(out)) {
         if (r.inserted) result.inserted++;
         else result.updated++;
+        upsertedIds.push(r.id);
+
+        const claimed = claimedByKey.get(JSON.stringify([r.source, r.external_id]));
+        if (claimed && claimed.status !== r.status) {
+          pendingSignals.push({
+            id: r.id,
+            source: r.source,
+            claimedStatus: claimed.status,
+            resolutionNote: claimed.resolutionNote,
+          });
+        }
       }
     } catch {
       result.errors += chunk.length;
     }
   }
+
+  if (upsertedIds.length > 0) {
+    // R24 — identidad en lote: un solo ensurePrns para TODO lo tocado en esta
+    // llamada, un solo matcher sweep con el conjunto resultante de PRNs.
+    // Best-effort (ensurePrns nunca lanza): lo que quede sin PRN aquí lo
+    // recoge reconcilePersonRecords en su próxima corrida.
+    const prnById = await ensurePrns("missing_report", upsertedIds);
+    const prns = [...new Set(prnById.values())];
+    if (prns.length > 0) await enqueueMatcherSweep(prns);
+
+    // R25/R26 — señal de status DESPUÉS del batch de PRNs, usando el mapa que
+    // devolvió: sin PRN para esa fila (caso raro, ensurePrns falló) la
+    // transición reclamada queda sin señal esta vez; el próximo re-sync (el
+    // socio repite el mismo envío) la vuelve a intentar.
+    for (const pending of pendingSignals) {
+      const prn = prnById.get(pending.id);
+      if (!prn) continue;
+      await createStatusSignal({
+        prn,
+        source: pending.source,
+        claimedStatus: pending.claimedStatus,
+        resolutionNote: pending.resolutionNote,
+      });
+    }
+  }
+
   if (result.inserted > 0 || result.updated > 0) invalidate();
   return result;
 }

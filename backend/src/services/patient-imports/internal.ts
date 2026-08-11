@@ -42,6 +42,7 @@ export function toSummary(h: ImportHeaderRow): ImportSummaryDTO {
 		},
 		createdBy: h.createdBy,
 		errorSummary: h.errorSummary,
+		sourceImageUrl: h.sourceImageUrl ?? null,
 		createdAt: h.createdAt,
 		processedAt: h.processedAt,
 		appliedAt: h.appliedAt,
@@ -167,6 +168,7 @@ export interface StagingRow {
 	validationWarnings: unknown;
 	dedupCandidates: unknown;
 	patientId: string | null;
+	updatedAt: number;
 }
 
 export function toRowDTO(r: StagingRow): ImportRowDTO {
@@ -197,6 +199,7 @@ export function toRowDTO(r: StagingRow): ImportRowDTO {
 			: [],
 		dedupCandidates: candidates,
 		patientId: r.patientId,
+		updatedAt: r.updatedAt,
 	};
 }
 

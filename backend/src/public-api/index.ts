@@ -32,6 +32,9 @@ import { apiKeysRouter } from "@/public-api/routers/api-keys.router";
 import { hubCredentialsRouter } from "@/public-api/routers/hub-credentials.router";
 import { hospitalSuppliesRouter } from "@/public-api/routers/hospital-supplies.router";
 import { deletionRequestsRouter } from "@/public-api/routers/deletion-requests.router";
+import { partnerSyncRouter } from "@/public-api/routers/partner-sync.router";
+import { personLinksRouter } from "@/public-api/routers/person-links.router";
+import { recordSignalsRouter } from "@/public-api/routers/record-signals.router";
 import { psychologyRouter } from "@/public-api/routers/psychology.router";
 import { volunteersActionsRouter } from "@/public-api/routers/volunteers-actions.router";
 
@@ -72,6 +75,17 @@ export function mountPublicApi(app: Express): void {
   app.use("/api/public/hospital-supplies", hospitalSuppliesRouter);
   // Supresión de datos (Ley 1581): gestión de solicitudes, deletion:read/edit.
   app.use("/api/public/deletion-requests", deletionRequestsRouter);
+  // Ingesta síncrona de un socio externo (missing:create, sin cola — ver el
+  // comment-block del router para por qué no usa worker/sync ni worker/hub).
+  app.use("/api/public/partner-sync", partnerSyncRouter);
+  // Family Search (U9): cola de revisión, decisión, propuesta manual,
+  // unmerge, búsqueda de registros y ficha de cluster. person:search/
+  // person:review/person:merge (capabilities.ts).
+  app.use("/api/public/person-links", personLinksRouter);
+  // U14 — "señal, no verdad": cola de transiciones de status reclamadas por
+  // una fuente externa + decisión (confirmar/descartar). person:search/
+  // person:review (mismas capabilities que person-links, ver capabilities.ts).
+  app.use("/api/public/record-signals", recordSignalsRouter);
   // RBAC con verbos irregulares (no CRUD): routers a mano. Cada ruta lleva
   // rateLimit + requireCapability + writeAudit (gates que exige el ESLint).
   app.use("/api/public/users", usersRouter); // user:read/edit/delete (invite→auth)
