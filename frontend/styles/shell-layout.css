@@ -703,8 +703,7 @@
 	}
 
 	.e-nav__links,
-	.e-nav__support,
-	.e-nav__psych-wrap {
+	.e-nav__support {
 		display: none;
 	}
 
@@ -3076,14 +3075,6 @@
 }
 
 @media (max-width: 767px) {
-	.e-hero__card-grid {
-		grid-template-columns: 1fr;
-	}
-
-	.e-hero__access-card {
-		min-height: 82px;
-	}
-
 	.e-footer__inner {
 		grid-template-columns: 1fr;
 		gap: 32px;

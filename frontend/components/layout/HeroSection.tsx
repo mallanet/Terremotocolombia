@@ -15,8 +15,6 @@ import {
   SITE_NAV_LOGO_ON_DARK,
   SITE_BRAND_NAME,
   SITE_PRODUCT_NAME,
-  CONTACT_EMAIL,
-  contactMailto,
 } from "@/lib/site";
 import { toggleTheme } from "./ThemeProvider";
 
@@ -78,17 +76,9 @@ export default function HeroSection() {
             Estamos contigo. ¿Qué necesitas hacer?
           </h1>
           <p className="e-hero__subtitle">
-            {SITE_PRODUCT_NAME} es una iniciativa ciudadana de {SITE_BRAND_NAME}:
-            mapa y directorios para coordinar rescates, personas desaparecidas,
-            hospitales, acopio y ayuda humanitaria. No somos un canal oficial de
-            emergencia. En peligro inmediato llama al{" "}
-            <a href="tel:123" className="underline">
-              123
-            </a>
-            .
-          </p>
-          <p className="e-hero__subtitle mt-2 opacity-90">
-            Da clic en una opción para recibir o brindar ayuda.
+            Mapa y directorios ciudadanos para coordinar ayuda. No somos un
+            canal oficial. En peligro llama al{" "}
+            <a href="tel:123" className="underline">123</a>.
           </p>
 
           <div className="e-hero__card-grid">
@@ -101,7 +91,7 @@ export default function HeroSection() {
             <HeroAccessCard
               icon={Megaphone}
               title="Reportar Información"
-              description="Reporta emergencias, refugios, suministros, personas desaparecidas y más."
+              description="Emergencias, refugios, suministros y más."
               onClick={openEmergencyReport}
             />
             <HeroAccessCard
@@ -117,13 +107,6 @@ export default function HeroSection() {
               onClick={goVolunteer}
             />
           </div>
-
-          <p className="e-hero__contact-line">
-            ¿Necesitas escribirnos?{" "}
-            <a href={contactMailto()} className="e-hero__contact-link">
-              {CONTACT_EMAIL}
-            </a>
-          </p>
         </div>
       </div>
     </header>

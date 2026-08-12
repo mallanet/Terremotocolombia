@@ -6,7 +6,6 @@ export default function TutorialSteps() {
     <section id="tutorial" className="e-m-section">
       <div className="e-m-section__inner">
         <header className="e-m-section__head">
-          <span className="e-m-kicker">Orientación inmediata</span>
           <h2 className="e-m-section__title">¿Necesitas ayuda?</h2>
           <hr className="e-m-section__rule" />
           <p className="e-m-section__sub">
