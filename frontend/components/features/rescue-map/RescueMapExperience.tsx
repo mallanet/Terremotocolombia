@@ -9,6 +9,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { ChevronDown, ChevronUp, Info, Layers3 } from "lucide-react";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { SITE_PRODUCT_NAME } from "@/lib/site";
 import {
@@ -59,6 +60,13 @@ const copy = {
     localUpdate: "Copia local",
     newData: "Se incorporó información nueva sin perder tu vista actual.",
     mapModes: "Base del mapa",
+    compareImages: "Comparar imágenes",
+    eventDetails: "Detalles del sismo",
+    legend: "Leyenda",
+    attribution: "Atribución del mapa",
+    expandPanel: "Abrir panel operacional",
+    collapsePanel: "Minimizar panel operacional",
+    officialAreas: "4 áreas oficiales",
     map: "Mapa",
     reference: "Referencia",
     before: "Antes",
@@ -126,6 +134,13 @@ const copy = {
     localUpdate: "Local copy",
     newData: "New information was loaded without losing your current view.",
     mapModes: "Map base",
+    compareImages: "Compare imagery",
+    eventDetails: "Earthquake details",
+    legend: "Legend",
+    attribution: "Map attribution",
+    expandPanel: "Open operations panel",
+    collapsePanel: "Minimize operations panel",
+    officialAreas: "4 official areas",
     map: "Map",
     reference: "Reference",
     before: "Before",
@@ -236,6 +251,12 @@ function subscribeToConnectivity(onStoreChange: () => void) {
   };
 }
 
+function subscribeToMobileViewport(onStoreChange: () => void) {
+  const media = window.matchMedia("(max-width: 767px)");
+  media.addEventListener("change", onStoreChange);
+  return () => media.removeEventListener("change", onStoreChange);
+}
+
 export default function RescueMapExperience({
   initialIncident,
   initialMapping,
@@ -253,10 +274,16 @@ export default function RescueMapExperience({
   const [incident, setIncident] = useState(initialIncident);
   const [mapping, setMapping] = useState(initialMapping);
   const [selectedAoiId, setSelectedAoiId] = useState<string | null>(null);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
   const isOnline = useSyncExternalStore(
     subscribeToConnectivity,
     () => navigator.onLine,
     () => true,
+  );
+  const isMobile = useSyncExternalStore(
+    subscribeToMobileViewport,
+    () => window.matchMedia("(max-width: 767px)").matches,
+    () => false,
   );
   const [usingCachedData, setUsingCachedData] = useState(false);
   const [lastLocalUpdate, setLastLocalUpdate] = useState<number>(
@@ -264,6 +291,7 @@ export default function RescueMapExperience({
   );
   const [updateNotice, setUpdateNotice] = useState(false);
   const [viewStateLoaded, setViewStateLoaded] = useState(false);
+  const railContentRef = useRef<HTMLDivElement>(null);
   const sourceUpdatedRef = useRef(
     latestSourceTime(initialIncident, initialMapping),
   );
@@ -275,10 +303,26 @@ export default function RescueMapExperience({
   );
   const product = selectedProduct(selectedAoi);
   const image = product?.images[0] ?? null;
+  const selectAoi = useCallback(
+    (aoiId: string) => {
+      setSelectedAoiId(aoiId);
+      setSheetExpanded(true);
+      requestAnimationFrame(() => {
+        railContentRef.current?.scrollTo({ top: 0, behavior: "auto" });
+      });
+    },
+    [],
+  );
 
   useEffect(() => {
     sourceUpdatedRef.current = latestSourceTime(incident, mapping);
   }, [incident, mapping]);
+
+  useEffect(() => {
+    const className = "rescue-map-sheet-expanded";
+    document.body.classList.toggle(className, isMobile && sheetExpanded);
+    return () => document.body.classList.remove(className);
+  }, [isMobile, sheetExpanded]);
 
   useEffect(() => {
     const restoreViewState = () => {
@@ -428,13 +472,19 @@ export default function RescueMapExperience({
     return () => window.clearInterval(retryTimer);
   }, [refreshStaticData, usingCachedData]);
 
-  const modes: Array<{
+  const baseModes: Array<{
     id: RescueMapMode;
     label: string;
     available: boolean;
   }> = [
     { id: "map", label: text.map, available: true },
     { id: "reference", label: text.reference, available: true },
+  ];
+  const comparisonModes: Array<{
+    id: RescueMapMode;
+    label: string;
+    available: boolean;
+  }> = [
     { id: "before", label: text.before, available: Boolean(mapping.imagery.before) },
     { id: "after", label: text.after, available: Boolean(mapping.imagery.after) },
   ];
@@ -505,7 +555,9 @@ export default function RescueMapExperience({
               magnitude: incident.event.magnitude,
             }}
             isOnline={!effectivelyOffline}
-            onSelectAoi={setSelectedAoiId}
+            mobileViewport={isMobile}
+            mobileSheetExpanded={isMobile && sheetExpanded}
+            onSelectAoi={selectAoi}
           />
         </ErrorBoundary>
 
@@ -519,159 +571,358 @@ export default function RescueMapExperience({
             {imageNeedsConnection ? text.imageryOffline : text.currentView}
           </span>
           <strong>
-            {selectedAoi ? selectedAoi.name[language] : text.overview}
+            {selectedAoi ? selectedAoi.name[language] : text.officialAreas}
           </strong>
           <small>
             {currentProvider} · {connectionLabel}
           </small>
         </div>
 
-        <div
+        <details
           className="e-rescue-map-legend"
           aria-label={language === "es" ? "Leyenda del mapa" : "Map legend"}
         >
-          <span>
-            <i className="e-rescue-key" data-kind="epicenter" aria-hidden />
-            {text.legendEpicenter}
-          </span>
-          <span>
-            <i className="e-rescue-key" data-kind="damage" aria-hidden />
-            {text.legendDamage}
-          </span>
-          <span>
-            <i className="e-rescue-key" data-kind="movement" aria-hidden />
-            {text.legendMovement}
-          </span>
-        </div>
+          <summary>
+            <Layers3 aria-hidden size={17} strokeWidth={2.2} />
+            <span>{text.legend}</span>
+            <ChevronDown
+              className="e-rescue-disclosure-chevron"
+              aria-hidden
+              size={16}
+              strokeWidth={2.2}
+            />
+          </summary>
+          <div className="e-rescue-map-legend-panel">
+            <span>
+              <i className="e-rescue-key" data-kind="epicenter" aria-hidden />
+              {text.legendEpicenter}
+            </span>
+            <span>
+              <i className="e-rescue-key" data-kind="damage" aria-hidden />
+              {text.legendDamage}
+            </span>
+            <span>
+              <i className="e-rescue-key" data-kind="movement" aria-hidden />
+              {text.legendMovement}
+            </span>
+          </div>
+        </details>
 
-        <p className="e-rescue-attribution">
-          {mode === "map" ? (
-            <>
-              ©{" "}
-              <a
-                href="https://www.openstreetmap.org/copyright"
-                {...externalLinkProps}
-              >
-                OpenStreetMap
-              </a>{" "}
-              contributors
-            </>
-          ) : (
-            <>
-              Tiles © Esri, Maxar, Earthstar Geographics and the GIS User
-              Community
-            </>
-          )}
-          {" · "}
-          <a href="https://leafletjs.com/" {...externalLinkProps}>
-            Leaflet
-          </a>
-        </p>
+        <details className="e-rescue-attribution">
+          <summary aria-label={text.attribution}>
+            <span>
+              {mode === "map"
+                ? "© OpenStreetMap"
+                : "© Esri y colaboradores"}{" "}
+              · Leaflet
+            </span>
+            <Info aria-hidden size={15} strokeWidth={2.2} />
+          </summary>
+          <div className="e-rescue-attribution-body">
+            {mode === "map" ? (
+              <>
+                ©{" "}
+                <a
+                  href="https://www.openstreetmap.org/copyright"
+                  {...externalLinkProps}
+                >
+                  OpenStreetMap
+                </a>{" "}
+                contributors
+              </>
+            ) : (
+              <>
+                Tiles © Esri, Maxar, Earthstar Geographics and the GIS User
+                Community
+              </>
+            )}
+            {" · "}
+            <a href="https://leafletjs.com/" {...externalLinkProps}>
+              Leaflet
+            </a>
+          </div>
+        </details>
       </section>
 
       <aside
         className="e-rescue-rail"
+        data-sheet-state={isMobile && sheetExpanded ? "expanded" : "compact"}
         aria-label={
           language === "es" ? "Panel operacional del incidente" : "Incident operations panel"
         }
       >
         <header className="e-rescue-rail-header">
-          <div className="e-rescue-rail-top">
-            <div className="e-rescue-identity">
-              <span className="e-rescue-identity-mark" aria-hidden>
-                +
+          <div className="e-rescue-mobile-sheet-summary">
+            <h1 className="e-rescue-mobile-heading">{text.title}</h1>
+            <button
+              type="button"
+              className="e-rescue-sheet-toggle"
+              data-testid="rescue-sheet-toggle"
+              aria-label={
+                sheetExpanded ? text.collapsePanel : text.expandPanel
+              }
+              aria-expanded={sheetExpanded}
+              aria-controls="rescue-sheet-content"
+              onClick={(event) => {
+                setSheetExpanded((expanded) => !expanded);
+                if (event.detail > 0) event.currentTarget.blur();
+              }}
+            >
+              <span className="e-rescue-sheet-handle" aria-hidden />
+              <span className="e-rescue-sheet-copy">
+                <span>
+                  {selectedAoi ? text.selectedArea : mapping.activationCode}
+                </span>
+                <strong>
+                  {selectedAoi
+                    ? selectedAoi.name[language]
+                    : text.officialAreas}
+                </strong>
+                <small>
+                  {selectedAoi && product
+                    ? `AOI ${String(selectedAoi.number).padStart(2, "0")} · ${product.type}`
+                    : `${mapping.aois.length} AOI · Copernicus`}
+                </small>
               </span>
-              <p>{SITE_PRODUCT_NAME}</p>
-              <span className="e-rescue-activation">
-                {mapping.activationCode}
+              <span className="e-rescue-sheet-toggle-icon" aria-hidden>
+                {sheetExpanded ? (
+                  <ChevronDown size={20} strokeWidth={2.4} />
+                ) : (
+                  <ChevronUp size={20} strokeWidth={2.4} />
+                )}
               </span>
-            </div>
-          </div>
-          <h1>{text.title}</h1>
-          <p className="e-rescue-event-title">
-            {incident.event.title[language]}
-          </p>
-          <div
-            className="e-rescue-status-line"
-            data-online={String(!effectivelyOffline)}
-          >
-            <span className="e-rescue-status-dot" aria-hidden />
-            <strong>{connectionLabel}</strong>
-            <span>
-              {text.localUpdate}:{" "}
+            </button>
+            <div
+              className="e-rescue-mobile-freshness"
+              data-online={String(!effectivelyOffline)}
+            >
+              <span className="e-rescue-status-dot" aria-hidden />
+              <strong>{connectionLabel}</strong>
               <time
                 dateTime={new Date(lastLocalUpdate).toISOString()}
                 suppressHydrationWarning
               >
                 {localizedDate(lastLocalUpdate, language)}
               </time>
-            </span>
-          </div>
-          <div className="e-rescue-status-line">
-            <strong>{text.verified}</strong>
-            <time dateTime={mapping.lastCheckedAt} suppressHydrationWarning>
-              {localizedDate(mapping.lastCheckedAt, language)}
-            </time>
-          </div>
-          {updateNotice ? (
-            <p
-              className="e-rescue-package-message"
-              role="status"
-              aria-live="polite"
+            </div>
+            <div
+              className="e-rescue-mode-control e-rescue-mobile-mode-control"
+              role="group"
+              aria-label={text.mapModes}
             >
-              {text.newData}
+              {baseModes.map((item) => (
+                <button
+                  key={`mobile-${item.id}`}
+                  type="button"
+                  aria-label={item.label}
+                  aria-pressed={mode === item.id}
+                  onClick={() => setMode(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <p className="e-rescue-mobile-map-context">
+              {imageNeedsConnection
+                ? text.imageryOffline
+                : mode === "reference"
+                  ? text.referenceWarning
+                  : text.mapSource}
             </p>
-          ) : null}
+          </div>
+
+          <div className="e-rescue-desktop-intro">
+            <div className="e-rescue-rail-top">
+              <div className="e-rescue-identity">
+                <span className="e-rescue-identity-mark" aria-hidden>
+                  +
+                </span>
+                <p>{SITE_PRODUCT_NAME}</p>
+                <span className="e-rescue-activation">
+                  {mapping.activationCode}
+                </span>
+              </div>
+            </div>
+            <h1>{text.title}</h1>
+            <p className="e-rescue-event-title">
+              {incident.event.title[language]}
+            </p>
+            <div
+              className="e-rescue-status-line"
+              data-online={String(!effectivelyOffline)}
+            >
+              <span className="e-rescue-status-dot" aria-hidden />
+              <strong>{connectionLabel}</strong>
+              <span>
+                {text.localUpdate}:{" "}
+                <time
+                  dateTime={new Date(lastLocalUpdate).toISOString()}
+                  suppressHydrationWarning
+                >
+                  {localizedDate(lastLocalUpdate, language)}
+                </time>
+              </span>
+            </div>
+            <div className="e-rescue-status-line">
+              <strong>{text.verified}</strong>
+              <time
+                dateTime={mapping.lastCheckedAt}
+                suppressHydrationWarning
+              >
+                {localizedDate(mapping.lastCheckedAt, language)}
+              </time>
+            </div>
+            {updateNotice ? (
+              <p
+                className="e-rescue-package-message"
+                role="status"
+                aria-live="polite"
+              >
+                {text.newData}
+              </p>
+            ) : null}
+          </div>
         </header>
 
-        <section
-          className="e-rescue-facts"
-          aria-label={language === "es" ? "Datos del evento" : "Event facts"}
+        <div
+          id="rescue-sheet-content"
+          ref={railContentRef}
+          className="e-rescue-rail-content"
+          hidden={isMobile && !sheetExpanded}
         >
-          <div className="e-rescue-fact">
-            <span>{text.magnitude}</span>
-            <strong>M{incident.event.magnitude}</strong>
-          </div>
-          <div className="e-rescue-fact">
-            <span>{text.depth}</span>
-            <strong>{incident.event.depthKm} km</strong>
-          </div>
-          <div className="e-rescue-fact">
-            <span>{text.mapAreas}</span>
-            <strong>{mapping.aois.length} AOI</strong>
-          </div>
-        </section>
+          {selectedAoi && product ? (
+            <section
+              className="e-rescue-selection"
+              aria-labelledby="rescue-selected-aoi"
+            >
+              <p>{text.selectedArea}</p>
+              <h2 id="rescue-selected-aoi">{selectedAoi.name[language]}</h2>
+              <dl>
+                <div>
+                  <dt>{text.product}</dt>
+                  <dd>
+                    <span
+                      className="e-rescue-type"
+                      data-product={product.type}
+                    >
+                      {product.type} · {product.typeLabel[language]}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>{text.sensor}</dt>
+                  <dd>
+                    {image ? `${image.sensor} · ${image.resolutionClass}` : "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{text.acquisition}</dt>
+                  <dd>{localizedDate(image?.acquisitionUtc ?? null, language)}</dd>
+                </div>
+                <div>
+                  <dt>{text.delivery}</dt>
+                  <dd>{localizedDate(product.expectedDeliveryUtc, language)}</dd>
+                </div>
+              </dl>
+              {isMobile ? (
+                <button
+                  type="button"
+                  className="e-rescue-selection-overview"
+                  onClick={() => setSelectedAoiId(null)}
+                >
+                  {text.overview}
+                </button>
+              ) : null}
+            </section>
+          ) : null}
 
-        <section className="e-rescue-section" aria-labelledby="rescue-map-modes">
-          <div className="e-rescue-section-heading">
-            <h2 id="rescue-map-modes">{text.mapModes}</h2>
-            <span className="e-rescue-section-status">
-              {comparisonStateLabel(
-                mapping.imagery.comparisonState,
-                language,
-              )}
-            </span>
-          </div>
-          <div
-            className="e-rescue-mode-control"
-            role="group"
-            aria-label={text.mapModes}
-          >
-            {modes.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                aria-label={item.label}
-                aria-pressed={mode === item.id}
-                disabled={!item.available}
-                aria-describedby={!item.available ? "rescue-comparison-waiting" : undefined}
-                title={!item.available ? text.unavailable : undefined}
-                onClick={() => setMode(item.id)}
+          <details className="e-rescue-details e-rescue-event-details">
+            <summary>{text.eventDetails}</summary>
+            <section
+              className="e-rescue-facts"
+              aria-label={language === "es" ? "Datos del evento" : "Event facts"}
+            >
+              <div className="e-rescue-fact">
+                <span>{text.magnitude}</span>
+                <strong>M{incident.event.magnitude}</strong>
+              </div>
+              <div className="e-rescue-fact">
+                <span>{text.depth}</span>
+                <strong>{incident.event.depthKm} km</strong>
+              </div>
+              <div className="e-rescue-fact">
+                <span>{text.mapAreas}</span>
+                <strong>{mapping.aois.length} AOI</strong>
+              </div>
+            </section>
+          </details>
+
+          <section className="e-rescue-section" aria-labelledby="rescue-map-modes">
+            <div className="e-rescue-desktop-mode-block">
+              <div className="e-rescue-section-heading">
+                <h2 id="rescue-map-modes">{text.mapModes}</h2>
+              </div>
+              <div
+                className="e-rescue-mode-control"
+                role="group"
+                aria-label={text.mapModes}
               >
-                {item.label}
-              </button>
-            ))}
-          </div>
+                {baseModes.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-label={item.label}
+                    aria-pressed={mode === item.id}
+                    onClick={() => setMode(item.id)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <details className="e-rescue-comparison">
+              <summary>
+                <span>{text.compareImages}</span>
+                <span className="e-rescue-section-status">
+                  {comparisonStateLabel(
+                    mapping.imagery.comparisonState,
+                    language,
+                  )}
+                </span>
+                <ChevronDown
+                  className="e-rescue-disclosure-chevron"
+                  aria-hidden
+                  size={17}
+                  strokeWidth={2.2}
+                />
+              </summary>
+              <div className="e-rescue-comparison-body">
+                <div
+                  className="e-rescue-mode-control"
+                  role="group"
+                  aria-label={text.compareImages}
+                >
+                  {comparisonModes.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      aria-label={item.label}
+                      aria-pressed={mode === item.id}
+                      disabled={!item.available}
+                      aria-describedby={
+                        !item.available ? "rescue-comparison-waiting" : undefined
+                      }
+                      title={!item.available ? text.unavailable : undefined}
+                      onClick={() => setMode(item.id)}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </details>
+
           <div
             id="rescue-comparison-waiting"
             className="e-rescue-notice"
@@ -702,13 +953,15 @@ export default function RescueMapExperience({
         <section className="e-rescue-section" aria-labelledby="rescue-aoi-heading">
           <div className="e-rescue-section-heading">
             <h2 id="rescue-aoi-heading">{text.areas}</h2>
-            <button
-              type="button"
-              className="e-rescue-overview"
-              onClick={() => setSelectedAoiId(null)}
-            >
-              {text.overview}
-            </button>
+            {selectedAoi ? (
+              <button
+                type="button"
+                className="e-rescue-overview"
+                onClick={() => setSelectedAoiId(null)}
+              >
+                {text.overview}
+              </button>
+            ) : null}
           </div>
           <p className="e-rescue-boundary-warning">
             {text.areaBoundaryWarning}
@@ -722,7 +975,10 @@ export default function RescueMapExperience({
                   type="button"
                   className="e-rescue-aoi"
                   aria-pressed={aoi.id === selectedAoiId}
-                  onClick={() => setSelectedAoiId(aoi.id)}
+                  onClick={(event) => {
+                    selectAoi(aoi.id);
+                    if (event.detail > 0) event.currentTarget.blur();
+                  }}
                   data-testid={`rescue-aoi-${String(aoi.number).padStart(2, "0")}`}
                 >
                   <span className="e-rescue-aoi-code">
@@ -738,43 +994,6 @@ export default function RescueMapExperience({
             })}
           </div>
         </section>
-
-        {selectedAoi && product ? (
-          <section
-            className="e-rescue-selection"
-            aria-labelledby="rescue-selected-aoi"
-          >
-            <p>{text.selectedArea}</p>
-            <h2 id="rescue-selected-aoi">{selectedAoi.name[language]}</h2>
-            <dl>
-              <div>
-                <dt>{text.product}</dt>
-                <dd>
-                  <span
-                    className="e-rescue-type"
-                    data-product={product.type}
-                  >
-                    {product.type} · {product.typeLabel[language]}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt>{text.sensor}</dt>
-                <dd>
-                  {image ? `${image.sensor} · ${image.resolutionClass}` : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt>{text.acquisition}</dt>
-                <dd>{localizedDate(image?.acquisitionUtc ?? null, language)}</dd>
-              </div>
-              <div>
-                <dt>{text.delivery}</dt>
-                <dd>{localizedDate(product.expectedDeliveryUtc, language)}</dd>
-              </div>
-            </dl>
-          </section>
-        ) : null}
 
         <section
           className="e-rescue-section"
@@ -834,6 +1053,7 @@ export default function RescueMapExperience({
             />
           </div>
         </details>
+        </div>
       </aside>
     </main>
   );
