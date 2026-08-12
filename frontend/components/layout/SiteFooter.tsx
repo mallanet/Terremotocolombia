@@ -5,7 +5,7 @@ import {
   CONTACT_EMAIL,
   DISCORD_INVITE_URL,
   SITE_BRAND_NAME,
-  SITE_NAV_LOGO,
+  SITE_NAV_LOGO_ON_DARK,
   SITE_PRODUCT_NAME,
   contactMailto,
 } from "@/lib/site";
@@ -17,7 +17,7 @@ export default function SiteFooter() {
         <section className="e-footer__about" aria-labelledby="footer-about">
           <div className="e-footer__brand-row">
             <Image
-              src={SITE_NAV_LOGO}
+              src={SITE_NAV_LOGO_ON_DARK}
               alt=""
               width={36}
               height={36}
