@@ -40,12 +40,8 @@ describe("model-registry", () => {
 
 // El path plural del recurso vs la raíz singular de la capacidad
 // (reports->report, missing->missing, hospitals->hospital, ...).
-//
-// Un recurso NUEVO puede además COMPARTIR la capacidad de otro, y aquí eso no
-// es una excepción sino la regla: sembrar una clave de capacidad nueva es un
-// paso humano (deny-by-default), así que una superficie que se inventa la suya
-// responde 403 a todo el mundo hasta que alguien la siembre a mano. Por eso
-// `volunteer-tasks` gatea por `volunteer:read` y no por `volunteer-tasks:read`.
+// volunteer-tasks reutiliza volunteer:* a propósito: quien gestiona
+// voluntarios gestiona sus tareas (sin entradas nuevas en el catálogo).
 function capabilityRoot(path: string): string {
   const map: Record<string, string> = {
     reports: "report",

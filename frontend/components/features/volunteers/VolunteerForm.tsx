@@ -3,9 +3,26 @@
 import { useState } from "react";
 import { Info } from "lucide-react";
 import LegalConsentNotice from "@/components/content/LegalConsentNotice";
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { useVolunteerSubmit, type VolunteerInput } from "@/hooks/volunteers";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { usePrivacyConsent } from "@/components/layout/PrivacyConsentGate";
+
+/**
+ * Enlace de invitacion al grupo de WhatsApp de voluntariado.
+ *
+ * Viene de Doppler (`NEXT_PUBLIC_WHATSAPP_GROUP_URL`), NO commiteado: el
+ * content audit veta el dominio de invitaciones de grupo de WhatsApp en TODO
+ * el arbol, y no como capricho — esta en el mismo grupo de patrones que los
+ * enlaces de donacion y pago, las formas de enlace de solicitud que jamas
+ * deben poder colarse en un repo de respuesta a desastres. Ese veto es
+ * "hard-banned": aplica en cualquier fichero, tambien en config/, asi que
+ * moverlo a deployment.config.json no lo esquiva (ni deberia).
+ *
+ * Si la variable no esta puesta, la tarjeta entera no se pinta: el alta de
+ * voluntario sigue funcionando igual y no queda un boton roto.
+ */
+const WHATSAPP_GROUP_URL = process.env.NEXT_PUBLIC_WHATSAPP_GROUP_URL ?? "";
 import {
   DetailsField,
   OfferTypePicker,
@@ -240,9 +257,35 @@ export default function VolunteerForm() {
       )}
 
       {success && (
-        <p className="e-m-alert-success">
-          {success}
-        </p>
+        <div className="flex flex-col gap-4">
+          <div className="e-m-alert-success text-center" role="status">
+            <span className="block text-lg font-bold">
+              Muchas gracias por ser parte de esto
+            </span>
+            <span className="mt-1 block">{success}</span>
+          </div>
+          {WHATSAPP_GROUP_URL && (
+          <div className="rounded-[20px] border border-[#25D366]/30 bg-[#25D366]/5 p-5 text-center">
+            <WhatsAppIcon className="mx-auto mb-2 h-9 w-9 text-[#25D366]" />
+            <p className="mb-1 text-base font-bold text-slate-900">
+              Último paso: entra al grupo de WhatsApp
+            </p>
+            <p className="mx-auto mb-4 max-w-md text-sm text-slate-600">
+              Ahí coordinamos las tareas del día a día: avisos de acopio,
+              traslados y necesidades urgentes. Entra y preséntate.
+            </p>
+            <a
+              href={WHATSAPP_GROUP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="e-m-btn inline-flex items-center gap-2 !bg-[#25D366] !text-white"
+            >
+              <WhatsAppIcon className="h-5 w-5" aria-hidden />
+              Entrar al grupo
+            </a>
+          </div>
+          )}
+        </div>
       )}
 
       <div ref={turnstileMount} className="flex justify-center empty:hidden" />

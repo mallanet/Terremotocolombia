@@ -24,3 +24,6 @@ scripts/content-audit/banned-patterns.local.txt
 
 # GEO skill local Python venv (optional)
 .claude/skills/geo/.venv/
+
+# kleosrules runtime state (velocity log, intent snapshots)
+state/

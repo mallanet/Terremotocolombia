@@ -29,17 +29,14 @@
   //   controller.cron es lo unico que distingue un trigger de otro, asi que dos
   //   expresiones iguales serian indistinguibles, y el desfase evita que las
   //   dos tareas compitan por el mismo presupuesto de invocacion.
-  // La reconciliacion de PRNs (U7, KTD8) NO tiene cron propio: comparte el
-  // trigger de geocode (mismo handler en worker.ts, misma cadencia que tenia
-  // por separado). Motivo: la cuenta esta en Workers Free — 5 crons EN TOTAL
-  // entre prod y staging — y el tercer cron de este Worker no cupo; se
-  // descubrio en el primer dispatch a produccion (2026-08-11). Si la cuenta
-  // sube a Workers Paid, puede volver a separarse como "4-59/5 * * * *".
+  // - "4-59/5 * * * *" reconciliacion de PRNs (U7, KTD8). Misma cadencia,
+  //   DESFASADA dos minutos mas que geocode (cuatro que sismos), por el mismo
+  //   motivo de arriba.
   //
   // A nivel superior a proposito: `triggers` se HEREDA en env.staging, asi que
   // los dos entornos sincronizan sin duplicar configuracion.
   "triggers": {
-    "crons": ["*/5 * * * *", "2-59/5 * * * *"]
+    "crons": ["*/5 * * * *", "2-59/5 * * * *", "4-59/5 * * * *"]
   },
   // Cloudflare Queues (U2/U3 del plan de port de colas). El productor es el
   // seam de despacho (src/lib/job-dispatch.ts) via el binding NEEDS_QUEUE; el

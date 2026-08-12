@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { Fragment, useMemo, useState, type FormEvent } from "react";
 import { Button, Input } from "@/src/ui";
 import { useModelList, useModelMutation } from "./use-model-list";
 import type { ModelConfig, ModelField } from "../model-registry";
@@ -16,6 +16,86 @@ function renderCell(value: unknown): string {
   return String(value);
 }
 
+/**
+ * Rótulos en español + color para los estados conocidos (voluntarios y sus
+ * tareas). Así "¿ya se le envió?" se responde de un vistazo: Pendiente = aún
+ * sin contactar; Contactado = ya se le envió correo.
+ */
+const STATUS_BADGES: Record<string, { label: string; classes: string }> = {
+  pending: { label: "Pendiente", classes: "bg-amber-100 text-amber-800" },
+  contacted: { label: "Contactado", classes: "bg-blue-100 text-blue-800" },
+  active: { label: "Activo", classes: "bg-green-100 text-green-800" },
+  declined: { label: "Declinado", classes: "bg-gray-200 text-gray-600" },
+  open: { label: "Abierta", classes: "bg-amber-100 text-amber-800" },
+  assigned: { label: "Asignada", classes: "bg-blue-100 text-blue-800" },
+  done: { label: "Terminada", classes: "bg-green-100 text-green-800" },
+  cancelled: { label: "Cancelada", classes: "bg-gray-200 text-gray-600" },
+  resolved: { label: "Resuelta", classes: "bg-green-100 text-green-800" },
+  rejected: { label: "Rechazada", classes: "bg-red-100 text-red-700" },
+};
+
+/** Opciones del dropdown de estado por modelo (solo los que editan status). */
+const STATUS_OPTIONS: Record<string, readonly string[]> = {
+  volunteers: ["pending", "contacted", "active", "declined"],
+  "volunteer-tasks": ["open", "assigned", "done", "cancelled"],
+  "deletion-requests": ["pending", "resolved", "rejected"],
+};
+
+function statusBadge(value: unknown): { label: string; classes: string } | null {
+  if (typeof value !== "string") return null;
+  return STATUS_BADGES[value] ?? null;
+}
+
+function StatusBadge({ value }: { value: unknown }) {
+  const badge = statusBadge(value);
+  if (!badge) return <>{renderCell(value)}</>;
+  return (
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge.classes}`}>
+      {badge.label}
+    </span>
+  );
+}
+
+/**
+ * Celda de estado: badge read-only, o <select> con pinta de badge cuando el
+ * modelo edita status y el usuario puede editar — cambiar el estado es un
+ * clic, sin abrir el formulario completo.
+ */
+function StatusCell({
+  path,
+  value,
+  editable,
+  pending,
+  onChange,
+}: {
+  path: string;
+  value: unknown;
+  editable: boolean;
+  pending: boolean;
+  onChange: (status: string) => void;
+}) {
+  const options = STATUS_OPTIONS[path];
+  const badge = statusBadge(value);
+  if (!editable || !options) return <StatusBadge value={value} />;
+  return (
+    <select
+      aria-label="Cambiar estado"
+      className={`cursor-pointer rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+        badge?.classes ?? "bg-gray-100 text-gray-700"
+      }`}
+      value={typeof value === "string" ? value : ""}
+      disabled={pending}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {STATUS_BADGES[option]?.label ?? option}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function parseFieldValue(field: ModelField, value: unknown): unknown {
   if (field.type === "number") return Number(value);
   if (value === "true") return true;
@@ -26,7 +106,11 @@ function parseFieldValue(field: ModelField, value: unknown): unknown {
 function matchesQuery(row: ModelRow, q: string): boolean {
   if (!q) return true;
   const needle = q.toLowerCase();
-  return Object.values(row).some((v) => renderCell(v).toLowerCase().includes(needle));
+  return Object.values(row).some((v) => {
+    if (renderCell(v).toLowerCase().includes(needle)) return true;
+    const badge = statusBadge(v);
+    return badge !== null && badge.label.toLowerCase().includes(needle);
+  });
 }
 
 /**
@@ -49,13 +133,17 @@ export function ModelTable({ model }: { model: ModelConfig }) {
   // Acción de dominio única de volunteer-tasks: asignar a un voluntario.
   const canAssign = model.path === "volunteer-tasks" && canEdit;
   const hasActions = canEdit || canDelete || canMessage || canAssign;
+  const canEditStatus =
+    canEdit &&
+    Boolean(model.editFields?.some((field) => field.key === "status")) &&
+    Boolean(STATUS_OPTIONS[model.path]);
 
   const rows = useMemo(
     () => (data ?? []).filter((r) => matchesQuery(r, query)),
     [data, query],
   );
 
-  if (isLoading) return <p className="mt-4 text-sm text-gray-500">Cargando {model.label}…</p>;
+  if (isLoading) return <p className="mt-4 text-sm text-ink-muted">Cargando {model.label}…</p>;
   if (isError) {
     return (
       <p role="alert" className="mt-4 text-sm text-red-600">
@@ -75,7 +163,7 @@ export function ModelTable({ model }: { model: ModelConfig }) {
           onChange={(e) => setQuery(e.target.value)}
           className="max-w-xs"
         />
-        <span className="text-sm text-gray-500">{rows.length} resultado(s)</span>
+        <span className="text-sm text-ink-muted">{rows.length} resultado(s)</span>
       </div>
       {canCreate && (
         <ModelForm
@@ -87,16 +175,16 @@ export function ModelTable({ model }: { model: ModelConfig }) {
       )}
       {mutation.error && <p className="text-sm text-red-600">{mutation.error.message}</p>}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-2xl border border-border-soft bg-white shadow-sm">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b text-left">
+            <tr className="border-b border-border-soft bg-surface-muted text-left">
               {model.columns.map((c) => (
-                <th key={c.key} className="px-3 py-2 font-semibold">
+                <th key={c.key} className="px-3 py-2 font-semibold text-ink">
                   {c.label}
                 </th>
               ))}
-              {hasActions && <th className="px-3 py-2 font-semibold">Acciones</th>}
+              {hasActions && <th className="px-3 py-2 font-semibold text-ink">Acciones</th>}
             </tr>
           </thead>
           <tbody>
@@ -104,17 +192,34 @@ export function ModelTable({ model }: { model: ModelConfig }) {
               <tr>
                 <td
                   colSpan={model.columns.length + (hasActions ? 1 : 0)}
-                  className="px-3 py-6 text-center text-gray-500"
+                  className="px-3 py-6 text-center text-ink-muted"
                 >
                   Sin datos.
                 </td>
               </tr>
             ) : (
               rows.map((row, i) => (
-                <tr key={renderCell(row.id) + String(i)} className="border-b last:border-0">
+                <Fragment key={renderCell(row.id) + String(i)}>
+                  <tr className="border-b border-border-soft last:border-0">
                   {model.columns.map((c) => (
                     <td key={c.key} className="px-3 py-2 align-top">
-                      {renderCell(row[c.key])}
+                      {c.key === "status" ? (
+                        <StatusCell
+                          path={model.path}
+                          value={row[c.key]}
+                          editable={canEditStatus}
+                          pending={mutation.isPending}
+                          onChange={(status) =>
+                            mutation.mutate({
+                              method: "PATCH",
+                              id: renderCell(row.id),
+                              input: { status },
+                            })
+                          }
+                        />
+                      ) : (
+                        renderCell(row[c.key])
+                      )}
                     </td>
                   ))}
                   {hasActions && (
@@ -147,27 +252,35 @@ export function ModelTable({ model }: { model: ModelConfig }) {
                       )}
                     </td>
                   )}
-                </tr>
+                  </tr>
+                  {editing === row && model.editFields && (
+                    <tr className="border-b border-border-soft bg-surface-muted last:border-0">
+                      <td
+                        colSpan={model.columns.length + (hasActions ? 1 : 0)}
+                        className="px-3 py-3"
+                      >
+                        <ModelForm
+                          fields={model.editFields}
+                          initial={editing}
+                          submitLabel="Guardar"
+                          pending={mutation.isPending}
+                          onCancel={() => setEditing(null)}
+                          onSubmit={(input) =>
+                            mutation.mutate(
+                              { method: "PATCH", id: renderCell(editing.id), input },
+                              { onSuccess: () => setEditing(null) },
+                            )
+                          }
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))
             )}
           </tbody>
         </table>
       </div>
-      {editing && model.editFields && (
-        <ModelForm
-          fields={model.editFields}
-          initial={editing}
-          submitLabel="Guardar"
-          pending={mutation.isPending}
-          onCancel={() => setEditing(null)}
-          onSubmit={(input) =>
-            mutation.mutate(
-              { method: "PATCH", id: renderCell(editing.id), input },
-              { onSuccess: () => setEditing(null) },
-            )
-          }
-        />
-      )}
       {messaging && (
         <VolunteerMessageForm
           id={renderCell(messaging.id)}
@@ -223,7 +336,7 @@ function SelectModelField({
     <label className="text-sm">
       <span className="mb-1 block font-medium">{field.label}</span>
       <select
-        className="w-full rounded border px-3 py-2"
+        className="w-full rounded-lg border border-border-soft bg-white px-3 py-2"
         required={field.required}
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -271,7 +384,10 @@ function ModelForm({
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-3 rounded border bg-gray-50 p-3 sm:grid-cols-2">
+    <form
+      onSubmit={submit}
+      className="grid gap-3 rounded-2xl border border-border-soft bg-white p-4 shadow-sm sm:grid-cols-2"
+    >
       {fields.map((field) =>
         field.type === "select-model" ? (
           <SelectModelField

@@ -13,8 +13,8 @@ export const OFFER_OPTIONS: OfferOption[] = [
     hint: "Voluntariado digital o en terreno",
   },
   {
-    value: "donacion-especie",
-    label: "Donación en especie",
+    value: "insumos",
+    label: "Insumos",
     hint: "Agua, alimentos no perecederos, kits de higiene, cobijas, carpas…",
   },
   {
