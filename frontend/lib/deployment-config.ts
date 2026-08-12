@@ -39,6 +39,8 @@ export interface DeploymentConfig {
   /** BCP-47 language tag, e.g. "es". */
   languageTag: string;
   contactEmail: string;
+  /** Public Mallanet WhatsApp community invite (not donate ResponseGrid WA). */
+  communityWhatsappUrl: string;
   domains: DeploymentDomains;
 }
 
@@ -52,6 +54,7 @@ const REQUIRED_KEYS = [
   "mapZoom",
   "languageTag",
   "contactEmail",
+  "communityWhatsappUrl",
   "domains",
 ] as const;
 
@@ -71,7 +74,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * allowed (closed set) — this keeps config/deployment.config.json from
  * silently growing undocumented fields.
  */
-function validateDeploymentConfig(value: unknown): DeploymentConfig {
+export function validateDeploymentConfig(value: unknown): DeploymentConfig {
   if (!isPlainObject(value)) {
     fail("config/deployment.config.json must be a JSON object.");
   }
@@ -101,6 +104,7 @@ function validateDeploymentConfig(value: unknown): DeploymentConfig {
     "regionLabel",
     "languageTag",
     "contactEmail",
+    "communityWhatsappUrl",
   ];
   for (const field of stringFields) {
     if (typeof value[field] !== "string" || value[field] === "") {
