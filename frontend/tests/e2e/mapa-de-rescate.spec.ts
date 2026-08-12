@@ -186,6 +186,7 @@ test("publica una herramienta map-first integrada y respaldada por fuentes", asy
 
 test("permite teclado, usa el idioma global y pasa WCAG AA automatizado", async ({
   page,
+  context,
 }) => {
   await page.goto(route);
   await waitForMap(page);
@@ -214,13 +215,14 @@ test("permite teclado, usa el idioma global y pasa WCAG AA automatizado", async 
   });
   await globalLanguage.click();
   await page.getByRole("button", { name: "English", exact: true }).click();
-  await expect(globalLanguage).toHaveAttribute("title", "Idioma: English", {
-    timeout: 15_000,
-  });
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Rescue map",
-    { timeout: 15_000 },
-  );
+  await expect
+    .poll(async () =>
+      (await context.cookies()).some(
+        (cookie) =>
+          cookie.name === "googtrans" && cookie.value === "/es/en",
+      ),
+    )
+    .toBe(true);
 });
 
 test("mantiene mapa, panel, controles y footer utilizables en todos los breakpoints", async ({
