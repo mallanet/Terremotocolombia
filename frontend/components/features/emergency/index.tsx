@@ -20,6 +20,7 @@ import {
   type ReportsResponse,
 } from "@/hooks/emergency";
 import { usePetsMap } from "@/hooks/pets";
+import { useCollectionCenters, ACOPIO_DEFAULT_FILTERS } from "@/hooks/acopio";
 import { useLowBandwidthMode } from "@/hooks/useLowBandwidthMode";
 import { useMissingStats } from "@/hooks/missing";
 import type { MapBounds } from "@/components/features/map";
@@ -88,6 +89,15 @@ export default function EmergencyApp() {
   // encenderla no añade ruido cuando todavía no hay mascotas reportadas.
   const [showPetsOnMap, setShowPetsOnMap] = useState(true);
   const togglePets = useCallback(() => setShowPetsOnMap((v) => !v), []);
+
+  // Centros de acopio oficiales (capa verde, /api/acopio — siempre montado).
+  const acopioQuery = useCollectionCenters(ACOPIO_DEFAULT_FILTERS);
+  const acopioCenters = useMemo(
+    () => acopioQuery.data?.items ?? [],
+    [acopioQuery.data],
+  );
+  const [showAcopioOnMap, setShowAcopioOnMap] = useState(true);
+  const toggleAcopio = useCallback(() => setShowAcopioOnMap((v) => !v), []);
 
   const confirmMutation = useConfirmReport();
   const resolveMutation = useResolveReport();
@@ -589,6 +599,9 @@ export default function EmergencyApp() {
           petMapMarkers={petMapMarkers}
           showPetsOnMap={showPetsOnMap}
           onTogglePets={togglePets}
+          acopioCenters={acopioCenters}
+          showAcopioOnMap={showAcopioOnMap}
+          onToggleAcopio={toggleAcopio}
           draft={draft}
           confirmed={confirmed}
           isAdmin={isAdmin}

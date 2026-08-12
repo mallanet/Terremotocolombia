@@ -17,6 +17,7 @@ import {
 import { draftIcon as makeDraftIcon } from "./icons";
 import { ReportMarker } from "./ReportMarker";
 import { EarthquakeLayer } from "./EarthquakeLayer";
+import { AcopioLayer } from "./AcopioLayer";
 import type { MapViewProps } from "./types";
 import WeatherLayer from "./WeatherLayer";
 import { MapLoading } from "@/components/ui/SectionLoading";
@@ -27,9 +28,11 @@ function MapViewInner({
 	reports,
 	missingMarkers = [],
 	petMarkers = [],
+	acopioCenters = [],
 	earthquakes = [],
 	showMissingOnMap = true,
 	showPetsOnMap = true,
+	showAcopioOnMap = true,
 	onBoundsChange,
 	draft,
 	onPick,
@@ -80,6 +83,10 @@ function MapViewInner({
 
 			{showPetsOnMap && petMarkers.length > 0 && (
 				<PetClusterLayer markers={petMarkers} markerRefs={markerRefs} />
+			)}
+
+			{showAcopioOnMap && acopioCenters.length > 0 && (
+				<AcopioLayer centers={acopioCenters} />
 			)}
 
 			{reports.map((report) => (
