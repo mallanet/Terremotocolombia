@@ -146,14 +146,13 @@ export default function TranslateWidget({
     const lang = getCookieLang();
     // Con traducción activa el script debe cargar en cada página para que
     // esta se traduzca sola; sin cookie se difiere hasta la interacción.
-    // La decisión se toma síncrona y no dentro del rAF: los navegadores
-    // pausan rAF en pestañas ocultas y una página abierta en segundo plano
-    // quedaría sin traducir hasta hacerse visible.
-    if (lang !== TRANSLATE_SOURCE_LANG) setGtRequested(true);
-    const syncFrame = window.requestAnimationFrame(() => {
+	// Un timer conserva el arranque en pestañas ocultas (donde rAF se pausa) y
+	// evita una actualización síncrona en el cuerpo del efecto.
+	const syncTimer = window.setTimeout(() => {
+	  if (lang !== TRANSLATE_SOURCE_LANG) setGtRequested(true);
       setActiveLang(lang);
-    });
-    return () => window.cancelAnimationFrame(syncFrame);
+	}, 0);
+	return () => window.clearTimeout(syncTimer);
   }, []);
 
   useEffect(() => {
