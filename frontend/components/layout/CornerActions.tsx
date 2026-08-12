@@ -11,7 +11,7 @@ const WHATSAPP_URL = process.env.NEXT_PUBLIC_WHATSAPP_GROUP_URL ?? "";
 // acceso a la comunidad de WhatsApp (si la URL está configurada).
 export default function CornerActions() {
   return (
-    <div className="fixed right-4 bottom-[4.5rem] z-40 flex items-center gap-2 pb-[env(safe-area-inset-bottom)] md:right-6 md:bottom-6 md:pb-0">
+    <div className="fixed right-4 bottom-[4.5rem] z-[1500] flex items-center gap-2 pb-[env(safe-area-inset-bottom)] md:right-6 md:bottom-6 md:pb-0">
       <TranslateWidget variant="fab" />
       {WHATSAPP_URL ? (
         <a
