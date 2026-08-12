@@ -1,3 +1,5 @@
+@import "./map-shell.css";
+
 @media (max-width: 780px) {
 	.e-nav__psych-wrap {
 		display: inline-flex;
