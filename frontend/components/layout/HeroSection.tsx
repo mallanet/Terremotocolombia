@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import {
   SITE_NAV_LOGO,
+  SITE_NAV_LOGO_ON_DARK,
   SITE_BRAND_NAME,
   SITE_PRODUCT_NAME,
   CONTACT_EMAIL,
@@ -133,13 +134,23 @@ export default function HeroSection() {
 export function SiteBrand({ onClick }: { onClick?: () => void }) {
   const inner = (
     <>
+      {/* Dual imgs: CSS [data-dark] show/hide — no JS theme subscription. */}
       <Image
         src={SITE_NAV_LOGO}
         alt=""
         width={44}
         height={44}
         unoptimized
-        className="e-hero__brand-logo"
+        className="e-hero__brand-logo e-hero__brand-logo--on-light"
+        aria-hidden
+      />
+      <Image
+        src={SITE_NAV_LOGO_ON_DARK}
+        alt=""
+        width={44}
+        height={44}
+        unoptimized
+        className="e-hero__brand-logo e-hero__brand-logo--on-dark"
         aria-hidden
       />
       <span className="e-hero__brand-lockup">

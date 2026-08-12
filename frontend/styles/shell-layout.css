@@ -344,6 +344,29 @@
 	object-fit: contain;
 }
 
+/* Dual isotipo: light chrome shows oscuro; dark chrome shows claro. No filter. */
+.e-hero__brand-logo--on-dark {
+	display: none;
+}
+
+[data-dark="true"] .e-hero__brand-logo--on-light {
+	display: none;
+}
+
+[data-dark="true"] .e-hero__brand-logo--on-dark {
+	display: block;
+}
+
+[data-dark="true"] .e-hero__brand-name,
+[data-dark="true"] .e-nav__links a {
+	color: var(--etext);
+}
+
+[data-dark="true"] .e-nav__links a:hover,
+[data-dark="true"] .e-nav__links a[aria-current="page"] {
+	color: var(--etext);
+}
+
 .e-hero__brand-lockup {
 	display: flex;
 	min-width: 0;
