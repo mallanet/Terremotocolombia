@@ -24,6 +24,7 @@ import { drainFailedSubmissionsRetention } from "./services/failed-submissions.j
 import {
   CRON_EARTHQUAKES,
   CRON_GEOCODE,
+  CRON_PERSON_RECONCILE,
   dispatchCron,
 } from "./services/cron-jobs.js";
 import { registerJobBindings } from "./lib/job-dispatch.js";
@@ -221,27 +222,8 @@ export default {
         const now = controller.scheduledTime || Date.now();
         await dispatchCron(controller.cron, now, {
           [CRON_EARTHQUAKES]: syncEarthquakes,
-          // Geocode + reconciliación de personas COMPARTEN el trigger: la
-          // cuenta está en Workers Free (5 crons en total entre prod y
-          // staging) y el tercer cron de este Worker no cupo — se descubrió
-          // en el primer dispatch a producción (2026-08-11). Misma cadencia
-          // que tenían por separado; cada mitad captura su propio fallo para
-          // no robarle la corrida a la otra, y el rethrow conserva el retry
-          // de Cloudflare (ambas son idempotentes).
-          [CRON_GEOCODE]: async () => {
-            let firstError: unknown = null;
-            try {
-              await geocodePending();
-            } catch (err) {
-              firstError = err;
-            }
-            try {
-              await reconcilePeople();
-            } catch (err) {
-              firstError = firstError ?? err;
-            }
-            if (firstError) throw firstError;
-          },
+          [CRON_GEOCODE]: geocodePending,
+          [CRON_PERSON_RECONCILE]: reconcilePeople,
         });
       })(),
     );
