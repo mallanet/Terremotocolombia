@@ -19,7 +19,6 @@ import {
 import { SITE_URL, SITE_NAME, SITE_PRODUCT_NAME, SITE_BRAND_NAME } from "@/lib/site";
 import { deploymentConfig } from "@/lib/deployment-config";
 import { ogImageMeta } from "@/lib/og-image";
-
 // Tipografías AUTO-ALOJADAS (ver app/fonts/README.md).
 //
 // Antes esto era `next/font/google`, que descarga los .woff2 desde Google en
