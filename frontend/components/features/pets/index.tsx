@@ -54,7 +54,7 @@ export default function PetsPage() {
             <h1 className="e-m-section__title">Mascotas perdidas</h1>
             <hr className="e-m-section__rule" />
             <p className="e-m-section__sub">
-              Un terremoto tambien separa a la gente de sus animales. Publica una
+              Un terremoto también separa a la gente de sus animales. Publica una
               mascota perdida o reporta una que encontraste para que pueda volver
               a casa.
             </p>
@@ -83,14 +83,14 @@ export default function PetsPage() {
                 onClick={() => openForm("missing")}
                 className="e-m-btn e-m-btn--crisis e-m-btn--sm"
               >
-                Se me perdio
+                Se me perdió
               </button>
               <button
                 type="button"
                 onClick={() => openForm("found")}
                 className="e-m-btn e-m-btn--sm"
               >
-                Encontre una
+                Encontré una
               </button>
             </div>
           </div>

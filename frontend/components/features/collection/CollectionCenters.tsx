@@ -17,6 +17,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   clothing: "Ropa",
   shelter: "Refugio",
   hygiene: "Higiene",
+  blankets: "Cobijas / colchonetas",
+  blood: "Sangre",
+  tools: "Herramientas de rescate",
 };
 
 function categoryLabel(key: string): string {

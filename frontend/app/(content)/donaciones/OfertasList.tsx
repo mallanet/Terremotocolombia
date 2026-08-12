@@ -97,11 +97,11 @@ function OfertaCard({ name, description, action, url }: Oferta) {
       rel="noopener noreferrer"
       className="e-card group flex flex-col rounded-2xl bg-white p-4 transition-shadow hover:shadow-md"
     >
-      <div className="flex h-9 items-center justify-between gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-[#ce1126]">
+      <div className="flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-[#ce1126]">
           <HeartHandshake size={20} strokeWidth={2} />
         </span>
-        <h3 className="truncate text-[13px] font-semibold text-slate-400">{name}</h3>
+        <h3 className="line-clamp-2 min-w-0 flex-1 text-[14px] font-semibold leading-snug text-slate-800">{name}</h3>
       </div>
       <p className="mt-3 line-clamp-3 flex-1 text-[12.5px] leading-snug text-slate-600">{description}</p>
       <span className="mt-4 inline-flex items-center gap-1.5 self-start rounded-full bg-red-50 px-3.5 py-1.5 text-[13px] font-bold text-[#ce1126] ring-1 ring-red-100 transition-all duration-200 group-hover:bg-[#ce1126] group-hover:text-white group-hover:ring-[#ce1126]">
