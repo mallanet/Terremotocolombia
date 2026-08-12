@@ -62,8 +62,8 @@ export default function VoluntarioPage() {
             Formulario de registro
           </h2>
           <p className="mb-8 text-sm text-slate-600 sm:text-[15px]">
-            El equipo de coordinación se pondrá en contacto contigo en las
-            próximas horas.
+            Completar el registro no implica una asignación inmediata: nos
+            permite ubicarte cuando tu perfil encaje con una necesidad.
           </p>
 
           <VolunteerForm />
