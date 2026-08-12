@@ -15,6 +15,7 @@
     "test:api": "vitest run test/api",
     "migrate": "tsx worker/migrate.ts",
     "seed": "tsx src/seed/index.ts",
+    "seed:volunteers-demo": "tsx src/seed/volunteers-demo.ts",
     "worker": "tsx worker/index.ts",
     "db:generate": "drizzle-kit generate --config ../infra/db/drizzle.config.ts",
     "check:schema-drift": "tsx worker/check-schema-drift.ts",

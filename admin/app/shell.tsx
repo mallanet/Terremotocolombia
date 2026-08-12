@@ -118,6 +118,13 @@ function AuthedShell({ children }: { children: ReactNode }) {
             {can("hospital:read") && (
               <NavLink href="/hospital-supplies" label="Insumos hospitalarios" pathname={pathname} />
             )}
+            {can("volunteer:read") && (
+              <NavLink
+                href="/volunteer-analytics"
+                label="Analítica de voluntarios"
+                pathname={pathname}
+              />
+            )}
             {visible.length === 0 && (
               <li className="px-3 py-2 text-sm text-ink-muted">Sin permisos de lectura.</li>
             )}

@@ -186,6 +186,22 @@ invariante y requerir revisión humana antes de cualquier despliegue.
   sellan `updatedBy` (email del admin) y `source: "admin_api"`, y NO espejan
   necesidades a ResponseGrid (eso pertenece al flujo del POC). El panel
   (`admin/app/hospital-supplies`) consume esto vía su BFF.
+- **Analítica de voluntarios en `api/public/volunteer-analytics`.** Board de
+  agregados (sin PII) para ops: KPIs (voluntarios/pending/contacted + conteos
+  de tasks/assignments), buckets de intención (taxonomía congelada del canvas
+  + `other`), pipeline, geo, disponibilidad, skills digitales, altas por hora,
+  fuentes y `callouts[]`. Router a mano
+  (`public-api/routers/volunteer-analytics.router.ts`) con
+  `requireCapability("volunteer:read")` (CROSS_CUTTING; el seedAuth la liga
+  solo al rol sistema `admin`) + `cached()` SWR ~120s
+  (`vol:analytics:full` / `vol:analytics:inc:{since}`) y bypass `?refresh=1`.
+  Clasificador puro en
+  `services/volunteer-analytics/classify-intent.ts`
+  (prioridad field_role → offer_types → digital → free-text). El panel
+  (`admin/app/volunteer-analytics`) consume el BFF
+  `/api/admin/volunteer-analytics` (`Cache-Control: no-store`) con Recharts
+  y Query `staleTime` 60s. Schema `volunteers*` en Drizzle: expand-only;
+  **migrar Neon stg/prd es humano** (nunca el agente).
 
 ## Integraciones de terceros (flags `ENABLE_*`)
 
