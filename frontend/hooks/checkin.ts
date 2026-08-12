@@ -1,9 +1,5 @@
 "use client";
 
-/**
- * Hook del check-in de voluntario (código único + lugar + qué dejó + foto).
- * Mismo patrón canónico que hooks/volunteers.ts: useMutation + apiSend.
- */
 import { useMutation } from "@tanstack/react-query";
 import { apiSend } from "@/lib/api";
 
@@ -12,6 +8,9 @@ export interface CheckinInput {
   place: string;
   note?: string;
   photo?: string | null;
+  availability?: string;
+  talent?: string;
+  area?: string;
   turnstileToken?: string;
 }
 

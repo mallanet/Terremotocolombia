@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Heart, Users } from "lucide-react";
+import { Heart, MapPin, Users } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { RESPONSEGRID_DONATE_WHATSAPP_URL } from "@/lib/responsegrid";
 
@@ -25,6 +25,17 @@ export default function HelpSection() {
               Rescate, logística o asistencia médica
             </p>
             <span className="e-m-hub-card__cta">Inscribirme</span>
+          </Link>
+
+          <Link href="/checkin" className="e-m-hub-card">
+            <div className="e-m-hub-card__icon e-m-hub-card__icon--shelter">
+              <MapPin size={22} strokeWidth={2} aria-hidden />
+            </div>
+            <h3 className="e-m-hub-card__title">Ya soy voluntario</h3>
+            <p className="e-m-hub-card__desc">
+              Ubicación, disponibilidad, talento, área y reporte
+            </p>
+            <span className="e-m-hub-card__cta">Actualizar</span>
           </Link>
 
           {RESPONSEGRID_DONATE_WHATSAPP_URL && (

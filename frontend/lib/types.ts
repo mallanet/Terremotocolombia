@@ -1,5 +1,6 @@
 export type ReportType =
   | "critical"
+  | "need"
   | "supplies"
   | "shelter"
   | "nopower"
@@ -15,36 +16,25 @@ export interface EmergencyReport {
   place: string;
   affected: number;
   needs: string;
-  /** URL del endpoint que sirve la foto si el reporte tiene una, o null. */
   photoUrl: string | null;
-  /** Cantidad de confirmaciones por terceros ("yo también veo esto"). */
   confirmations: number;
   createdAt: number;
 }
 
-/** Sismo del catálogo USGS. Espeja el EarthquakeDTO del backend
- * (GET /api/earthquakes). Solo campos públicos; nada de internals USGS. */
 export interface Earthquake {
   id: string;
-  /** Magnitud (puede ser null si USGS aún no la calculó). */
   magnitude: number | null;
   place: string;
   lat: number;
   lng: number;
-  /** Profundidad en km, o null. */
   depthKm: number | null;
-  /** Nivel PAGER del USGS (green|yellow|orange|red) o null. */
   alert: string | null;
   tsunami: boolean;
-  /** Significancia USGS 0–1000, o null. */
   sig: number | null;
-  /** Momento del sismo (epoch-ms). */
   occurredAt: number;
 }
 
-/** Sync metadata on GET /api/earthquakes — catalog-level last success. */
 export interface EarthquakeSync {
-  /** Epoch-ms of last successful USGS sync signal; null if never synced. */
   fetchedAt: number | null;
 }
 
@@ -57,7 +47,6 @@ export type NewReport = Omit<
   EmergencyReport,
   "id" | "createdAt" | "photoUrl" | "confirmations"
 > & {
-  /** Data URL opcional con la foto del reporte. */
   photo?: string | null;
 };
 
@@ -66,9 +55,7 @@ export const REPORT_TYPES: Record<
   {
     label: string;
     color: string;
-    /** Emoji circular usado en la leyenda, lista y marcadores. */
     emoji: string;
-    /** Icono semántico usado en la selección del formulario. */
     icon: string;
     description: string;
   }
@@ -81,13 +68,21 @@ export const REPORT_TYPES: Record<
     description:
       "Personas atrapadas, heridos de gravedad o colapso estructural inminente. Prioridad máxima de rescate.",
   },
+  need: {
+    label: "Solicitar ayuda",
+    color: "#ea580c",
+    emoji: "🟠",
+    icon: "🙋",
+    description:
+      "Pedidos de gente que necesita agua, comida, medicinas, refugio o transporte. No es una oferta.",
+  },
   supplies: {
-    label: "Suministros",
+    label: "Tengo suministros",
     color: "#eab308",
     emoji: "🟡",
     icon: "📦",
     description:
-      "Zonas seguras pero con necesidad urgente de suministros (falta de agua, comida, cobijo o primeros auxilios).",
+      "Gente que tiene y puede entregar agua, alimentos, cobijas, herramientas u otros insumos.",
   },
   shelter: {
     label: "Centro de Acopio / Refugio",
@@ -133,12 +128,10 @@ export const REPORT_TYPES: Record<
 
 export const REPORT_TYPE_KEYS = Object.keys(REPORT_TYPES) as ReportType[];
 
-/** Capas del mapa público (sin emergencia crítica). */
 export const MAP_REPORT_TYPE_KEYS = REPORT_TYPE_KEYS.filter(
   (key): key is ReportType => key !== "critical",
 );
 
-/** Persona desaparecida o encontrada. Duplicado entre AdminDashboard y MissingPersonDetail. */
 export interface MissingPerson {
   id: string;
   name: string;

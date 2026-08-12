@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { VolunteerPostSubmitBanner } from "./VolunteerPostSubmitBanner";
 
@@ -42,10 +43,16 @@ export function VolunteerSubmitSuccess({
             {volunteerCode}
           </p>
           <p className="mx-auto max-w-md text-xs text-slate-300">
-            Guárdalo bien: lo usarás para registrar tus actividades (check-ins)
-            y firmar tus reportes. Solo tú y el equipo de coordinación lo
-            conocen.
+            Guárdalo bien: en /checkin actualizas ubicación, disponibilidad,
+            talento y área, y envías un reporte. Solo tú y el equipo de
+            coordinación lo conocen.
           </p>
+          <Link
+            href="/checkin"
+            className="mt-3 inline-block text-xs font-bold text-white underline"
+          >
+            Ir a actualizar ubicación y enviar reporte
+          </Link>
           <button
             type="button"
             onClick={onCopyCode}

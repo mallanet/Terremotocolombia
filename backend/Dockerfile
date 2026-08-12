@@ -32,6 +32,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/backend/dist ./backend/dist
 COPY backend ./backend
 COPY infra/db ./infra/db
+# mailer importa config/deployment.config.json (identidad del despliegue).
+COPY config/deployment.config.json ./config/deployment.config.json
 WORKDIR /app/backend
 EXPOSE 8080
 # tsx ejecuta TypeScript directo (resuelve el alias @/ del tsconfig del backend).

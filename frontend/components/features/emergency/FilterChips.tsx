@@ -10,7 +10,8 @@ import ChipFilter from "@/components/ui/ChipFilter";
 
 const REPORT_TYPE_SHORT: Record<ReportType, string> = {
   critical: "Crítica",
-  supplies: "Suministros",
+  need: "Piden",
+  supplies: "Tengo",
   shelter: "Acopio",
   nopower: "Sin luz",
   missing: "Buscan",
