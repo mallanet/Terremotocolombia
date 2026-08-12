@@ -1,190 +1,239 @@
-# Registro de módulos opcionales
+# Optional Module Registry
 
-> **Aviso de estado — casi todo esto depende de una cola que no está
-> desplegada.**
+> **Status notice**
 >
-> En producción (Cloudflare Workers) no hay worker de BullMQ ni Valkey, así que
-> encolar un job **no lo ejecuta nadie**. Afecta a la sincronización de fuentes
-> externas, la publicación de necesidades en ResponseGrid, la importación de
-> pacientes (**manual y OCR por igual**: las dos pasan por
-> `enqueuePatientImport`) y la federación de hub.
+> This document describes the docker-compose path. In this path, a BullMQ
+> worker with Valkey processes the queue.
 >
-> Este documento describe cómo funcionan los módulos cuando el worker **sí**
-> corre — es decir, en el camino docker-compose. Ver
-> [`architecture.md`](architecture.md) → "Workers y colas".
+> Production (Cloudflare Workers) runs neither the BullMQ worker nor Valkey.
+> This gap affects two modules today: hub federation and external-source
+> sync. For these two modules, nothing consumes the queue in production. A
+> queued job for either module stays unprocessed.
+>
+> Needs publication (`POST /api/needs`) and patient import (manual and OCR)
+> now work in a different way. Since 2026-08-10, both use Cloudflare Queues
+> in production. Both are live in production. Both process jobs correctly.
+> See [`architecture.md`](architecture.md) → "Workers and queues" for that
+> path.
+>
+> The walkthroughs below for needs publication and patient import still
+> describe the correct logic for those two modules. Only the queue
+> mechanism is different in production.
 
-Toda integración con un tercero en este template está apagada por defecto y
-se enciende con su propio flag `ENABLE_*` en `.env.example`. El template
-completo — mapa, reportes, hospitales/refugios, panel admin — funciona sin
-ninguno de estos módulos configurado. Enciende solo el que de verdad
-necesites, y trátalo como una decisión con su propia superficie de
-vendor/compliance, no como un checkbox gratis.
+By default, this template turns off every third-party integration. Each
+integration has its own `ENABLE_*` flag in `.env.example`. You turn on an
+integration with its flag.
 
-Los cuatro módulos actuales:
+The full template works without any of these modules. This includes the
+map, reports, hospitals and shelters, and the admin panel.
 
-| Flag | Qué hace | Vendor/superficie |
+Turn on only the modules you need. Each flag is a decision with its own
+vendor and compliance surface. A flag is not a free checkbox.
+
+The four current modules:
+
+| Flag | What it does | Vendor/surface |
 |---|---|---|
-| `ENABLE_RESPONSEGRID` | Fusiona ResponseGrid en `/api/acopio` + publicar necesidades de insumos | API pública de terceros (ResponseGrid) |
-| `ENABLE_HUB_FEDERATION` | Sincroniza reportes con despliegues hermanos del mismo template + réplica SQL pública opcional | Tu propia infraestructura hermana, o un consumidor de datos externo |
-| `ENABLE_PATIENT_OCR` | Extrae registros de pacientes desde fotos/PDF de listas de hospital vía un proveedor de visión (VL) | API de terceros que recibe imágenes con PII/datos de salud |
-| `ENABLE_EXAMPLE_SOURCE` | Fuente de sincronización de ejemplo (fixture sintético, sin red) — el patrón para tu fuente real | Ninguno (fixture en el propio repo) |
+| `ENABLE_RESPONSEGRID` | Merges ResponseGrid into `/api/acopio` and enables needs publication | Third-party public API (ResponseGrid) |
+| `ENABLE_HUB_FEDERATION` | Syncs reports with sibling deployments of the same template, plus an optional public SQL replica | Your own sibling infrastructure, or an external data consumer |
+| `ENABLE_PATIENT_OCR` | Extracts patient records from hospital-list photos or PDFs, through a vision (VL) provider | Third-party API that receives images with PII and health data |
+| `ENABLE_EXAMPLE_SOURCE` | Example sync source (synthetic fixture, no network calls) — the pattern for your real source | None (fixture inside the repository) |
 
 ---
 
 ## `ENABLE_RESPONSEGRID`
 
-`GET /api/acopio` **siempre** está montado: sirve una lista estática de
-centros oficiales del sismo (`modules/acopio/infrastructure/static/`). Con
-este flag en `true`, además fusiona el directorio de
-[ResponseGrid](https://responsegrid.app) y habilita la publicación de
-necesidades (`/api/needs`). El navegador nunca llama a ResponseGrid directo.
+`GET /api/acopio` is always mounted. It serves a static list of official
+collection centers for this earthquake, from
+`modules/acopio/infrastructure/static/`.
 
-**Endpoints:** `GET /api/acopio` (siempre; estática ± ResponseGrid),
-`POST /api/needs` + `GET /api/needs/status/{jobId}` (solo con el flag).
+When this flag is `true`, the endpoint also merges the
+[ResponseGrid](https://responsegrid.app) directory. This flag also enables
+needs publication (`/api/needs`). The browser never calls ResponseGrid
+directly.
 
-**Variables requeridas** (solo si `ENABLE_RESPONSEGRID=true`):
+**Endpoints:**
 
-- `RESPONSEGRID_API_URL` — URL base de la API pública de ResponseGrid.
-- `RESPONSEGRID_EMERGENCY_SLUG` — identificador de tu emergencia/instancia en
-  ResponseGrid.
-- `RESPONSEGRID_API_KEY` — solo si vas a **publicar** necesidades (no hace
-  falta para solo leer el directorio). Sin ella, `POST /api/needs` responde
-  `503` en vez de fallar de forma confusa.
+- `GET /api/acopio` — always mounted. It returns the static list, plus the
+  ResponseGrid data when the flag is on.
+- `POST /api/needs` and `GET /api/needs/status/{jobId}` — mounted only
+  when the flag is on. `POST` returns `202 { queued: true, jobId }`; callers
+  must poll the status endpoint until `completed` or `failed` before showing
+  a terminal result. Cloudflare Queue jobs use the existing `audit_log` table
+  for that minimal status record; the submitted need and contact data are not
+  copied into the public status record.
 
-**Superficie de vendor/compliance:** dependes de la disponibilidad y los
-términos de servicio de ResponseGrid; la publicación de necesidades envía un
-campo `author` (contacto de quien reporta, marcado `verified: false` por el
-servidor) a un tercero — revisa su política de datos antes de activar la
-escritura.
+**Required variables** (only when `ENABLE_RESPONSEGRID=true`):
+
+- `RESPONSEGRID_API_URL` — the base URL of the ResponseGrid public API.
+- `RESPONSEGRID_EMERGENCY_SLUG` — the identifier for your emergency or
+  instance in ResponseGrid.
+- `RESPONSEGRID_API_KEY` — required only if you plan to publish needs. You
+  do not need this key only to read the directory. Without this key,
+  `POST /api/needs` returns `503` instead of failing in a confusing way.
+
+**Vendor and compliance surface:** You depend on the availability and
+terms of service of ResponseGrid. Needs publication sends an `author`
+field (the reporter's contact information) to a third party. The server
+marks this field `verified: false`. Review ResponseGrid's data policy
+before you turn on publication.
 
 ## `ENABLE_HUB_FEDERATION`
 
-Dos capacidades relacionadas pero independientes, ambas bajo este flag:
+This flag controls two related but independent capabilities.
 
-1. **Federación de reportes** (`backend/worker/hub/`): el worker sincroniza,
-   por polling de solo lectura, cinco tipos de registro (`missing_person`,
-   `checkin`, `help_request`, `help_offer`, `damaged_building`) desde un hub
-   central hacia tablas propias `hub_*`. Excluye tus propias `source`s
-   (`HUB_OWN_SOURCES`) para no re-ingerir lo que tú mismo publicaste — evita
-   un bucle de eco entre instancias hermanas del mismo template.
-2. **Réplica SQL pública** (opcional, backend `backend/src/services/
-   hub-credentials.ts` + su router en `public-api`): un segundo Postgres de
-   solo lectura recibe por replicación lógica solo columnas explícitamente
-   permitidas (`HUB_PUBLIC_COLUMNS` — nunca PII directa: nombres de personas
-   sí, documentos/notas médicas/contacto no) para que un despliegue hermano
-   pueda leer datos agregados. Un super admin (`mirror:manage`, requiere
-   `users.is_super_admin`, no basta con ser admin normal) emite/revoca
-   credenciales por consumidor. Esta pieza degrada sola a `503` si falta su
-   configuración (`HUB_ADMIN_DATABASE_URL` y el resto de variables de
-   Postgres/firewall del hub) — no está atada estrictamente al flag en
-   código, pero documentalmente vive bajo el mismo paraguas porque comparte
-   la misma decisión de "¿vas a federar con otras instancias?".
+1. **Report federation** (`backend/worker/hub/`). The worker polls a
+   central hub, in read-only mode, for five record types:
+   `missing_person`, `checkin`, `help_request`, `help_offer`, and
+   `damaged_building`. The worker syncs these records into your own
+   `hub_*` tables. The worker excludes your own sources, listed in
+   `HUB_OWN_SOURCES`. This exclusion stops the worker from re-ingesting
+   data that you already published. It also prevents an echo loop between
+   sibling instances of the same template.
+2. **Public SQL replica** (optional). This capability uses
+   `backend/src/services/hub-credentials.ts` and its router in
+   `public-api`. A second, read-only Postgres database receives data
+   through logical replication. This replication sends only the columns
+   listed in `HUB_PUBLIC_COLUMNS`. This allowlist never includes direct
+   PII: it can include person names, but never documents, medical notes,
+   or contact information. A sibling deployment can then read aggregated
+   data from this replica. A super admin issues and revokes credentials
+   per consumer. This action requires the `mirror:manage` permission,
+   which requires `users.is_super_admin`. A normal admin account is not
+   enough. This capability degrades on its own to `503` when its
+   configuration is missing. The missing configuration is usually
+   `HUB_ADMIN_DATABASE_URL` and the other hub Postgres and firewall
+   variables. The code does not tie this capability strictly to the
+   `ENABLE_HUB_FEDERATION` flag. This document groups the two capabilities
+   together for one reason. Both share the same underlying decision: do
+   you want to federate with other instances.
 
-**Variables requeridas** (solo si `ENABLE_HUB_FEDERATION=true`):
+**Required variables** (only when `ENABLE_HUB_FEDERATION=true`):
 
-- `HUB_BASE_URL` — URL del hub central del que vas a leer.
-- `HUB_PAGE_LIMIT` — tamaño de página del polling (opcional, tiene default).
-- `HUB_OWN_SOURCES` — csv de tus propios `source` ids, para no re-ingerirte.
-- `HUB_PUBLIC_HOST` / `HUB_DB_NAME` / `HUB_ADMIN_DATABASE_URL` — solo si
-  además vas a **exponer** tu propia réplica pública (capacidad 2).
+- `HUB_BASE_URL` — the URL of the central hub you will read from.
+- `HUB_PAGE_LIMIT` — the page size for polling. This variable is optional
+  and has a default value.
+- `HUB_OWN_SOURCES` — a comma-separated list of your own source IDs. This
+  list stops the worker from re-ingesting your own data.
+- `HUB_PUBLIC_HOST`, `HUB_DB_NAME`, `HUB_ADMIN_DATABASE_URL` — required
+  only if you will also expose your own public replica (capability 2).
 
-**Superficie de vendor/compliance:** esto es compartir datos entre
-organizaciones. Antes de encenderlo, ten claro qué instancia es la fuente de
-verdad de qué dato, qué pasa si una de las dos se cae, y qué columnas exactas
-vas a permitir en la réplica pública si expones una — el allowlist explícito
-en `HUB_PUBLIC_COLUMNS` es intencional (agregar una tabla nueva al hub no la
-expone automáticamente).
+**Vendor and compliance surface:** This capability shares data between
+organizations. Before you turn it on, confirm three things:
+
+1. Which instance is the source of truth for each piece of data.
+2. What happens if one of the two instances goes down.
+3. Exactly which columns you will allow in the public replica, if you
+   expose one.
+
+The explicit allowlist in `HUB_PUBLIC_COLUMNS` is intentional. Adding a
+new table to the hub does not expose that table automatically.
 
 ## `ENABLE_PATIENT_OCR`
 
-Habilita la extracción de registros de pacientes desde imágenes/PDF de
-listas de hospital vía un proveedor de visión (VL) compatible con la API de
-OpenAI (por defecto, MiniMax). Sin este flag, la ruta de importación por
-imagen responde `501` — el flujo de importación **manual** (CSV/texto) sigue
-funcionando siempre, con o sin este módulo.
+This flag enables patient-record extraction from hospital-list images and
+PDFs. The extraction uses a vision (VL) provider that is compatible with
+the OpenAI API. The default provider is MiniMax.
 
-**Variables requeridas** (solo si `ENABLE_PATIENT_OCR=true`):
+Without this flag, the image-import route returns `501`. The manual
+import flow (CSV or text) always works, whether this module is on or off.
 
-- `MINIMAX_API_KEY` — credencial del proveedor de visión.
-- `MINIMAX_OCR_BASE_URL`, `MINIMAX_OCR_MODEL` — endpoint y modelo.
-- `MINIMAX_OCR_MAX_TOKENS`, `MINIMAX_OCR_TIMEOUT_MS`, `MINIMAX_OCR_PROMPT` —
-  opcionales, tienen default.
+**Required variables** (only when `ENABLE_PATIENT_OCR=true`):
 
-**Superficie de vendor/compliance — la más sensible de las cuatro.** Esto
-envía imágenes que pueden contener nombres, documentos de identidad y notas
-médicas a una API de un tercero. Antes de activarlo:
+- `MINIMAX_API_KEY` — the credential for the vision provider.
+- `MINIMAX_OCR_BASE_URL`, `MINIMAX_OCR_MODEL` — the endpoint and the
+  model.
+- `MINIMAX_OCR_MAX_TOKENS`, `MINIMAX_OCR_TIMEOUT_MS`,
+  `MINIMAX_OCR_PROMPT` — optional variables, each with a default value.
 
-- Confirma que el proveedor de OCR que elijas tiene un acuerdo de
-  procesamiento de datos adecuado para datos de salud en tu jurisdicción.
-- Las filas extraídas entran como `needs_review` en staging
-  (`patient_imports`/`patient_import_rows`) y **nunca se auto-aplican** — un
-  humano confirma antes de que lleguen a `hospital_patients`. No cambies ese
-  comportamiento sin una razón documentada.
-- El documento de identidad crudo nunca se expone en respuestas públicas; la
-  deduplicación usa un hash HMAC (`PATIENT_DOCUMENT_HASH_SECRET`), no el
-  documento en texto plano.
+**Vendor and compliance surface — this is the most sensitive of the four
+modules.** This module sends images to a third-party API. These images
+can contain names, identity documents, and medical notes. Before you turn
+on this flag, complete these three checks:
 
-## `ENABLE_EXAMPLE_SOURCE` — y cómo agregar tu propia fuente real
+1. Confirm that your chosen OCR provider has a data-processing agreement
+   that is adequate for health data in your jurisdiction.
+2. Know that extracted rows enter staging tables (`patient_imports` and
+   `patient_import_rows`) with a `needs_review` status. The system never
+   applies these rows automatically. A human must confirm each row before
+   it reaches `hospital_patients`. Do not change this behavior without a
+   documented reason.
+3. Know that the system never exposes the raw identity document in public
+   responses. Deduplication uses an HMAC hash
+   (`PATIENT_DOCUMENT_HASH_SECRET`), never the plain-text document
+   number.
 
-Este flag habilita `backend/worker/sync/sources/example-source.ts`: un
-adaptador que no llama a ninguna red, sirve tres registros sintéticos
-(`Persona Ejemplo Uno/Dos/Tres`) desde un fixture en el propio archivo, y
-existe solo para que este documento tenga un ejemplo funcionando de punta a
-punta sin depender de un tercero real.
+## `ENABLE_EXAMPLE_SOURCE` — and how to add your own real source
 
-El motor de sincronización (`backend/worker/sync/engine.ts`) no sabe de
-dónde viene un registro — solo conoce la forma canónica `ExternalPerson`
-(`backend/worker/sync/types.ts`). Todo lo demás (upsert, deduplicación,
-reintentos, rate limiting) lo resuelve el motor; un adaptador **solo** trae y
-normaliza datos.
+This flag enables `backend/worker/sync/sources/example-source.ts`. This
+adapter makes no network calls. It serves three synthetic records
+(`Persona Ejemplo Uno`, `Persona Ejemplo Dos`, `Persona Ejemplo Tres`)
+from a fixture inside the file itself. This adapter exists only to give
+this document one full, working example, without a dependency on a real
+third party.
 
-### Walkthrough: construir un adaptador real a partir del ejemplo
+The sync engine (`backend/worker/sync/engine.ts`) does not know where a
+record comes from. The engine only knows the canonical shape,
+`ExternalPerson` (defined in `backend/worker/sync/types.ts`). The engine
+handles everything else: upsert, deduplication, retries, and rate
+limiting. An adapter's only job is to fetch and normalize data.
 
-1. **Copia el archivo:** `backend/worker/sync/sources/example-source.ts` →
-   `backend/worker/sync/sources/<tu-fuente>.ts`.
-2. **Reemplaza `fetchAll`** (y `fetchPage` si tu fuente pagina) por llamadas
-   `fetch()` reales contra la API/HTML/CSV de tu fuente. Usa
-   `ctx.userAgent`, `ctx.signal` (timeout/abort) y honra `ctx.limit`/
-   `ctx.statusFilter` si tu fuente los soporta.
-3. **Mapea la forma de tu fuente a `ExternalPerson`** — mira `mapPerson` en
-   el ejemplo para los campos mínimos requeridos (`externalId`, `source`,
-   `name`, `status`).
-4. **Registra tu adaptador en `backend/worker/sync/sources/index.ts`**,
-   siguiendo el patrón existente: un `import` + una línea condicionada a tu
-   propio flag `ENABLE_*` nuevo (documéntalo en `.env.example`, empezando en
-   `false`). Nunca actives una fuente real por defecto en este template.
-5. **No importes datos de contacto** (`contact` en `ExternalPerson`) salvo
-   que lo actives explícitamente por su propio flag — importar teléfono/
-   email de una persona reportada desaparecida sin que ella lo haya
-   consentido es, en sí mismo, un riesgo de extorsión (ver el comentario en
-   `../types.ts`).
+### Walkthrough: build a real adapter from the example
 
-Tras registrar tu fuente, actívala con `ENABLE_<TU_FUENTE>=true` y, si
-quieres, acótala junto a otras fuentes activas con `SYNC_SOURCES` (csv de
-ids) y el scheduler general `SYNC_SCHEDULERS=1`.
+1. **Copy the file.** Copy `backend/worker/sync/sources/example-source.ts`
+   to `backend/worker/sync/sources/<your-source>.ts`.
+2. **Replace `fetchAll`.** Replace `fetchAll`, and `fetchPage` if your
+   source uses pagination, with real `fetch()` calls against your
+   source's API, HTML, or CSV. Use `ctx.userAgent` and `ctx.signal` (for
+   timeout and abort). Honor `ctx.limit` and `ctx.statusFilter` if your
+   source supports them.
+3. **Map your source's data to `ExternalPerson`.** Look at `mapPerson` in
+   the example for the minimum required fields: `externalId`, `source`,
+   `name`, and `status`.
+4. **Register your adapter in `backend/worker/sync/sources/index.ts`.**
+   Follow the existing pattern: add an `import`, then add one line that
+   is conditioned on your own new `ENABLE_*` flag. Document this flag in
+   `.env.example`, and set its default to `false`. Never turn on a real
+   source by default in this template.
+5. **Do not import contact data** (the `contact` field in
+   `ExternalPerson`), unless you turn it on explicitly with its own flag.
+   Importing a missing person's phone number or email, without that
+   person's consent, is itself an extortion risk. See the comment in
+   `../types.ts` for more detail.
 
-**Superficie de vendor/compliance:** depende enteramente de tu fuente real —
-revisa sus términos de uso/scraping antes de automatizar la lectura, y
-recuerda que estás importando información sobre personas desaparecidas: trátala
-con el mismo cuidado que cualquier otro dato sensible del sistema (ver
-`SECURITY.md`).
+After you register your source, turn it on with
+`ENABLE_<YOUR_SOURCE>=true`. You can also scope it, together with other
+active sources, using `SYNC_SOURCES` (a comma-separated list of IDs) and
+the general scheduler flag `SYNC_SCHEDULERS=1`.
+
+**Vendor and compliance surface:** This surface depends entirely on your
+real source. Review your source's terms of use and scraping policy before
+you automate reading from it. Remember that you are importing information
+about missing persons. Treat this data with the same care as any other
+sensitive data in the system. See `SECURITY.md`.
 
 ---
 
-## Donaciones — backend listo, sin punto de entrada en la UI pública
+## Donations — backend ready, no entry point in the public UI
 
-A diferencia de los módulos de arriba, el backend de donaciones
-(`backend/src/routes/donations.ts` + `backend/src/services/donations.ts`,
-`GET`/`POST /api/donations`) no está gateado por un flag `ENABLE_*`: siempre
-está montado, y las variables opcionales `PAYPAL_DONATION_URL` /
-`NEXT_PUBLIC_STRIPE_DONATION_URL` determinan si las respuestas incluyen una
-URL de pago real. El panel admin ya tiene su pestaña de donaciones para
-revisar lo recaudado. El template **no** incluye un componente de donación
-en el sitio público — el CTA "Donar" que sí ves en la nav enlaza a WhatsApp
-(`RESPONSEGRID_DONATE_WHATSAPP_URL`) o al directorio externo `/donaciones`,
-sin pasar por este backend. Esto es intencional, no un bug: si tu deployment
-quiere cobrar donaciones vía PayPal/Stripe desde su propia UI, el backend ya
-está listo para eso — construye tu propio formulario/modal contra estos
-endpoints (`frontend/lib/donation-shared.ts` ya trae los helpers de
-validación/formato compartidos) y móntalo donde tenga sentido en tu diseño
-(header, footer, página dedicada).
+The donations backend is different from the modules above. It has no
+`ENABLE_*` flag. It uses `backend/src/routes/donations.ts` and
+`backend/src/services/donations.ts`, and exposes `GET` and
+`POST /api/donations`. This backend is always mounted.
+
+Two optional variables, `PAYPAL_DONATION_URL` and
+`NEXT_PUBLIC_STRIPE_DONATION_URL`, control whether responses include a
+real payment URL. The admin panel already has a donations tab to review
+funds raised.
+
+The template does not include a donation component in the public site.
+The "Donate" call-to-action in the navigation links to WhatsApp
+(`RESPONSEGRID_DONATE_WHATSAPP_URL`) or to the external directory
+`/donaciones`. Neither of these paths uses this backend.
+
+This gap is intentional. It is not a bug. If your deployment wants to
+collect donations through PayPal or Stripe, from its own UI, the backend
+is already ready for that. Build your own form or modal against these
+endpoints. `frontend/lib/donation-shared.ts` already provides shared
+validation and formatting helpers. Mount your form wherever it fits your
+design — the header, the footer, or a dedicated page.

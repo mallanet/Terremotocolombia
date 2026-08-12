@@ -1,63 +1,72 @@
-# Arquitectura actual
+# Current architecture
 
-Este documento describe cómo funciona el sistema hoy. Es una plantilla: no
-asume ningún país, evento u organización — la identidad de cada despliegue
-(nombre, dominios, centro del mapa, contacto) vive en
-`config/deployment.config.json` y en variables de entorno (`.env.example`),
-nunca en código.
+This document describes how the system works today. The codebase is a
+template: it does not assume any country, event, or organization. Each
+deployment's identity (name, domains, map center, contact) lives in
+`config/deployment.config.json` and in environment variables
+(`.env.example`), never in code.
 
-## Resumen
+## Summary
 
-El proyecto es un monorepo con tres servicios de aplicación y una capa de
-infraestructura compartida:
+The project is a monorepo with three application services and one shared
+infrastructure layer:
 
-- `frontend/`: Next.js + React. Renderiza la UI, sirve assets y llama al
-  backend por una URL absoluta (`NEXT_PUBLIC_API_URL`).
-- `backend/`: Express + TypeScript. Sirve toda la superficie `/api`, valida
-  entorno al arrancar, accede a Postgres con Drizzle y comparte imagen con el
-  worker y el job de migraciones.
-- `backend/worker/`: BullMQ sobre Valkey para sync de fuentes externas,
-  geocode, deduplicación, federación de hub y backfills/migraciones.
-  **No desplegado hoy** — ver [Workers y colas](#workers-y-colas).
-- `admin/`: panel de administración como microservicio Next.js standalone
-  (3er tier, RBAC con JWT en cookie httpOnly). Su BFF (`app/api/*`) reenvía al
-  backend (`EMERGENCY_API_URL`).
-  **Desplegado en Cloudflare Workers desde 2026-08-10**: `terremotocolombia-admin`
-  sirve `admin.terremotocolombia.co` (staging: `terremotocolombia-admin-staging` /
-  `admin-staging.terremotocolombia.co`), vía `@opennextjs/cloudflare` igual que
-  el frontend (`admin/wrangler.jsonc`, sin secretos de runtime). Deploy: staging
-  automático en `deploy-staging.yml`; producción automática en push a `main`
-  con filtro `admin/**` (`deploy-admin.yml`; manual hasta 2026-08-11). Producción va detrás de **Cloudflare Access** (OTP por
-  email + allowlist del equipo; bypass solo para `/api/health` por el smoke
-  check) — ver `CLAUDE.md` → "Dónde corre esto de verdad". OJO: la pantalla "Importar pacientes" depende del worker
-  de colas, que sigue SIN desplegar — en Workers los lotes se encolan y no se
-  procesan; la carga de datos hospitalarios va por los CRUD directos.
-- `infra/db/`: esquema Drizzle y migraciones SQL.
-- **Producción hoy: Cloudflare Workers + Neon Postgres.**
-  `docker-compose.prod.yml` + `Caddyfile.example` (VPS único con Caddy) es el
-  camino **alternativo**, y el único donde funcionan colas y transacciones
-  interactivas. Ver [Despliegue](#despliegue).
+- `frontend/`: Next.js + React. It renders the UI, serves assets, and calls
+  the backend through an absolute URL (`NEXT_PUBLIC_API_URL`).
+- `backend/`: Express + TypeScript. It serves the whole `/api` surface,
+  validates its environment at startup, accesses Postgres through Drizzle,
+  and shares one image with the worker and the migration job.
+- `backend/worker/`: BullMQ over Valkey, for external-source sync, geocoding,
+  deduplication, hub federation, and backfills/migrations. **Not deployed
+  today** — see [Workers and queues](#workers-and-queues).
+- `admin/`: the admin panel, a standalone Next.js microservice (a third
+  tier, with role-based access through a JWT in an httpOnly cookie). Its
+  BFF (`app/api/*`) forwards calls to the backend
+  (`EMERGENCY_API_URL`).
+  **Deployed on Cloudflare Workers since 2026-08-10**: `terremotocolombia-admin`
+  serves `admin.terremotocolombia.co` (staging: `terremotocolombia-admin-staging` /
+  `admin-staging.terremotocolombia.co`), through `@opennextjs/cloudflare`,
+  the same as the frontend (`admin/wrangler.jsonc`, with no runtime
+  secrets). Deploy: automatic in staging (`deploy-staging.yml`); automatic
+  in production on push to `main`, with the `admin/**` path filter
+  (`deploy-admin.yml`; it was manual until 2026-08-11). Production sits
+  behind **Cloudflare Access** (email OTP plus a team allowlist, with a
+  bypass only for `/api/health`, for the smoke check) — see `CLAUDE.md` →
+  "Where this actually runs." Note: the "Import patients" screen depends
+  on the queue worker, which is still **not** deployed — on Workers, batches
+  queue but do not process. Hospital data loading goes through the direct
+  CRUD routes instead.
+- `infra/db/`: the Drizzle schema and the SQL migrations.
+- **Production today: Cloudflare Workers + Neon Postgres.**
+  `docker-compose.prod.yml` + `Caddyfile.example` (a single VPS with Caddy)
+  is the **alternative** path, and the only one where queues and
+  interactive transactions work. See [Deployment](#deployment).
 
-## Flujo de requests
+## Request flow
 
-Un único **Caddy** en el VPS termina TLS y enruta por hostname a los
-contenedores; el navegador llama a la API por `NEXT_PUBLIC_API_URL`
-(`https://${API_DOMAIN}`) y los server components por `INTERNAL_API_URL`
-(`http://backend:8080`) dentro de la red del compose.
+The diagram below shows the **alternative VPS path** (docker compose), not
+the Cloudflare Workers path that serves production today. For the
+Cloudflare Workers topology, see [Deployment](#deployment), section B,
+below.
+
+On the VPS, one **Caddy** instance terminates TLS and routes by hostname to
+the containers. The browser calls the API through `NEXT_PUBLIC_API_URL`
+(`https://${API_DOMAIN}`), and server components call it through
+`INTERNAL_API_URL` (`http://backend:8080`), inside the compose network.
 
 ```mermaid
 flowchart LR
-    user["Usuario / navegador"]
-    dns["DNS<br/>(+ proxy/CDN opcional)"]
-    storage["Object storage S3-compatible<br/>(opcional) fotos + _next/static"]
+    user["User / browser"]
+    dns["DNS<br/>(+ optional proxy/CDN)"]
+    storage["S3-compatible object storage<br/>(optional) photos + _next/static"]
 
     subgraph vps["VPS — docker compose"]
         caddy["Caddy :80/:443"]
         frontend["frontend<br/>Next.js :3000"]
         backend["backend<br/>Express :8080"]
-        admin["admin<br/>panel Next.js :3000"]
+        admin["admin<br/>Next.js panel :3000"]
         pg["Postgres 16"]
-        valkey["Valkey 8<br/>BullMQ + rate-limit"]
+        valkey["Valkey 8<br/>BullMQ + rate limit"]
     end
 
     user --> dns --> caddy
@@ -68,405 +77,511 @@ flowchart LR
     admin -.BFF EMERGENCY_API_URL.-> backend
     backend --> pg
     backend --> valkey
-    backend -.opcional.-> storage
+    backend -.optional.-> storage
 ```
 
-El frontend no accede directo a la base de datos. En cliente usa
-`frontend/lib/api.ts`; en server components usa `frontend/lib/server-api.ts`.
-Las fotos pueden venir como rutas relativas desde la API y se anclan al
-backend con `mediaUrl()`.
+The frontend never accesses the database directly. On the client, it uses
+`frontend/lib/api.ts`. In server components, it uses
+`frontend/lib/server-api.ts`. Photos can arrive as relative paths from the
+API, and the frontend anchors them to the backend with `mediaUrl()`.
 
 ## Frontend
 
-- Next corre en modo `output: "standalone"` desde `frontend/`.
-- `NEXT_PUBLIC_*` se inlinea en build; los cambios de esas variables requieren
-  rebuild/redeploy del frontend.
-- TanStack Query maneja cache, deduplicación y polling del cliente.
-- Cloudflare Turnstile se monta con `useTurnstile()` en formularios públicos y
-  entrega tokens de un solo uso al backend (opcional: sin `TURNSTILE_SECRET_KEY`
-  se desactiva en desarrollo).
-- `NEXT_PUBLIC_ASSET_PREFIX` puede apuntar a un CDN/object storage para
-  `/_next/static` si despliegas más de una réplica del frontend.
+- Next.js runs in `output: "standalone"` mode, from `frontend/`.
+- Build inlines every `NEXT_PUBLIC_*` variable. A change to one of these
+  variables needs a frontend rebuild and redeploy.
+- TanStack Query manages client-side cache, deduplication, and polling.
+- Public forms mount Cloudflare Turnstile with `useTurnstile()`, and send
+  single-use tokens to the backend. With no `TURNSTILE_SECRET_KEY` set, the
+  check turns off, for local development only — see the Turnstile note
+  under [Backend API](#backend-api) for its production status.
+- `NEXT_PUBLIC_ASSET_PREFIX` can point `/_next/static` at a CDN or object
+  storage, when you deploy more than one frontend replica.
 
-### Mapa de rescate y modo offline
+### Rescue map and offline mode
 
-`/mapa-de-rescate` es una superficie pública map-first dentro del mismo
-frontend. Reutiliza el shell, la navegación, los tokens de diseño y la
-instalación existente de Leaflet/React Leaflet; no añade otro SDK de mapas ni
-un backend obligatorio.
+`/mapa-de-rescate` is a public, map-first surface inside the same frontend.
+It reuses the existing shell, navigation, design tokens, and Leaflet/React
+Leaflet setup. It does not add a second map SDK, and it does not need a
+backend.
 
-- El estado inicial se obtiene de dos JSON estáticos versionados en
-  `frontend/public/data/incidents/`: el incidente y la activación Copernicus
-  EMSR916. Los cuatro AOI se dibujan desde sus geometrías WKT. Esos polígonos
-  indican áreas de producción cartográfica, no límites confirmados de daños.
-- OpenStreetMap ofrece el contexto cartográfico y Esri World Imagery se usa
-  exclusivamente como referencia visual con fecha de captura no verificada.
-  La aplicación no almacena ni redistribuye tiles de terceros. Los modos
-  Antes/Después solo se habilitarán cuando el JSON publique imagery fechada,
-  licenciada y verificable.
-- El manifest específico
-  `frontend/public/mapa-de-rescate.webmanifest` abre directamente esta ruta
-  en modo standalone. `frontend/public/sw.js` precarga el shell, los assets
-  propios esenciales y los JSON operativos. Las respuestas de datos
-  recuperadas sin red llevan una marca interna de antigüedad para que la UI
-  muestre “Sin conexión” y la última actualización; nunca se presentan como
-  actuales.
-- IndexedDB conserva la última instantánea válida y paquetes offline
-  explícitos por AOI; `localStorage` conserva el modo y el AOI seleccionado.
-  El idioma lo gestiona el selector global del header, sin un segundo estado
-  dentro del mapa. El presupuesto inicial es de 8 MB. Un
-  paquete contiene solo geometrías y metadatos operativos propios; no contiene
-  tiles, imágenes Copernicus, BLP, PII ni ubicaciones personales exactas.
-  Las escrituras fallidas o sin cuota no dejan paquetes parciales.
-- Sin tiles, el canvas mantiene el epicentro, los AOI y una base vectorial
-  local ligera. Cuando una capa requiere red, la UI lo dice explícitamente.
-  Al recuperar conexión se actualizan los JSON en segundo plano y se conservan
-  el modo y el AOI seleccionado.
+- The initial state comes from two versioned static JSON files, in
+  `frontend/public/data/incidents/`: the incident, and the Copernicus
+  EMSR916 activation. The map draws the four AOIs (areas of interest) from
+  their WKT geometries. These polygons show areas of mapping activity, not
+  confirmed damage boundaries.
+- OpenStreetMap supplies the map context. Esri World Imagery serves only
+  as a visual reference, with a capture date that is not verified. The
+  application does not store or redistribute third-party tiles. The
+  Before/After modes will turn on only when the JSON data publishes dated,
+  licensed, and verifiable imagery.
+- A dedicated manifest, `frontend/public/mapa-de-rescate.webmanifest`, opens
+  this route directly in standalone mode. `frontend/public/sw.js` (a
+  service worker) preloads the shell, the essential local assets, and the
+  operational JSON files. Data responses that load with no network
+  connection carry an internal age marker, so the UI shows "Offline" and
+  the last update time. The UI never presents this data as current.
+- IndexedDB stores the last valid snapshot and explicit offline packages
+  per AOI. `localStorage` stores the selected mode and AOI. The header's
+  global language selector controls the language — the map does not keep a
+  second language state. The starting storage budget is 8 MB. A package
+  contains only geometries and operational metadata of our own — no tiles,
+  no Copernicus imagery, no BLP data, no PII, and no exact personal
+  locations. A failed or over-quota write leaves no partial package behind.
+- With no tiles loaded, the canvas still shows the epicenter, the AOIs, and
+  a light local vector base map. When a layer needs a network connection,
+  the UI states this explicitly. When the connection returns, the JSON
+  data updates in the background, and the selected mode and AOI stay the
+  same.
 
-Los contratos públicos para futuras capas de necesidades verificadas y
-disponibilidad agregada de recursos/voluntarios viven en
-`frontend/lib/rescue-map.ts`. No contienen nombres, contacto ni ubicación en
-tiempo real. No existen registros de demostración, despacho automático ni
-algoritmo de asignación en esta fase. Una recomendación futura deberá ocurrir
-en infraestructura autenticada, tratar el estado de verificación como
-invariante y requerir revisión humana antes de cualquier despliegue.
+The public contracts for future layers — verified needs, and aggregated
+resource/volunteer availability — live in `frontend/lib/rescue-map.ts`.
+They carry no names, no contact details, and no real-time location. This
+phase has no demo records, no automatic dispatch, and no assignment
+algorithm. A future recommendation feature must run on authenticated
+infrastructure, must treat verification status as an invariant, and must
+require human review before any deployment.
 
 ## Backend API
 
-- Express monta los routers en `backend/src/routes/` y delega lógica a
-  `backend/src/services/`.
-- `backend/src/config/env.ts` valida entorno de forma fail-fast.
-- La API escucha en `:8080` y expone dos health checks: `/api/healthz`
-  (liveness, sin I/O) y `/api/readyz` (readiness, chequea la DB con `select 1`
-  y timeout corto → 503 si no responde).
-- CORS usa allowlist (`CORS_ORIGINS`), porque el frontend y la API son
-  dominios separados.
-- Las mutaciones públicas combinan Zod, rate-limit y `requireHuman`
-  (Cloudflare Turnstile, opcional). Las rutas admin legadas usan
-  `ADMIN_PASSWORD`/headers existentes.
+- Express mounts its routers in `backend/src/routes/`, and delegates logic
+  to `backend/src/services/`.
+- `backend/src/config/env.ts` validates the environment, fail-fast, at
+  startup.
+- The API listens on `:8080`, and exposes two health checks:
+  `/api/healthz` (liveness, with no I/O) and `/api/readyz` (readiness — it
+  checks the database with `select 1`, on a short timeout, and returns 503
+  if the database does not respond).
+- CORS uses an allowlist (`CORS_ORIGINS`), because the frontend and the API
+  are separate domains.
+- Public mutations combine Zod validation, rate limiting, and
+  `requireHuman` (Cloudflare Turnstile). Legacy admin routes use
+  `ADMIN_PASSWORD` and existing headers.
 
-  > **Turnstile está DESACTIVADO en producción.** Se retiró
-  > `TURNSTILE_SECRET_KEY` del Worker de la API porque el bundle del frontend
-  > no llevaba la site key pública: el widget no se montaba, no había token, y
-  > `requireHuman` rechazaba **todos** los reportes con 403. Hoy las escrituras
-  > públicas solo dependen del WAF y el rate limit de Cloudflare. Ver
-  > `SECURITY.md` para el orden exacto de reactivación.
-- Lecturas polleadas usan cache en proceso y ETag cuando el contrato lo
-  permite.
-- `GET /api/reports` pagina el conjunto completo para que mapa y
-  administración no pierdan reportes antiguos al superar 500 registros.
-- APIs de terceros se consumen vía PROXY del backend (nunca desde el
-  navegador), para controlar cache/contrato y no depender del CORS del
-  tercero. Caso simple: `/api/geocode` proxea Nominatim (`services/geocode.ts`).
-- **API keys (integraciones).** La superficie `api/public/*` se autentica con
-  JWT (cookie/Bearer) O con una **API key** (`Authorization: Bearer
-  mer_sk_…`). El middleware (`middleware/auth.ts`) detecta el prefijo, busca
-  el hash SHA-256 en `api_keys` (índice único → O(1)), valida que no esté
-  revocada/expirada y cuelga el mismo `req.user` que el JWT — así
-  `requireCapability` no cambia. Las llaves son **self-service**: cualquier
-  usuario invitado (capacidad `apikey:manage`, sembrada en todos los roles)
-  crea/lista/revoca las suyas en el panel; el admin semilla puede revocar
-  ajenas. Cada llave lleva **scopes** (subconjunto de capacidades): el
-  permiso efectivo en cada request = `scopes ∩ capacidades vivas del usuario`
-  — un techo least-privilege que aplica **incluso al admin semilla** (ver el
-  corte en `auth/resolve.ts`). La llave cruda se muestra una sola vez; en DB
-  solo va su hash + un prefijo no secreto. Revocar = soft-delete
-  (`revokedAt`).
-- **Insumos hospitalarios en `api/public/hospital-supplies`.** Superficie
-  operativa para el panel admin: board de todos los hospitales con su
-  snapshot RESTRINGIDO (semáforos con notas internas, necesidades,
-  solicitudes de ayuda, POCs), escrituras de semáforo/necesidades/ayuda y
-  bitácora (`hospital_supply_events`). Router a mano
-  (`public-api/routers/hospital-supplies.router.ts`): el recurso es un
-  agregado por hospital, no un CRUD plano. Reutiliza las capacidades
-  `hospital:read` / `hospital:edit` del catálogo — a propósito NO introduce
-  claves nuevas, porque el seed de capacidades solo corre en el job de
-  migración (gateado a humanos). La validación de fondo es la misma de
-  `services/hospitals` que usa la superficie pública de POCs; las mutaciones
-  sellan `updatedBy` (email del admin) y `source: "admin_api"`, y NO espejan
-  necesidades a ResponseGrid (eso pertenece al flujo del POC). El panel
-  (`admin/app/hospital-supplies`) consume esto vía su BFF.
+  > **Turnstile is ACTIVE in both environments**, verified 2026-08-11. It
+  > was OFF in production from about 2026-08-10 to 2026-08-11: the
+  > frontend bundle did not carry the public site key, so the widget never
+  > mounted, no token reached the backend, and `requireHuman` rejected
+  > every public write with a `403`. The cause was a site-key/bundle
+  > mismatch, now fixed. `SECURITY.md` has the full timeline. **For new
+  > code:** assume Turnstile enforces on every guarded mutation, in both
+  > staging and production. A missing or invalid token gets a real `403`.
+- Polled reads use an in-process cache and an ETag, when the contract
+  allows it.
+- `GET /api/reports` paginates the full report set. The public map follows
+  `totalPages` in bounded batches and deduplicates IDs across page boundaries,
+  so it does not lose older reports once the count passes 500 records.
+- The backend proxies every third-party API call — the browser never calls
+  a third party directly. This keeps cache and contract control inside the
+  backend, and removes any dependency on the third party's CORS policy. A
+  simple case: `/api/geocode` proxies Nominatim
+  (`services/geocode.ts`).
+- **API keys (integrations).** The `api/public/*` surface authenticates
+  with a JWT (cookie or Bearer token), or with an **API key**
+  (`Authorization: Bearer mer_sk_…`). The middleware (`middleware/auth.ts`)
+  detects the key prefix, looks up its SHA-256 hash in the `api_keys`
+  table (a unique index, so the lookup is O(1)), checks that the key is
+  not revoked or expired, and attaches the same `req.user` object a JWT
+  would set — so `requireCapability` needs no change. Keys are
+  **self-service**: any invited user (with the `apikey:manage`
+  capability, seeded on every role) can create, list, and revoke their own
+  keys in the panel. The seed admin can revoke any user's key. Every key
+  carries **scopes** (a subset of capabilities). The effective permission
+  on each request is `scopes ∩ the user's live capabilities` — a
+  least-privilege ceiling that applies **even to the seed admin** (see the
+  check in `auth/resolve.ts`). The system shows the raw key once, at
+  creation. The database stores only its hash and a non-secret prefix.
+  Revoking a key sets `revokedAt` (a soft delete).
+- **Hospital supplies, at `api/public/hospital-supplies`.** An operational
+  surface for the admin panel: a board of every hospital with its
+  RESTRICTED snapshot (status flags with internal notes, needs, help
+  requests, points of contact), writes to status/needs/help, and an event
+  log (`hospital_supply_events`). A hand-written router
+  (`public-api/routers/hospital-supplies.router.ts`) — the resource is a
+  per-hospital aggregate, not a plain CRUD model. It reuses the existing
+  `hospital:read` / `hospital:edit` capabilities from the catalog, on
+  purpose: it does not add new capability keys, because the capability
+  seed runs only in the (human-gated) migration job. Background
+  validation is the same one `services/hospitals` uses for the public POC
+  (point-of-contact) surface. Mutations stamp `updatedBy` (the admin's
+  email) and `source: "admin_api"`, and they do NOT mirror needs to
+  ResponseGrid — that stays inside the POC flow. The panel
+  (`admin/app/hospital-supplies`) consumes this API through its BFF.
 
-## Integraciones de terceros (flags `ENABLE_*`)
+## Third-party integrations (`ENABLE_*` flags)
 
-Toda integración externa opcional (directorio de acopio, federación de hub,
-OCR de pacientes, fuente de sync de ejemplo) se activa con su propio flag en
-`.env.example` — `ENABLE_RESPONSEGRID`, `ENABLE_HUB_FEDERATION`,
-`ENABLE_PATIENT_OCR`, `ENABLE_EXAMPLE_SOURCE` — todas en `false` por defecto.
-El template debe arrancar y funcionar completo sin ninguna integración
-configurada; cada una degrada con gracia (endpoint 503, feature deshabilitada)
-cuando falta su configuración. Ver [`docs/modules.md`](modules.md) para el
-registro completo: qué hace cada módulo, su superficie de vendor/compliance,
-sus variables requeridas, y el walkthrough del adaptador de ejemplo como
-patrón para agregar una fuente de datos real.
+Every optional external integration — the collection-center directory, hub
+federation, patient OCR, the example sync source — turns on with its own
+flag in `.env.example`: `ENABLE_RESPONSEGRID`, `ENABLE_HUB_FEDERATION`,
+`ENABLE_PATIENT_OCR`, `ENABLE_EXAMPLE_SOURCE`. Every flag defaults to
+`false`. The template must start and run completely with no integration
+configured. Each one degrades gracefully (a `503` response, or a disabled
+feature) when its configuration is missing. See
+[`docs/modules.md`](modules.md) for the full registry: what each module
+does, its vendor/compliance surface, its required variables, and a
+walkthrough of the example adapter as a pattern for adding a real data
+source.
 
-### Módulos de integración (DDD/hexagonal)
+### Integration modules (DDD / hexagonal)
 
-Las integraciones con terceros viven como **bounded contexts** en
-`backend/src/modules/<dominio>/`, con capas separadas y dependencias hacia
-adentro (la infraestructura depende del dominio, no al revés):
+Third-party integrations live as **bounded contexts**, in
+`backend/src/modules/<domain>/`, with separated layers and dependencies
+that point inward — the infrastructure layer depends on the domain layer,
+never the other way around:
 
-- `domain/`: entidades + value objects + reglas puras y el **puerto**
-  (interfaz) que define la fuente. Sin HTTP, sin red, sin `env`.
-- `application/`: casos de uso que orquestan el dominio sobre el puerto.
-- `infrastructure/`: adaptadores que implementan el puerto (cliente HTTP,
-  mapper anti-corruption) y decoradores transversales (p.ej. cache).
-- `interface/http/`: router + controlador + presenter (única capa que conoce
-  Express). El `@swagger` vive aquí; `lib/swagger.ts` escanea `modules/**`.
-- `<dominio>-module.ts`: composition root; el único sitio que lee `env` y
-  cablea adaptador → puerto → caso de uso → router.
+```mermaid
+flowchart TB
+    subgraph module["backend/src/modules/&lt;domain&gt;/"]
+        http["interface/http/<br/>router + controller + presenter<br/>(the only layer that knows Express)"]
+        app["application/<br/>use cases"]
+        domain["domain/<br/>entities, value objects, rules,<br/>and the port (interface) for the source"]
+        infra["infrastructure/<br/>adapters that implement the port<br/>(HTTP client, anti-corruption mapper, cache)"]
+        root["&lt;domain&gt;-module.ts<br/>composition root — reads env,<br/>wires adapter → port → use case → router"]
+    end
 
-Primer módulo: **acopio** (`modules/acopio/`, siempre montado en
-`/api/acopio`). Sirve una lista estática de centros oficiales del sismo
-(`infrastructure/static/`) y, si `ENABLE_RESPONSEGRID=true`, fusiona el
-directorio de ResponseGrid (`RESPONSEGRID_API_URL` /
-`RESPONSEGRID_EMERGENCY_SLUG`). Añadir otra fuente = otro adaptador del mismo
-puerto, cableado en el composition root; el dominio y la capa HTTP no cambian.
-Las reglas ESLint de endpoints (`require-rate-limit`, guard de mutaciones)
-también cubren `src/modules/**`.
+    http --> app --> domain
+    infra -.implements.-> domain
+    root -.wires.-> http
+    root -.wires.-> infra
+```
 
-Segundo módulo: **needs** (`modules/needs/`), lado de ESCRITURA: publica una
-necesidad de insumos en ResponseGrid vía `POST /api/needs` (mutación pública
-con Turnstile + rate-limit). La API devuelve `202` con un identificador
-consultable en `GET /api/needs/status/{jobId}`. Un `202` solo confirma que
-el job quedó en cola: el navegador no muestra éxito ni vacía el formulario
-hasta que el estado llega a `completed`, y conserva los datos si llega a
-`failed`. BullMQ expone su estado nativo. En Cloudflare Queues, productor,
-consumidor y DLQ guardan en `audit_log` solo el job ID, estado, referencia
-pública externa y motivo de fallo; nunca guardan el payload ciudadano. El
-worker geocodifica la dirección con un puerto `Geocoder` (adaptador sobre
-`services/geocode` → Nominatim) y delega en el puerto `NeedPublisher`, con
-reintentos e idempotencia opcional mediante `Idempotency-Key`. La escritura
-autentica con la **api-key** de service account (`x-api-key`,
-`RESPONSEGRID_API_KEY`) y
-envía un campo opcional **`author`** (contacto del solicitante, `verified:
-false` fijado por el servidor) para atribuir la necesidad sin que la persona
-se registre en ResponseGrid. Sin api-key, se cablea un publisher
-deshabilitado y el endpoint responde 503. A diferencia del resto de routes,
-este endpoint **no lleva bloque `@swagger`** a propósito: es un proxy de
-escritura con credencial de servicio y no publicamos su contrato en
-`/api/docs` como superficie de abuso (la protección efectiva sigue siendo
-Turnstile + rate-limit).
+- `domain/`: entities, value objects, pure rules, and the **port**
+  (interface) that defines the source. No HTTP, no network calls, no
+  `env`.
+- `application/`: use cases that orchestrate the domain layer over the
+  port.
+- `infrastructure/`: adapters that implement the port (an HTTP client, an
+  anti-corruption mapper), plus cross-cutting decorators (for example, a
+  cache).
+- `interface/http/`: router, controller, and presenter — the only layer
+  that knows Express. The `@swagger` block lives here.
+  `lib/swagger.ts` scans `modules/**` for these blocks.
+- `<domain>-module.ts`: the composition root — the only file that reads
+  `env`, and wires adapter to port to use case to router.
 
-## Datos y migraciones
+The first module is **acopio** (`modules/acopio/`, always mounted at
+`/api/acopio`). It serves a static list of the earthquake's official
+collection centers (`infrastructure/static/`). When
+`ENABLE_RESPONSEGRID=true`, it also merges in the ResponseGrid directory
+(`RESPONSEGRID_API_URL` / `RESPONSEGRID_EMERGENCY_SLUG`). Adding another
+source means adding another adapter for the same port, wired in the
+composition root — the domain layer and the HTTP layer do not change. The
+endpoint ESLint rules (`require-rate-limit`, the mutation guard) also
+cover `src/modules/**`.
 
-- Postgres es la base de datos de producción, co-ubicada en el mismo VPS por
-  defecto (servicio `db` de `docker-compose.prod.yml`) o externa si prefieres.
-  **Hoy es externa: Neon**, y el Worker se conecta por su endpoint `-pooler`.
-- **Las migraciones en producción son un paso MANUAL.** No hay gate automático
-  como el del contenedor `migrate`: CI no las corre, y ningún despliegue las
-  dispara. Se ejecutan a mano con `backend/worker/migrate.ts` y `DATABASE_URL`
-  apuntando a Neon **directo** (no al `-pooler`). Un agente no las corre por
-  iniciativa propia.
-- Drizzle vive en `infra/db/schema.ts`; las migraciones versionadas viven en
-  `infra/db/migrations/`.
-- Las bajas de personas importadas crean una supresión por `legacy_id` y,
-  cuando existe, por `(source, external_id)`. El sync externo consulta esas
-  supresiones para que una eliminación administrativa sea permanente; las
-  fotos propias se eliminan del object storage antes de borrar la fila.
-- El servicio `migrate` de `docker-compose.prod.yml` usa la imagen backend y
-  corre antes de que arranquen `backend`/`worker`. Si falla, la app no rota.
-- Las migraciones deben ser expand-contract si vas a hacer rollouts sin
-  downtime (contenedores viejos siguen sirviendo mientras el nuevo arranca
-  contra el esquema actualizado).
-- **Réplica pública (hub SQL, opcional, `ENABLE_HUB_FEDERATION`).** Un
-  segundo Postgres de solo lectura puede recibir por **replicación lógica**
-  solo las tablas/columnas publicables (sin PII directa de secretos/
-  auditoría/federación) y exponer SQL crudo de solo lectura por TCP con TLS,
-  para que otro despliegue hermano del mismo template pueda leer datos
-  agregados. El acceso lo emite el backend: un **super admin**
-  (`mirror:manage`, gateada por `users.is_super_admin`) crea un rol Postgres
-  por consumidor. Si el hub cae, el primario no se afecta
-  (`max_slot_wal_keep_size` acota el WAL). Esta réplica es independiente de la
-  automatización de firewall específica de un proveedor cloud, que queda
-  fuera de esta plantilla (ver "Fuera de esta plantilla" más abajo).
+The second module is **needs** (`modules/needs/`), the WRITE side: it
+publishes a supply need to ResponseGrid through `POST /api/needs` (a
+public mutation, with Turnstile and rate limiting). The API returns a
+`202` response with an ID you can poll at `GET
+/api/needs/status/{jobId}`. A `202` means only that the job was queued; the
+browser does not show publication success until that status becomes
+`completed`, and preserves the form if it becomes `failed`. BullMQ exposes
+its native job state. On Cloudflare Queues, the producer, consumer, and DLQ
+store a minimal durable state in `audit_log` (job ID, state, public external
+reference, and failure reason only; never the citizen payload). The worker
+geocodes the address through
+a `Geocoder` port (an adapter over `services/geocode`, calling Nominatim),
+then hands off to the `NeedPublisher` port, with retries and optional
+idempotency through an `Idempotency-Key` header. The write authenticates
+with a service-account **API key** (`x-api-key`,
+`RESPONSEGRID_API_KEY`), and sends an optional **`author`** field (the
+requester's contact, with `verified: false` set by the server) to credit
+the need without requiring the person to register on ResponseGrid. With no
+API key configured, the system wires a disabled publisher, and the
+endpoint returns `503`. Unlike other routes, this endpoint carries **no**
+`@swagger` block, on purpose: it is a write proxy backed by a service
+credential, and we do not publish its contract on `/api/docs` as an abuse
+surface. Turnstile and rate limiting remain the real protection.
 
-## Workers y colas
+## Data and migrations
 
-> **ESTADO EN PRODUCCIÓN: el worker BullMQ NO está desplegado; los jobs se
-> están portando a Cloudflare** (plan `docs/plans/2026-08-10-002-…`, estado
-> por unidad en `docs/runbook-fase0.md`). Esta sección describe el camino
-> docker-compose, que sigue siendo válido (R5). Situación por superficie:
+- Postgres is the production database, co-located on the same VPS by
+  default (the `db` service in `docker-compose.prod.yml`), or external, if
+  you prefer. **Today it is external: Neon.** The Worker connects through
+  its `-pooler` endpoint.
+- **Migrations in production are a MANUAL step.** No automatic gate exists,
+  unlike the `migrate` container in the VPS path. CI does not run
+  migrations, and no deploy triggers one. A human runs them by hand, with
+  `backend/worker/migrate.ts` and `DATABASE_URL` pointed at Neon
+  **direct** (not the `-pooler` endpoint). An agent never runs a migration
+  on its own initiative. See "Schema order" in `AGENTS.md` for the full
+  rule set, including the 2026-08-11 outage this rule exists to prevent.
+- The Drizzle schema lives in `infra/db/schema.ts`. Versioned migrations
+  live in `infra/db/migrations/`.
+- Deleting an imported person creates a suppression, by `legacy_id`, and
+  also by `(source, external_id)` when that pair exists. External sync
+  checks these suppressions, so an administrative deletion stays
+  permanent. The system deletes a person's own photos from object storage
+  before it deletes their row.
+- The `migrate` service in `docker-compose.prod.yml` uses the backend
+  image, and runs before `backend` and `worker` start. If it fails, the
+  app does not roll out.
+- Migrations must follow the expand-contract pattern, for rollouts with no
+  downtime: old containers keep serving while the new one starts against
+  the updated schema.
+- **Public replica (SQL hub, optional, `ENABLE_HUB_FEDERATION`).** A second,
+  read-only Postgres instance can receive, through **logical
+  replication**, only the tables and columns marked publishable (with no
+  direct PII, no secrets, no audit or federation data). It exposes raw,
+  read-only SQL over TCP with TLS, so a sibling deployment of the same
+  template can read aggregated data. The backend issues this access: a
+  **super admin** (capability `mirror:manage`, gated by
+  `users.is_super_admin`) creates one Postgres role per consumer. If the
+  hub goes down, the primary database is not affected
+  (`max_slot_wal_keep_size` caps the retained WAL). This replica does not
+  depend on any cloud-provider-specific firewall automation, which stays
+  out of this template — see "Out of scope for this template" below.
+
+## Workers and queues
+
+> **PRODUCTION STATE: the BullMQ worker is NOT deployed. Jobs are moving to
+> Cloudflare** (plan `docs/plans/2026-08-10-002-…`; per-unit status in
+> `docs/runbook-fase0.md`). The rest of this section describes the docker
+> compose path, which stays valid for that deployment path (R5). Status by
+> surface:
 >
-> | Superficie | Estado en Workers |
+> | Surface | State on Cloudflare Workers |
 > | --- | --- |
-> | `GET /api/earthquakes` | **sync vivo** por Cron Trigger (`*/5`) |
-> | Geocodificación pendiente | **viva** por Cron Trigger (`2-59/5`) |
-> | `POST /api/needs` (publicación) | **viva**: Cloudflare Queue + consumidor `queue` en `src/worker.ts`; DLQ persistido en `audit_log` (`queue.dead_letter`) |
-> | Sync de fuentes (personas) | pendiente (U5; sin fuentes `ENABLE_*` habilitadas no hay nada que sincronizar) |
-> | Importación de pacientes | **viva**: cola `terremotocolombia-imports` + consumidor en el mismo Worker. Las transacciones interactivas se reescribieron como máquina de estados idempotente (claim condicional por fila + id de paciente determinista → reanudable sin duplicar); archivos CSV/XLSX se materializan ANTES de encolar (límite 128 KB/mensaje). Un lote agotado queda `failed` y su carta muerta va a `audit_log` |
-> | Federación de hub | no corre (flag apagado) |
+> | `GET /api/earthquakes` | **live sync**, by Cron Trigger (`*/5`) |
+> | Pending geocoding | **live**, by Cron Trigger (`2-59/5`) |
+> | `POST /api/needs` (publication) | **live**: a Cloudflare Queue, with a `queue` consumer in `src/worker.ts`. The dead-letter queue persists to `audit_log` (`queue.dead_letter`) |
+> | Source sync (people) | pending (unit U5; with no `ENABLE_*` source turned on, there is nothing to sync) |
+> | Patient import | **live**: the `terremotocolombia-imports` queue, with a consumer in the same Worker. The interactive transactions were rewritten as an idempotent state machine (a conditional per-row claim, plus a deterministic patient ID, so a retry resumes with no duplicate). CSV/XLSX files are written to storage BEFORE they are queued (128 KB per message limit). An exhausted batch stays `failed`, and its dead letter goes to `audit_log` |
+> | Hub federation | does not run (its flag is off) |
 >
-> El rate-limit distribuido también cae a su modo degradado (en memoria, por
-> isolate) porque no hay `VALKEY_URL`.
+> The distributed rate limiter also falls back to its degraded mode
+> (in-memory, per isolate), because no `VALKEY_URL` exists on this path.
 
-- Valkey respalda BullMQ y el rate-limit distribuido.
-- El servicio `migrate` de `docker-compose.prod.yml` usa la misma imagen
-  backend con otro `command`.
-- Los schedulers de sync/hub están gateados por sus flags
-  (`ENABLE_EXAMPLE_SOURCE`, `ENABLE_HUB_FEDERATION`) además de
-  `SYNC_SCHEDULERS`/`HUB_SCHEDULERS`; ambos apagados por defecto.
-- El worker sigue disponible para jobs manuales como migración de fotos a
-  object storage y trabajos encolados explícitamente.
-- La cola `patient-imports` procesa la importación autenticada de pacientes
-  hospitalarios (solo si `ENABLE_PATIENT_OCR` o el flujo manual de importación
-  están en uso): la API `POST /api/public/patient-imports` (capacidad
-  `patient:import`) guarda el lote en staging (`patient_imports` +
-  `patient_import_rows`) y encola; el worker normaliza, valida y deduplica
-  las filas, y `POST .../{id}/apply` encola la escritura idempotente en
-  `hospital_patients` (solo filas válidas y únicas). El dato crudo y los
-  campos sensibles (documento, notas, contacto) viven en staging restringido
-  y no se exponen en las respuestas públicas. La deduplicación por hash de
-  documento es global entre hospitales. Los refugios comparten este modelo
-  con `hospitals.facility_type = refugio` y sus personas usan
-  `hospital_patients.status = sheltered`. La entrada OCR/ICR por imagen se
-  habilita solo si existe un proveedor de visión (VL) configurado; materializa
-  filas en staging como `needs_review` y nunca auto-aplica. Sin proveedor
-  responde 501; PDF (y cualquier formato sin ruta de procesamiento) responde
-  **415** con mensaje en español — la aceptación de content-types tiene una
-  única fuente de verdad (`isSupportedImportContentType`). Las filas
-  `needs_review` se resuelven en el panel (editar/confirmar/rechazar/decidir
-  dedup, ver capa de identidad abajo) y cada corrección humana de una fila
-  OCR queda registrada en `ocr_corrections` (log inmutable, id determinista —
-  el activo de aprendizaje de la fase 3).
-- **Sismos** (`earthquakes.queue.ts`): el worker poll-ea un feed público de
-  sismos (por defecto el feed realtime del USGS, global) cada
-  `EARTHQUAKES_EVERY_MS` (default 60s), filtra al bounding box configurado
-  (`EARTHQUAKES_MIN_LAT`/`MAX_LAT`/`MIN_LNG`/`MAX_LNG`, sin recortar por
-  defecto) y hace upsert por id de evento en la tabla `earthquakes`. Al
-  arrancar, si la tabla está vacía, encola un backfill puntual (últimos
-  `EARTHQUAKES_BACKFILL_DAYS` días, una sola llamada). Este scheduler
-  **siempre corre** (no va bajo `SYNC_SCHEDULERS`): es dato público y barato.
-  El backfill de arranque es idempotente (solo si la tabla está vacía), así
-  que el primer deploy siembra solo. La superficie pública es `GET
-  /api/earthquakes` (read-only, anónima, cacheada con ETag).
+- Valkey backs BullMQ and the distributed rate limiter.
+- The `migrate` service in `docker-compose.prod.yml` uses the same backend
+  image, with a different `command`.
+- Sync and hub schedulers are gated by their own flags
+  (`ENABLE_EXAMPLE_SOURCE`, `ENABLE_HUB_FEDERATION`), and also by
+  `SYNC_SCHEDULERS` / `HUB_SCHEDULERS`. Both stay off by default.
+- The worker also stays available for manual jobs, such as migrating
+  photos to object storage, and for explicitly queued jobs.
+- The `patient-imports` queue processes authenticated hospital-patient
+  imports (used only when `ENABLE_PATIENT_OCR` or the manual import flow
+  is in use). The API route `POST /api/public/patient-imports`
+  (capability `patient:import`) saves the batch to staging tables
+  (`patient_imports` and `patient_import_rows`), then queues it. The
+  worker normalizes, validates, and deduplicates the rows.
+  `POST .../{id}/apply` queues the idempotent write into
+  `hospital_patients` (only valid, unique rows apply). Raw data and
+  sensitive fields (ID document, notes, contact) live in restricted
+  staging tables, and never appear in public responses. Document-hash
+  deduplication runs globally, across every hospital. Shelters share this
+  same model, with `hospitals.facility_type = refugio`, and their people
+  use `hospital_patients.status = sheltered`. Image-based OCR/ICR entry
+  turns on only when a configured vision-language (VL) provider exists. It
+  writes staging rows as `needs_review`, and never applies them
+  automatically. With no provider configured, the route returns `501`.
+  PDF input (and any format with no processing path) returns **415**, with
+  a Spanish-language message — content-type acceptance has one single
+  source of truth (`isSupportedImportContentType`). Reviewers resolve
+  `needs_review` rows in the panel (edit, confirm, reject, or decide a
+  duplicate — see the identity layer below), and every human correction to
+  an OCR row logs to `ocr_corrections` (an immutable log, with a
+  deterministic ID — the training data for a future phase).
+- **Earthquakes** (`earthquakes.queue.ts`): the worker polls a public
+  earthquake feed (the USGS realtime feed, global, by default) every
+  `EARTHQUAKES_EVERY_MS` (60 seconds, by default). It filters to the
+  configured bounding box
+  (`EARTHQUAKES_MIN_LAT`/`MAX_LAT`/`MIN_LNG`/`MAX_LNG`; unfiltered by
+  default), and upserts by event ID into the `earthquakes` table. At
+  startup, if the table is empty, it queues a one-time backfill (the last
+  `EARTHQUAKES_BACKFILL_DAYS` days, in one call). This scheduler **always
+  runs** — it does not sit under `SYNC_SCHEDULERS`, because the data is
+  public and cheap to fetch. The startup backfill is idempotent (it runs
+  only when the table is empty), so the first deploy seeds the table once.
+  The public surface is `GET /api/earthquakes` (read-only, anonymous,
+  cached with an ETag).
 
-## Capa de identidad (Family Search)
+## Identity layer (Family Search)
 
-Plan `docs/plans/2026-08-11-001-…` (fases 0-1 del doc de requisitos
-`docs/family-search-admin-requirements.md`). Un overlay ADITIVO sobre las
-poblaciones existentes — las tablas fuente no cambian su camino de escritura.
+Plan `docs/plans/2026-08-11-001-…` (phases 0-1 of the requirements document
+`docs/family-search-admin-requirements.md`). This layer is an ADDITIVE
+overlay on top of the existing person tables — it does not change how
+those tables get written.
 
-- **PRN** (`person_records`): cada registro con forma de persona
-  (`missing_persons`, `hospital_patients`, `unidentified_persons`) recibe un
-  identificador estable y comunicable por teléfono (`TC-` + 8 Crockford
-  base32 + carácter de control; codec puro en `lib/prn.ts`). Estampado
-  best-effort al crear + cron de reconciliación `4-59/5 * * * *`
-  (`reconcilePersonRecords`) que además ejecuta los chequeos de invariantes
-  de clusters y el escaneo de PII en notas. El backfill de lo preexistente
-  son las primeras corridas del mismo cron.
-- **Matcher determinista** (cola `terremotocolombia-matcher` + DLQ →
-  `audit_log`): propone `person_links` por hash de documento exacto
-  (cross-población) y nombre+edad exactos normalizados. Solo tokens de
-  resultado en `evidence` (jamás valores crudos). NUNCA toca links
-  confirmados; los rechazados solo se re-proponen con clase de evidencia
-  estrictamente más fuerte (banner "rechazado antes").
-- **Decisiones y clusters** (`person-links.ts` / `person-clusters.ts`): tres
-  acciones (confirmar / no es la misma persona / no estoy seguro+nota),
-  decisiones append-only con snapshot de evidencia y atribución obligatoria.
-  Los clusters son componentes conexos sobre links CONFIRMADOS; la membresía
-  se converge con `recomputeClusterFor` (claim por índice parcial único,
-  desalojo más allá de la semilla, verify-after-write) — sin
-  `db.transaction()`. Fusión de clusters anclados = acción escalada
-  (`person:merge`) con re-chequeo post-claim (TOCTOU). Unmerge de primera
-  clase. El borrado de un registro fuente (rutas de delete existentes)
-  tombstonea PRN/links/membresía con recompute por CADA vecino previo
-  (un vértice de corte puede partir el componente en varios fragmentos).
-- **Señal, no verdad** (`record_status_signals`): una transición de `status`
-  llegada por upsert externo (socio partner-sync o feed) NO pisa el status
-  local — queda pendiente hasta que un revisor la confirma o descarta.
-  Idempotencia DB-enforced (índice parcial único por claim pendiente).
-- **Panel** (`admin/src/contexts/family-search/`): cola de revisión
-  keyboard-first (1/2/3 + Enter) con tarjetas lado-a-lado y desglose de
-  evidencia, ficha de cluster con historial y attach manual, panel de
-  señales con badge de pendientes en el nav. Capacidades: `person:search`
-  (leer), `person:review` (decidir links/filas/señales), `person:merge`
-  (fusiones ancladas, unmerge). Inertes hasta que un humano corra
-  `seedAuth()` (job de migración) desde un checkout que incluya el catálogo.
-- **Despliegue**: migraciones `0003`/`0004` (solo aditivas) son paso humano
-  aparte; `wrangler queues create terremotocolombia-matcher` (+`-dlq`) debe
-  preceder al deploy que declara el consumidor; runbook completo en el plan.
+```mermaid
+flowchart LR
+    sources["missing_persons<br/>hospital_patients<br/>unidentified_persons"]
+    prn["PRN stamping<br/>(lib/prn.ts)<br/>+ reconciliation cron"]
+    matcher["Deterministic matcher<br/>queue: terremotocolombia-matcher"]
+    links["person_links<br/>(proposed)"]
+    review["Admin review panel<br/>confirm / not same / unsure"]
+    clusters["person_clusters<br/>(confirmed links only)"]
+    signals["record_status_signals<br/>(external status changes,<br/>pending review)"]
 
-## Despliegue
+    sources --> prn --> matcher --> links --> review
+    review -->|confirmed| clusters
+    sources -.external upsert.-> signals --> review
+```
 
-> **Hay dos topologías soportadas y hoy corre la B.** No asumas la A al leer el
-> resto de este documento: varias secciones (colas, transacciones, Caddy) solo
-> aplican a la A.
+- **PRN** (`person_records`): every person-shaped record
+  (`missing_persons`, `hospital_patients`, `unidentified_persons`) gets a
+  stable identifier that a caller can read over the phone (`TC-`, plus 8
+  Crockford base32 characters, plus one check character; the pure codec
+  lives in `lib/prn.ts`). Stamping happens best-effort at record creation,
+  plus a reconciliation cron every 5 minutes
+  (`4-59/5 * * * *`, function `reconcilePersonRecords`), which also runs
+  cluster invariant checks and a PII scan over notes. The backfill of
+  existing records happens through this same cron's first runs.
+- **Deterministic matcher** (queue `terremotocolombia-matcher`, with a
+  dead-letter queue that writes to `audit_log`): it proposes
+  `person_links` rows, based on an exact document-hash match (across
+  record types) or an exact, normalized name-plus-age match. It writes
+  only result tokens into `evidence` — never raw values. It NEVER touches
+  a confirmed link. It re-proposes a rejected link only with a strictly
+  stronger evidence class, and the panel shows a "rejected before" banner
+  for it.
+- **Decisions and clusters** (`person-links.ts` / `person-clusters.ts`):
+  three possible decisions — confirm, not the same person, or not sure
+  (with a required note). Every decision is append-only, carries an
+  evidence snapshot, and requires an attributed reviewer. Clusters are the
+  connected components over CONFIRMED links. Membership converges through
+  `recomputeClusterFor` (a claim on a unique partial index, eviction
+  beyond the seed record, and a verify-after-write check — with no
+  `db.transaction()` call). Merging two anchored clusters is an escalated
+  action (capability `person:merge`), with a re-check after the claim, to
+  close a TOCTOU (time-of-check to time-of-use) gap. Unmerge is a
+  first-class action. Deleting a source record (through the existing
+  delete routes) tombstones its PRN, links, and cluster membership, and
+  triggers a recompute for EVERY previous neighbor — because removing one
+  cut vertex can split a cluster into several pieces.
+- **Signal, not truth** (`record_status_signals`): a `status` change that
+  arrives through an external upsert (a partner-sync integration, or a
+  feed) does NOT overwrite the local status. It stays pending until a
+  reviewer confirms or discards it. A unique partial index in the
+  database enforces idempotency for pending claims.
+- **Panel** (`admin/src/contexts/family-search/`): a keyboard-first review
+  queue (keys 1, 2, 3, plus Enter), with side-by-side cards and an
+  evidence breakdown; a cluster detail view with history and manual
+  attach; and a signals panel, with a pending-count badge in the nav.
+  Capabilities: `person:search` (read), `person:review` (decide on links,
+  rows, and signals), and `person:merge` (anchored merges, and unmerge).
+  These stay inert until a human runs `seedAuth()` (the migration job),
+  from a checkout that includes the capability catalog.
+- **Deployment**: migrations `0003` and `0004` (additive only) are a
+  separate manual step. `wrangler queues create terremotocolombia-matcher`
+  (plus its `-dlq`) must run before the deploy that declares the consumer.
+  The plan document has the full runbook.
 
-### B. Cloudflare Workers — *lo que sirve terremotocolombia.co ahora*
+## Deployment
 
-| Pieza | Worker | Config |
+> **Two topologies exist, and today path B runs in production.** Do not
+> assume path A while you read the rest of this document — several
+> sections (queues, transactions, Caddy) apply only to path A.
+
+### B. Cloudflare Workers — what serves terremotocolombia.co today
+
+```mermaid
+flowchart TB
+    user(["User / browser"])
+    cfzone["Cloudflare zone<br/>DNS, WAF, cache, rate limit<br/>(managed by an external OpenTofu module)"]
+
+    subgraph workers["Cloudflare Workers"]
+        webw["terremotocolombia-web<br/>frontend/wrangler.jsonc<br/>@opennextjs/cloudflare"]
+        adminw["terremotocolombia-admin<br/>admin/wrangler.jsonc<br/>@opennextjs/cloudflare<br/>behind Cloudflare Access"]
+        apiw["terremotocolombia-api<br/>backend/wrangler.jsonc<br/>Express + httpServerHandler"]
+    end
+
+    neon[("Neon Postgres<br/>external, HTTP driver<br/>-pooler endpoint")]
+    queues["Cloudflare Queues<br/>needs, patient-imports<br/>+ Cron Triggers"]
+
+    user --> cfzone
+    cfzone --> webw
+    cfzone -->|Cloudflare Access OTP| adminw
+    webw -->|NEXT_PUBLIC_API_URL| apiw
+    adminw -->|EMERGENCY_API_URL BFF| apiw
+    apiw --> neon
+    apiw --> queues
+```
+
+| Piece | Worker | Config |
 | --- | --- | --- |
 | Frontend | `terremotocolombia-web` | `frontend/wrangler.jsonc`, `frontend/open-next.config.ts` |
+| Admin | `terremotocolombia-admin` | `admin/wrangler.jsonc` |
 | API | `terremotocolombia-api` | `backend/wrangler.jsonc`, `backend/src/worker.ts` |
 
-- El frontend se adapta con `@opennextjs/cloudflare`.
-- La API **no se reescribió**: `backend/src/worker.ts` envuelve la misma app de
-  Express con `httpServerHandler` de `cloudflare:node`.
-- Base de datos: **Neon Postgres** (externo), por su endpoint `-pooler`. En
-  Workers el driver es el HTTP de Neon, porque un socket TCP pertenece a la
-  petición que lo abrió y un pool con estado no sobrevive entre peticiones.
-- **Consecuencia:** sin transacciones interactivas (los 8 `db.transaction` de
-  `services/roles.ts` y `services/patient-imports/*` fallan aquí), sin colas
-  BullMQ/Valkey y sin `admin/` desplegado.
-- Despliegue: `deploy-frontend.yml` y `deploy-admin.yml` son automáticos en push
-  a `main` con filtro de rutas. **`deploy-backend.yml` es manual** (solo
-  `workflow_dispatch`, desde la tarde del 2026-08-11): la API no sale con el
-  merge, sale cuando un humano lanza el workflow, y antes pasa por un gate de
-  deriva de esquema que falla cerrado. En staging (`deploy-staging.yml`) el
-  backend sí es automático. Las migraciones **no** las corre CI ni ningún
-  deploy.
-- La zona de Cloudflare (DNS, anti-suplantación, TLS, WAF, cache, rate limit) se
-  gestiona con un módulo de OpenTofu **fuera de este repo**.
+- The frontend and the admin panel both adapt through
+  `@opennextjs/cloudflare`.
+- The API keeps its original Express code: `backend/src/worker.ts` wraps
+  the same Express app with `httpServerHandler`, from `cloudflare:node`.
+- Database: **Neon Postgres** (external), through its `-pooler` endpoint.
+  On Workers, the driver is Neon's HTTP driver, because a TCP socket
+  belongs to the request that opened it, and a stateful pool cannot
+  survive between requests.
+- **Consequence:** no interactive transactions on this path (the 8
+  `db.transaction()` calls in `services/roles.ts` and
+  `services/patient-imports/*` fail here — see "FORBIDDEN: interactive
+  `db.transaction(...)`" in `AGENTS.md`), and no BullMQ/Valkey queues
+  (Cloudflare Queues replace them for the jobs listed in
+  [Workers and queues](#workers-and-queues)). The `admin/` panel **is**
+  deployed on this path — see the Summary section above.
+- Deploy: `deploy-frontend.yml` and `deploy-admin.yml` run automatically,
+  on push to `main`, with a path filter. **`deploy-backend.yml` is
+  manual** (`workflow_dispatch` only, since the afternoon of 2026-08-11):
+  the API does not go out with the merge. It goes out when a human runs
+  the workflow, after a schema-drift gate that fails closed. In staging
+  (`deploy-staging.yml`), the backend deploys automatically. Migrations run
+  through neither CI nor any deploy — see [Data and
+  migrations](#data-and-migrations).
+- An OpenTofu module, **outside this repository**, manages the Cloudflare
+  zone (DNS, anti-spoofing, TLS, WAF, cache, rate limit).
 
-### A. Un único VPS con docker compose + Caddy
+### A. A single VPS with docker compose and Caddy
 
-Camino alternativo y **más completo**: es el único donde funcionan las colas, las
-transacciones interactivas y el panel `admin/`. Runbook paso a paso (provisión,
-hardening, DNS, TLS, smoke checks, backups, actualización y rollback):
-[`docs/deploy-vps.md`](deploy-vps.md). Sigue siendo la vía cómoda en local,
-porque levanta Postgres y Valkey por ti.
+This is the alternative, and **more complete**, path — the only one where
+queues, interactive transactions, and the `admin/` panel all work. For the
+full runbook (provisioning, hardening, DNS, TLS, smoke checks, backups,
+updates, and rollback):
+[`docs/deploy-vps.md`](deploy-vps.md). It stays the convenient path for
+local development too, because it starts Postgres and Valkey for you.
 
-- El stack lo define `docker-compose.prod.yml` detrás de `Caddyfile.example`
-  (un único Caddy que reverse-proxea a `frontend:3000`, `backend:8080`,
-  `admin:3000` por hostname, leyendo `WEB_DOMAIN`/`API_DOMAIN`/`ADMIN_DOMAIN`/
-  `ACME_EMAIL` del entorno vía placeholders `{$VAR}`).
-- Postgres y Valkey van co-ubicados en el mismo VPS por defecto (servicios
-  `db`/`valkey`); las migraciones corren como el contenedor `migrate`
-  one-off, gateado antes de que arranquen `backend`/`worker`.
-- Un object storage compatible con S3 (p.ej. Cloudflare R2) es opcional para
-  fotos y, con `NEXT_PUBLIC_ASSET_PREFIX`, los assets estáticos de Next.
-- Cómo desplegar (push-to-deploy, CI/CD, un script manual sobre SSH) queda a
-  criterio de quien opere el despliegue; esta plantilla no incluye un
-  workflow de CI/CD por defecto.
+- `docker-compose.prod.yml` defines the stack, behind `Caddyfile.example`
+  (one Caddy instance, reverse-proxying to `frontend:3000`,
+  `backend:8080`, and `admin:3000` by hostname, reading
+  `WEB_DOMAIN`/`API_DOMAIN`/`ADMIN_DOMAIN`/`ACME_EMAIL` from the
+  environment through `{$VAR}` placeholders).
+- Postgres and Valkey co-locate on the same VPS by default (services `db`
+  and `valkey`). Migrations run as the one-off `migrate` container, gated
+  before `backend` and `worker` start.
+- An S3-compatible object storage service (for example, Cloudflare R2) is
+  optional, for photos, and — with `NEXT_PUBLIC_ASSET_PREFIX` set — for
+  Next.js static assets.
+- How you deploy (push-to-deploy, CI/CD, or a manual script over SSH) is up
+  to whoever operates the deployment. This template ships with no default
+  CI/CD workflow for this path.
 
-### Fuera de esta plantilla (futuro trabajo)
+### Out of scope for this template (future work)
 
-Un modelo de orquestación multi-nodo (Kubernetes/k3s + OpenTofu/Terraform)
-con Load Balancers separados por servicio, autoscaling y una nube específica
-(p.ej. Hetzner Cloud) es un camino alterno razonable para despliegues de
-mayor escala, pero no forma parte de esta plantilla. Si lo necesitas:
+A multi-node orchestration model (Kubernetes/k3s plus
+OpenTofu/Terraform), with a separate load balancer per service,
+autoscaling, and a specific cloud provider (for example, Hetzner Cloud),
+is a reasonable path for a larger-scale deployment. It is not part of this
+template. If you need it:
 
-- Recupera el modelo de tres Deployments (`web`, `api`, `admin`) con su
-  Service/LoadBalancer y HPA, reutilizando la imagen backend para worker y el
-  job de migraciones — el mismo patrón que ya describe este documento para
-  docker compose se traslada 1:1 a manifiestos de Kubernetes.
-  Los Ingress/servicios que hoy resuelve `Caddyfile.example` por hostname
-  pasarían a Ingress rules, y las credenciales de proveedor cloud (API
-  tokens, kubeconfig) irían en el gestor de secretos de tu CI, no en
-  `.env.example`.
-- La automatización de firewall por API de un proveedor cloud específico
-  (para abrir/cerrar acceso de un consumidor a la réplica del hub) es
-  opcional y también queda fuera de esta plantilla; sin ella, la réplica del
-  hub simplemente no gestiona firewall automáticamente.
+- Recover the three-Deployment model (`web`, `api`, `admin`), each with its
+  own Service/LoadBalancer and HPA, reusing the backend image for the
+  worker and the migration job — the same pattern this document already
+  describes for docker compose carries over 1:1 to Kubernetes manifests.
+  The Ingress rules would replace what `Caddyfile.example` resolves by
+  hostname today. Cloud-provider credentials (API tokens, a kubeconfig
+  file) would live in your CI's secret manager, never in `.env.example`.
+- Cloud-provider-specific firewall automation (to open or close a
+  consumer's access to the hub replica) is optional, and also out of
+  scope for this template. Without it, the hub replica simply does not
+  manage firewall rules automatically.
 
-## Al cambiar arquitectura
+## When you change the architecture
 
-Cada cambio que modifique esta forma del sistema debe actualizar:
+Every change that changes this system's shape must update:
 
-- `docs/architecture.md` para reflejar el estado nuevo.
-- `AGENTS.md` cuando cambien reglas que los agentes deben seguir.
-- `.env.example` si cambia el contrato de entorno (grupo correcto, marca
-  `[REQ]`/`[OPT]`, placeholder obviamente falso).
-- `docker-compose.yml` / `docker-compose.prod.yml` / `Caddyfile.example` si
-  cambia un servicio, puerto o dominio.
+- `docs/architecture.md`, to reflect the new state.
+- `AGENTS.md`, when a rule that agents must follow changes.
+- `.env.example`, when the environment contract changes (correct group,
+  `[REQ]`/`[OPT]` marker, an obviously fake placeholder value).
+- `docker-compose.yml` / `docker-compose.prod.yml` / `Caddyfile.example`,
+  when a service, port, or domain changes.
