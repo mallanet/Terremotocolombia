@@ -2,9 +2,8 @@
  * La FRONTERA de lo que se reintenta es la parte peligrosa de src/db/retry.ts,
  * no el reintento en si. Estos tests la fijan a proposito:
  *
- *  - un 5xx CON respuesta prueba que la sentencia no se ejecuto -> reintentar
- *    cualquier cosa es seguro;
- *  - un `fetch` que LANZA no prueba nada -> solo se reintentan lecturas.
+ *  - neither a 5xx response nor a thrown fetch proves that a write did not run;
+ *  - only provably read-only queries are safe to retry.
  *
  * Si alguien afloja esto en el futuro ("ya que estamos, reintentemos tambien los
  * errores de red") estos tests tienen que ponerse en rojo: reintentar a ciegas
@@ -62,15 +61,15 @@ describe("retryingFetch", () => {
     expect(res.status).toBe(200);
   });
 
-  it("reintenta un 5xx incluso en una ESCRITURA (el proxy prueba que no corrio)", async () => {
-    const f = vi.fn().mockResolvedValueOnce(boom()).mockResolvedValueOnce(ok());
+  it("NO reintenta un 5xx en una ESCRITURA (el resultado es ambiguo)", async () => {
+    const f = vi.fn().mockResolvedValue(boom());
     const res = await retryingFetch(
       "u",
       { body: body("INSERT INTO missing_persons (id) VALUES ($1)") },
       f as never,
     );
-    expect(f).toHaveBeenCalledTimes(2);
-    expect(res.status).toBe(200);
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(503);
   });
 
   it("reintenta un error de red en una LECTURA", async () => {

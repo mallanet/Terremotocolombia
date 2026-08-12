@@ -52,11 +52,34 @@ describe("patient imports — cola y estados", () => {
 		expect(after?.jobId).toBe("job-d4-2");
 	});
 
+	it("claimImportRetry reabre exactamente una vez un fallo de procesamiento", async () => {
+		const imp = await pendingImport();
+		await svc.markImportFailed(imp.id, "Fallo transitorio.", "process");
+		await expect(svc.claimImportRetry(imp.id)).resolves.toBe(true);
+		await expect(svc.claimImportRetry(imp.id)).resolves.toBe(false);
+		const after = await svc.getImport(imp.id);
+		expect(after?.status).toBe("queued");
+		expect(after?.failedStage).toBeNull();
+	});
+
 	it("markImportFailed evita lote huérfano", async () => {
 		const imp = await pendingImport();
 		await svc.markImportFailed(imp.id, "No se pudo encolar el procesamiento.");
 		const after = await svc.getImport(imp.id);
 		expect(after?.status).toBe("failed");
+	});
+
+	it("el DLQ conserva la causa original del procesador", async () => {
+		const imp = await pendingImport();
+		await svc.markImportFailed(imp.id, "Causa raíz sintética.", "process");
+		await svc.markImportDeadLettered(
+			imp.id,
+			"Reintentos agotados.",
+			"process",
+		);
+		const after = await svc.getImport(imp.id);
+		expect(after?.errorSummary).toBe("Causa raíz sintética.");
+		expect(after?.failedStage).toBe("process");
 	});
 
 	it("no aplica pending ni reprocesa applied", async () => {

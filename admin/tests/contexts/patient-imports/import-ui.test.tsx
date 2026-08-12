@@ -45,13 +45,27 @@ describe("PatientImportsAdmin — archivo", () => {
       http.post("/api/admin/patient-imports", async ({ request }) => {
         received = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(
-          { import: { id: "imp-1", status: "queued", failedStage: null, errorSummary: null, counts: {} } },
+          {
+            import: {
+              id: "imp-1",
+              status: "queued",
+              failedStage: null,
+              errorSummary: null,
+              counts: {},
+            },
+          },
           { status: 202 },
         );
       }),
       http.get("/api/admin/patient-imports/imp-1", () =>
         HttpResponse.json({
-          import: { id: "imp-1", status: "queued", failedStage: null, errorSummary: null, counts: {} },
+          import: {
+            id: "imp-1",
+            status: "queued",
+            failedStage: null,
+            errorSummary: null,
+            counts: {},
+          },
         }),
       ),
     );
@@ -100,15 +114,48 @@ describe("PatientImportsAdmin — archivo", () => {
           },
         }),
       ),
-      http.get("/api/admin/patient-imports/imp-2/rows", () =>
-        HttpResponse.json({ items: [] }),
-      ),
+      http.get("/api/admin/patient-imports/imp-2/rows", () => HttpResponse.json({ items: [] })),
     );
     withSession(<PatientImportsAdmin />);
     fireEvent.change(screen.getByLabelText(/ID del lote/), { target: { value: "imp-2" } });
 
     expect(await screen.findByText(/Procesado — revisa y aplica/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Aplicar filas válidas" })).toBeInTheDocument();
+  });
+
+  it("permite reintentar un lote fallido durante procesamiento", async () => {
+    let retried = false;
+    server.use(
+      hospitalsHandler,
+      http.get("/api/admin/patient-imports/imp-failed", () =>
+        HttpResponse.json({
+          import: {
+            id: "imp-failed",
+            status: "failed",
+            failedStage: "process",
+            errorSummary: "La base temporal no respondió.",
+            counts: { total: 49 },
+          },
+        }),
+      ),
+      http.get("/api/admin/patient-imports/imp-failed/rows", () =>
+        HttpResponse.json({ items: [] }),
+      ),
+      http.post("/api/admin/patient-imports/imp-failed/retry", () => {
+        retried = true;
+        return HttpResponse.json({ jobId: "retry-1" }, { status: 202 });
+      }),
+    );
+    withSession(<PatientImportsAdmin />);
+    fireEvent.change(screen.getByLabelText(/ID del lote/), {
+      target: { value: "imp-failed" },
+    });
+
+    const button = await screen.findByRole("button", {
+      name: "Reintentar procesamiento",
+    });
+    fireEvent.click(button);
+    await waitFor(() => expect(retried).toBe(true));
   });
 });
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { HeroDesktopNav, MobileStickyNav } from "@/components/layout/SectionNav";
 import SiteFooter from "@/components/layout/SiteFooter";
+import { reportClientError } from "@/lib/client-errors";
 
 /**
  * ¿El fallo es "el JS de esta pagina ya no existe"?
@@ -33,6 +34,10 @@ export default function Error({
   // Recarga automatica UNA sola vez cuando el fallo es de chunk obsoleto. El
   // guard en sessionStorage evita el bucle si tras recargar sigue fallando
   // (ahi si es un problema de verdad y conviene mostrar el error).
+  useEffect(() => {
+    reportClientError("boundary", error, { digest: error.digest });
+  }, [error]);
+
   useEffect(() => {
     if (!isStaleChunkError(error)) return;
     try {

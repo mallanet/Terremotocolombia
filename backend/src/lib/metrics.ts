@@ -15,7 +15,8 @@ import http from "http";
 import client, { Counter, Histogram, Registry, collectDefaultMetrics } from "prom-client";
 import type { Request, Response, NextFunction } from "express";
 import { env } from "@/config/env";
-import { clientIp } from "@/lib/client-ip";
+import { hashIp } from "@/lib/client-ip";
+import { requestId } from "@/lib/request-context";
 
 export const register = new Registry();
 
@@ -40,6 +41,7 @@ try {
 }
 
 const LABELS = ["method", "route", "status_code"] as const;
+const ACCESS_LOG_SAMPLE_RATE = 0.01;
 
 export const httpRequestsTotal = new Counter({
   name: "http_requests_total",
@@ -93,26 +95,21 @@ export function metricsMiddleware(req: Request, res: Response, next: NextFunctio
     httpRequestDuration.observe(labels, durationS);
     if (res.statusCode >= 400) httpErrorsTotal.inc(labels);
 
-    // Access log estructurado (JSON a stdout) que Loki tail-ea. Lleva la IP REAL
-    // (clientIp): es la práctica estándar de observabilidad para detección de
-    // abuso — el panel "top IPs que nos martillan" (LogQL `topk by (ip)`) solo es
-    // ACCIONABLE con la IP cruda (la bloqueas en Cloudflare/firewall; un hash no
-    // sirve para eso). La IP NUNCA se mete como label de métrica Prometheus (bomba
-    // de cardinalidad): vive solo en el log.
-    //
-    // Distinción clave (no confundir con la regla de la BD): la prohibición de IPs
-    // crudas aplica a la BASE DE DATOS pública/consultable (ahí se usa hashIp en
-    // contact/dedup/rate-limit). Estos son LOGS internos, efímeros (retención
-    // corta en Loki) y con acceso controlado (Caddy + bearer token, no públicos).
+    // Keep every 5xx and sample routine traffic. Logs contain only the salted IP
+    // hash, never the raw address. Cloudflare edge tooling remains the place to
+    // block abusive IPs; application logs are for trends and correlation.
+    if (res.statusCode < 500 && Math.random() >= ACCESS_LOG_SAMPLE_RATE) return;
     try {
       console.log(
         JSON.stringify({
           t: "access",
+          request_id: requestId(req),
+          cf_ray: typeof req.headers["cf-ray"] === "string" ? req.headers["cf-ray"] : undefined,
           method: req.method,
           route,
           status: res.statusCode,
           dur_ms: Math.round(durationS * 1000),
-          ip: clientIp(req),
+          ip_hash: hashIp(req),
         }),
       );
     } catch {

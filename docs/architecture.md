@@ -91,6 +91,10 @@ API, and the frontend anchors them to the backend with `mediaUrl()`.
 - Build inlines every `NEXT_PUBLIC_*` variable. A change to one of these
   variables needs a frontend rebuild and redeploy.
 - TanStack Query manages client-side cache, deduplication, and polling.
+- `ClientErrorReporter` and both Next.js error boundaries send a redacted
+  `client_error` event through the existing OpenPanel client. The event does
+  not include the error message or page path, because both can contain PII or
+  an invite token.
 - Public forms mount Cloudflare Turnstile with `useTurnstile()`, and send
   single-use tokens to the backend. With no `TURNSTILE_SECRET_KEY` set, the
   check turns off, for local development only — see the Turnstile note
@@ -166,8 +170,21 @@ require human review before any deployment.
   > mismatch, now fixed. `SECURITY.md` has the full timeline. **For new
   > code:** assume Turnstile enforces on every guarded mutation, in both
   > staging and production. A missing or invalid token gets a real `403`.
-- Polled reads use an in-process cache and an ETag, when the contract
-  allows it.
+- Polled reads use an in-process cache and an ETag, when the contract allows
+  it. On Cloudflare Workers, a strict public-path allowlist also uses
+  `caches.default`. Only anonymous `200` responses with an explicit public
+  `s-maxage` enter this edge cache. Authenticated requests and photo routes do
+  not share these JSON entries.
+- The API creates an `X-Request-Id` for every request. It returns this ID to
+  the browser and includes it in structured server logs. Routine access logs
+  use a one-percent sample. Every 5xx access log is kept. Logs contain the
+  salted IP hash and never the raw client IP.
+- Workers Logs persist console events but disable automatic invocation logs.
+  This keeps application errors while it avoids one extra log event for every
+  successful poll.
+- Neon retries only a provably read-only SQL statement. A 5xx response does
+  not prove that a write did not commit, so the driver does not repeat an
+  ambiguous write.
 - `GET /api/reports` paginates the full report set. The public map follows
   `totalPages` in bounded batches and deduplicates IDs across page boundaries,
   so it does not lose older reports once the count passes 500 records.
@@ -349,8 +366,10 @@ surface. Turnstile and rate limiting remain the real protection.
 > | Patient import | **live**: the `terremotocolombia-imports` queue, with a consumer in the same Worker. The interactive transactions were rewritten as an idempotent state machine (a conditional per-row claim, plus a deterministic patient ID, so a retry resumes with no duplicate). CSV/XLSX files are written to storage BEFORE they are queued (128 KB per message limit). An exhausted batch stays `failed`, and its dead letter goes to `audit_log` |
 > | Hub federation | does not run (its flag is off) |
 >
-> The distributed rate limiter also falls back to its degraded mode
-> (in-memory, per isolate), because no `VALKEY_URL` exists on this path.
+> A Cloudflare Rate Limiting binding enforces a shared, per-location flood
+> ceiling before the fallback. The route middleware still applies its declared
+> limit. If Valkey is absent, the exact route limit uses a bounded per-isolate
+> map; the map expires inactive keys and has a hard size cap.
 
 - Valkey backs BullMQ and the distributed rate limiter.
 - The `migrate` service in `docker-compose.prod.yml` uses the same backend
@@ -509,6 +528,12 @@ flowchart TB
   `@opennextjs/cloudflare`.
 - The API keeps its original Express code: `backend/src/worker.ts` wraps
   the same Express app with `httpServerHandler`, from `cloudflare:node`.
+- The same entrypoint checks `caches.default` before Express for allowlisted
+  public JSON and immutable photos. This cache is local to a Cloudflare data
+  center. It reduces repeated polls without caching authenticated responses.
+- `EDGE_RATE_LIMITER` is a Workers Rate Limiting binding. Production and
+  staging use separate namespaces, so test traffic cannot consume production
+  counters.
 - Database: **Neon Postgres** (external), through its `-pooler` endpoint.
   On Workers, the driver is Neon's HTTP driver, because a TCP socket
   belongs to the request that opened it, and a stateful pool cannot

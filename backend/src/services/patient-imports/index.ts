@@ -1,8 +1,10 @@
 export { applyImport, purgeAppliedRawData } from "./apply";
 export {
+	claimImportRetry,
 	createImport,
 	getImport,
 	listImportRows,
+	markImportDeadLettered,
 	markImportFailed,
 	markImportQueued,
 	setImportJob,

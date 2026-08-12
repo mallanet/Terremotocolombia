@@ -66,6 +66,7 @@ const CASES: Case[] = [
   },
   { label: "patient-import detail", method: "get", path: "/api/public/patient-imports/none", cap: "patient:import" },
   { label: "patient-import rows", method: "get", path: "/api/public/patient-imports/none/rows", cap: "patient:import" },
+  { label: "patient-import retry", method: "post", path: "/api/public/patient-imports/none/retry", cap: "patient:import" },
   { label: "patient-import apply", method: "post", path: "/api/public/patient-imports/none/apply", cap: "patient:import" },
   // --- Supresión de datos, Ley 1581 (router a mano; deletion:read/edit) ---
   { label: "deletion-requests list", method: "get", path: "/api/public/deletion-requests", cap: "deletion:read" },

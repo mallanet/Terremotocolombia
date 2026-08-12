@@ -26,44 +26,42 @@ check() { # check <etiqueta> <ok?1:0> <detalle>
 code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$API/api/readyz" || echo 000)
 check "API readyz" "$([ "$code" = "200" ] && echo 1 || echo 0)" "HTTP $code"
 
-# 2. Cron de sismos: el catálogo debe tener actividad reciente (feed USGS cada
-#    5 min; umbral generoso de 24 h para no dar falsos rojos en días quietos).
-eq_json=$(curl -s --max-time 30 "$API/api/earthquakes?limit=1" || echo "")
-eq_fresh=$(python3 - "$eq_json" <<'PY'
-import json, sys, time
-try:
-    data = json.loads(sys.argv[1])
-    items = data if isinstance(data, list) else data.get("items") or data.get("earthquakes") or []
-    newest = max((e.get("time") or e.get("occurredAt") or 0) for e in items) if items else 0
-    print(1 if newest and time.time() * 1000 - newest < 24 * 3600 * 1000 else 0)
-except Exception:
-    print(0)
-PY
-)
-check "cron sismos (catálogo <24h)" "$eq_fresh" "último evento reciente: $eq_fresh"
+# 2. The occurrence time is not job freshness: a quiet day can have no event.
+#    The database fetched_at column records the last successful feed sync.
 
 # 3. Publicación de necesidades: SIN emergencia de ResponseGrid para Colombia
 #    no hay prueba end-to-end posible — se declara, no se finge un PASS.
 echo "INFO  publicación de necesidades — verificable solo hasta el borde (ENABLE_RESPONSEGRID off); la ruta de fallo→DLQ→audit_log se probó con mensaje sintético"
 
-# 4. Cartas muertas (si hay doppler): deben ser 0 en régimen normal.
+# 4. Durable job state (when Doppler is available). This reports recent DLQ
+#    activity and unresolved failed imports separately. A historical DLQ record
+#    stops alerting after 24h; an import remains red until an operator resolves it.
 if command -v doppler >/dev/null 2>&1; then
-  dlq=$(doppler run -p terremotocolombia-web -c "$DOPPLER_CONFIG" -- sh -c '
+  job_state=$(doppler run -p terremotocolombia-web -c "$DOPPLER_CONFIG" -- sh -c '
     node -e "
       const { Pool } = require(process.env.PWD + \"/backend/node_modules/pg\");
       (async () => {
         const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1, ssl: { rejectUnauthorized: false } });
-        const r = await pool.query(\"select count(*)::int as n from audit_log where action = '\''queue.dead_letter'\''\");
-        console.log(r.rows[0].n); await pool.end();
+        const r = await pool.query(\"select coalesce((select max(fetched_at)::bigint from earthquakes), 0)::text as fetched, (select count(*)::int from audit_log where action = '\''queue.dead_letter'\'' and created_at > (extract(epoch from now()) * 1000 - 86400000)) as recent_dlq, (select count(*)::int from patient_imports where status = '\''failed'\'') as failed_imports\");
+        console.log([r.rows[0].fetched, r.rows[0].recent_dlq, r.rows[0].failed_imports].join(\" \")); await pool.end();
       })().catch(() => console.log(\"ERR\"));
     "' 2>/dev/null | tail -1)
-  if [ "$dlq" = "ERR" ] || [ -z "$dlq" ]; then
-    check "cartas muertas (audit_log)" 0 "no se pudo consultar"
+  if [[ ! "$job_state" =~ ^[0-9]+\ [0-9]+\ [0-9]+$ ]]; then
+    check "estado durable de jobs" 0 "no se pudo consultar"
   else
-    check "cartas muertas (audit_log)" "$([ "$dlq" = "0" ] && echo 1 || echo 0)" "$dlq registradas (investigar en Auditoría si >0)"
+    read -r fetched_ms recent_dlq failed_imports <<EOF
+$job_state
+EOF
+    now_ms=$(( $(date +%s) * 1000 ))
+    age_ms=$(( now_ms - fetched_ms ))
+    check "cron sismos (fetch <30m)" "$([ "$fetched_ms" -gt 0 ] && [ "$age_ms" -lt 1800000 ] && echo 1 || echo 0)" "edad del último fetch: $(( age_ms / 60000 )) min"
+    check "cartas muertas recientes (<24h)" "$([ "$recent_dlq" = "0" ] && echo 1 || echo 0)" "$recent_dlq registradas"
+    check "importaciones fallidas sin resolver" "$([ "$failed_imports" = "0" ] && echo 1 || echo 0)" "$failed_imports lotes"
   fi
 else
-  echo "INFO  cartas muertas — sin doppler en PATH, check omitido"
+  eq_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$API/api/earthquakes?limit=1" || echo 000)
+  check "catálogo de sismos accesible" "$([ "$eq_code" = "200" ] && echo 1 || echo 0)" "HTTP $eq_code"
+  echo "INFO  frescura de cron y cartas muertas — sin doppler en PATH, checks omitidos"
 fi
 
 if [ "$FALLOS" = "0" ]; then echo "VEREDICTO: verde"; else echo "VEREDICTO: $FALLOS fallo(s)"; exit 1; fi

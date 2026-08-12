@@ -6,6 +6,7 @@ import PwaRegister from "@/components/layout/PwaRegister";
 import PsychosocialSticky from "@/components/layout/PsychosocialSticky";
 import PrivacyConsentGate from "@/components/layout/PrivacyConsentGate";
 import OpenPanelProduction from "@/components/layout/OpenPanelProduction";
+import ClientErrorReporter from "@/components/layout/ClientErrorReporter";
 import ThemeProvider from "@/components/layout/ThemeProvider";
 import QueryProvider from "@/components/layout/QueryProvider";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -211,6 +212,7 @@ export default function RootLayout({
         {OPENPANEL_CLIENT_ID && (
           <OpenPanelProduction clientId={OPENPANEL_CLIENT_ID} />
         )}
+        <ClientErrorReporter />
 
         <QueryProvider>
           <PrivacyConsentGate>{children}</PrivacyConsentGate>

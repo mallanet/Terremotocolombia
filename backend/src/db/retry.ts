@@ -13,13 +13,9 @@
  *
  * POLITICA (asimetrica a proposito, no es paranoia gratuita):
  *
- *  - **5xx CON RESPUESTA del proxy de Neon -> se reintenta SIEMPRE.** Que el
- *    proxy conteste 5xx significa que no pudo enrutar hacia el compute: la
- *    sentencia NO llego a ejecutarse. Reintentar es seguro hasta para escrituras.
- *  - **`fetch` que LANZA (red) -> se reintenta SOLO si la sentencia es de
- *    lectura demostrable.** Aqui no hubo respuesta, asi que es imposible saber
- *    si la sentencia se ejecuto antes de perderse. Repetir a ciegas un INSERT en
- *    un registro de personas desaparecidas es peor que devolver un error.
+ *  - **5xx or a thrown network error -> retry only a provably read-only query.**
+ *    A remote 5xx does not prove that a write was not committed. Repeating an
+ *    ambiguous write can duplicate an increment or turn a success into a conflict.
  *
  * UN SOLO reintento (2 intentos), no dos. El cliente ya reintenta hasta 3 veces
  * ante un 5xx (ver frontend/lib/get-query-client.ts), asi que 2 aqui darian
@@ -92,8 +88,7 @@ export async function retryingFetch(
   const retryOnThrow = isProvablyReadOnly(init?.body);
   try {
     const res = await doFetch(input, init);
-    // 5xx del proxy: la sentencia no se ejecuto. Seguro reintentar siempre.
-    if (res.status >= 500) {
+    if (res.status >= 500 && retryOnThrow) {
       await sleep(RETRY_BACKOFF_MS);
       return await doFetch(input, init);
     }
