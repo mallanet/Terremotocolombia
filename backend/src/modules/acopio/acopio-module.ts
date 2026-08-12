@@ -4,6 +4,9 @@ import { ListCollectionCenters } from "./application/list-collection-centers";
 import { ResponseGridClient } from "./infrastructure/responsegrid/responsegrid-client";
 import { ResponseGridCollectionCenterProvider } from "./infrastructure/responsegrid/responsegrid-collection-center-provider";
 import { CachedCollectionCenterProvider } from "./infrastructure/cached-collection-center-provider";
+import { StaticCollectionCenterProvider } from "./infrastructure/static/static-collection-center-provider";
+import { MergedCollectionCenterProvider } from "./infrastructure/merged-collection-center-provider";
+import type { CollectionCenterProvider } from "./domain/collection-center-provider";
 import { createAcopioRouter } from "./interface/http/acopio-router";
 
 const CACHE_TTL_MS = 120_000;
@@ -11,30 +14,37 @@ const REQUEST_TIMEOUT_MS = 5_000;
 const REFRESH_TIMEOUT_MS = 10_000;
 
 /**
- * Composition root: único punto que lee env y cablea las piezas concretas.
- * Solo se llama cuando ENABLE_RESPONSEGRID=true (ver modules/acopio/index.ts);
- * env.ts ya valida en el arranque que RESPONSEGRID_API_URL/
- * RESPONSEGRID_EMERGENCY_SLUG estén presentes en ese caso — el guard de abajo
- * es defensivo (nunca debería disparar en producción).
+ * Composition root. Siempre sirve la lista estática (centros oficiales del
+ * sismo). Si ENABLE_RESPONSEGRID=true, fusiona ResponseGrid encima.
  */
 export function buildAcopioRouter(): Router {
-  if (!env.RESPONSEGRID_API_URL || !env.RESPONSEGRID_EMERGENCY_SLUG) {
-    throw new Error(
-      "buildAcopioRouter() requiere RESPONSEGRID_API_URL y RESPONSEGRID_EMERGENCY_SLUG " +
-        "(ENABLE_RESPONSEGRID=true debería haber fallado antes en env.ts si faltan).",
+  const providers: CollectionCenterProvider[] = [
+    new StaticCollectionCenterProvider(),
+  ];
+
+  if (
+    env.ENABLE_RESPONSEGRID &&
+    env.RESPONSEGRID_API_URL &&
+    env.RESPONSEGRID_EMERGENCY_SLUG
+  ) {
+    const responseGrid = new ResponseGridClient({
+      baseUrl: env.RESPONSEGRID_API_URL,
+      emergencySlug: env.RESPONSEGRID_EMERGENCY_SLUG,
+      timeoutMs: REQUEST_TIMEOUT_MS,
+      refreshTimeoutMs: REFRESH_TIMEOUT_MS,
+    });
+    providers.push(
+      new CachedCollectionCenterProvider(
+        new ResponseGridCollectionCenterProvider(responseGrid),
+        CACHE_TTL_MS,
+      ),
     );
   }
-  const responseGrid = new ResponseGridClient({
-    baseUrl: env.RESPONSEGRID_API_URL,
-    emergencySlug: env.RESPONSEGRID_EMERGENCY_SLUG,
-    timeoutMs: REQUEST_TIMEOUT_MS,
-    refreshTimeoutMs: REFRESH_TIMEOUT_MS,
-  });
 
-  const provider = new CachedCollectionCenterProvider(
-    new ResponseGridCollectionCenterProvider(responseGrid),
-    CACHE_TTL_MS,
-  );
+  const provider =
+    providers.length === 1
+      ? providers[0]!
+      : new MergedCollectionCenterProvider(providers);
 
   return createAcopioRouter(new ListCollectionCenters(provider));
 }

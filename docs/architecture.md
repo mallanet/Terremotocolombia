@@ -216,13 +216,14 @@ adentro (la infraestructura depende del dominio, no al revés):
 - `<dominio>-module.ts`: composition root; el único sitio que lee `env` y
   cablea adaptador → puerto → caso de uso → router.
 
-Primer módulo: **acopio** (`modules/acopio/`, gateado por
-`ENABLE_RESPONSEGRID`), que proxea el directorio de centros de acopio de
-ResponseGrid (config en `RESPONSEGRID_API_URL` / `RESPONSEGRID_EMERGENCY_SLUG`).
-Añadir otra fuente = otro adaptador del mismo puerto, cableado en el
-composition root; el dominio y la capa HTTP no cambian. Las reglas ESLint de
-endpoints (`require-rate-limit`, guard de mutaciones) también cubren
-`src/modules/**`.
+Primer módulo: **acopio** (`modules/acopio/`, siempre montado en
+`/api/acopio`). Sirve una lista estática de centros oficiales del sismo
+(`infrastructure/static/`) y, si `ENABLE_RESPONSEGRID=true`, fusiona el
+directorio de ResponseGrid (`RESPONSEGRID_API_URL` /
+`RESPONSEGRID_EMERGENCY_SLUG`). Añadir otra fuente = otro adaptador del mismo
+puerto, cableado en el composition root; el dominio y la capa HTTP no cambian.
+Las reglas ESLint de endpoints (`require-rate-limit`, guard de mutaciones)
+también cubren `src/modules/**`.
 
 Segundo módulo: **needs** (`modules/needs/`), lado de ESCRITURA: publica una
 necesidad de insumos en ResponseGrid vía `POST /api/needs` (mutación pública

@@ -180,13 +180,13 @@ app.use("/api/donations", donationsRouter);
 app.use("/api/patients", patientsRouter);
 app.use("/api/geocode", geocodeRouter);
 app.use("/api/geo", geoRouter);
-// Módulos ResponseGrid (acopio + needs): OFF por defecto (gating). Sin
-// ENABLE_RESPONSEGRID=true, estas rutas NUNCA se registran — 404 genérico de
-// /api/*, en vez de una integración externa a medio configurar respondiendo
-// 502/503. env.ts ya falla rápido en el arranque si el flag está en true pero
-// falta RESPONSEGRID_API_URL/RESPONSEGRID_EMERGENCY_SLUG.
+// Acopio: siempre montado (lista estática de centros oficiales del sismo;
+// ResponseGrid se fusiona solo si ENABLE_RESPONSEGRID=true).
+app.use("/api/acopio", acopioRouter);
+// Needs (escritura ResponseGrid): OFF por defecto. Sin el flag, 404 en vez de
+// una integración a medio configurar. env.ts falla rápido si el flag está en
+// true pero faltan RESPONSEGRID_API_URL / RESPONSEGRID_EMERGENCY_SLUG.
 if (env.ENABLE_RESPONSEGRID) {
-  app.use("/api/acopio", acopioRouter);
   app.use("/api/needs", needsRouter);
 }
 app.use("/api/stats/psychology-help", psychologyHelpRouter);

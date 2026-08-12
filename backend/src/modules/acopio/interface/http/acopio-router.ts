@@ -11,11 +11,11 @@ import {
  * /api/acopio:
  *   get:
  *     tags: [system]
- *     summary: Centros de acopio verificados (proxy de ResponseGrid)
+ *     summary: Centros de acopio verificados
  *     description: >-
  *       Devuelve los puntos donde se reciben donaciones físicas, con facetas de
- *       país y categoría para filtrar. Los datos provienen de ResponseGrid y se
- *       cachean en el backend.
+ *       país y categoría para filtrar. Incluye la lista estática de centros
+ *       oficiales del sismo y, si ENABLE_RESPONSEGRID=true, ResponseGrid.
  *     parameters:
  *       - in: query
  *         name: country
