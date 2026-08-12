@@ -21,6 +21,10 @@ const eslintConfig = defineConfig([
     // el flat config de eslint no lo lee.
     ".open-next/**",
     ".wrangler/**",
+    // Artefactos HTML/traces/videos generados por Playwright. Como en los
+    // casos anteriores, el flat config no hereda estas entradas de .gitignore.
+    "playwright-report/**",
+    "test-results/**",
     // Modulos generados en prebuild (ver scripts/generate-brand-logo.mjs).
     "lib/generated/**",
     // Volcado vendado de un design system (no es código de la app).

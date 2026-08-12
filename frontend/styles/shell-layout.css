@@ -650,7 +650,7 @@
 
 	.e-nav__links,
 	.e-nav__support,
-	.e-nav__language {
+	.e-nav__psych-wrap {
 		display: none;
 	}
 
@@ -673,6 +673,19 @@
 
 	.e-hero__product-name {
 		display: none;
+	}
+}
+
+@media (max-width: 430px) {
+	.e-nav__inner {
+		gap: 8px;
+	}
+
+	/* El selector global sustituye el selector duplicado del mapa. La ayuda
+	   psicológica sigue disponible en la hoja "Más" del móvil. */
+	.e-nav__language {
+		min-width: 44px;
+		padding-inline: 10px;
 	}
 }
 
@@ -699,7 +712,7 @@
 	max-width: 32rem;
 	margin-inline: auto;
 	display: grid;
-	grid-template-columns: repeat(4, 1fr);
+	grid-template-columns: repeat(5, 1fr);
 }
 
 .e-nav__mobile-bar-item {
@@ -2981,6 +2994,11 @@
 .e-footer__legal-meta a,
 .e-footer__legal-copy a {
 	color: var(--m-blue-100);
+}
+
+.e-footer__legal-copy a {
+	text-decoration: underline;
+	text-underline-offset: 2px;
 }
 
 .e-footer__legal-copy,

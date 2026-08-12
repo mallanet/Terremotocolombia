@@ -28,17 +28,21 @@
 // hace días como si fuera actual, y como el cache solo se actualizaba con un
 // fetch EXITOSO, nunca sanaba (visto en producción: "15 reportadas" con 100
 // personas en base). Ver networkFirst: ahora revalida en segundo plano.
-const CACHE_VERSION = "v8";
+// v9: añade el shell y los datos estáticos de /mapa-de-rescate, con un cache
+// separado y timestamp. No intercepta ni almacena tiles de OSM/Esri.
+const CACHE_VERSION = "v9";
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const PHOTO_CACHE = `photos-${CACHE_VERSION}`;
 const API_CACHE = `api-${CACHE_VERSION}`;
 const HTML_CACHE = `html-${CACHE_VERSION}`;
+const RESCUE_DATA_CACHE = `rescue-data-${CACHE_VERSION}`;
 
 const KEEP_CACHES = new Set([
   STATIC_CACHE,
   PHOTO_CACHE,
   API_CACHE,
   HTML_CACHE,
+  RESCUE_DATA_CACHE,
 ]);
 
 const CORE_ASSETS = [
@@ -51,8 +55,13 @@ const CORE_ASSETS = [
   "/icon-512.png",
   "/brand/isotipo-oscuro.svg",
   "/manifest.webmanifest",
+  "/mapa-de-rescate.webmanifest",
 ];
-const CORE_PAGES = ["/", "/privacidad"];
+const CORE_PAGES = ["/", "/privacidad", "/mapa-de-rescate"];
+const RESCUE_DATA_PATHS = [
+  "/data/incidents/colombia-2026-08-10-san-jose-del-palmar.json",
+  "/data/incidents/colombia-2026-08-10-emsr916-map.json",
+];
 // El precache de snapshots `/api/...` se eliminó al mover el backend a
 // `api.<dominio>` (cross-origin): `cache.addAll` con una URL cross-origin sin
 // CORS configurado falla y aborta el install. El `networkFirst` posterior se
@@ -70,6 +79,60 @@ const OFFLINE_HTML = `<!doctype html><html lang="es"><head><meta charset="utf-8"
 const API_TIMEOUT_MS = 8000;
 const NAVIGATION_TIMEOUT_MS = 4000;
 
+async function precacheRescueData() {
+  const cache = await caches.open(RESCUE_DATA_CACHE);
+  await Promise.all(
+    RESCUE_DATA_PATHS.map(async (path) => {
+      try {
+        const request = new Request(new URL(path, self.location.origin));
+        const response = await fetch(request);
+        if (response.ok) await putWithTimestamp(cache, request, response);
+      } catch {
+        // El install no se aborta si un asset puntual no está disponible.
+      }
+    }),
+  );
+}
+
+async function precacheRouteShell(path) {
+  try {
+    const response = await fetch(path);
+    if (!response.ok) return;
+    const htmlCache = await caches.open(HTML_CACHE);
+    await htmlCache.put(path, response.clone());
+
+    // Next inyecta los chunks content-hashed del route en el HTML. Guardarlos
+    // permite reabrir el mapa tras la primera instalación aun con caché HTTP
+    // vacía. Solo se aceptan assets same-origin; no se descargan tiles ni CDN.
+    const html = await response.text();
+    const staticCache = await caches.open(STATIC_CACHE);
+    const assetUrls = new Set();
+    for (const match of html.matchAll(/(?:src|href)=["']([^"']+)["']/g)) {
+      const raw = match[1]?.replaceAll("&amp;", "&");
+      if (!raw) continue;
+      const url = new URL(raw, self.location.origin);
+      if (
+        url.origin === self.location.origin &&
+        url.pathname.startsWith("/_next/static/")
+      ) {
+        assetUrls.add(url.href);
+      }
+    }
+    await Promise.all(
+      [...assetUrls].map(async (href) => {
+        try {
+          const asset = await fetch(href);
+          if (asset.ok) await staticCache.put(href, asset);
+        } catch {
+          // Un chunk faltante se volverá a solicitar en la próxima visita.
+        }
+      }),
+    );
+  } catch {
+    // La navegación conserva el fallback HTML genérico si el shell falla.
+  }
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     Promise.all([
@@ -79,6 +142,8 @@ self.addEventListener("install", (event) => {
       caches
         .open(HTML_CACHE)
         .then((cache) => cache.addAll(CORE_PAGES).catch(() => {})),
+      precacheRescueData(),
+      precacheRouteShell("/mapa-de-rescate"),
     ])
       .then(() => self.skipWaiting()),
   );
@@ -202,11 +267,50 @@ async function markStale(cached) {
   }
 }
 
-async function networkFirst(event, request, cacheName) {
+async function responseVersion(response) {
+  const headerVersion =
+    response.headers.get("etag") || response.headers.get("last-modified");
+  if (headerVersion) return headerVersion;
+  try {
+    const body = await response.clone().json();
+    return body.lastCheckedAt || body.lastVerifiedAt || body.schemaVersion || null;
+  } catch {
+    return null;
+  }
+}
+
+async function notifyRescueDataUpdate(request, previous, fresh) {
+  if (!previous) return;
+  const [previousVersion, freshVersion] = await Promise.all([
+    responseVersion(previous),
+    responseVersion(fresh),
+  ]);
+  if (!freshVersion || previousVersion === freshVersion) return;
+  const clients = await self.clients.matchAll({ type: "window" });
+  for (const client of clients) {
+    client.postMessage({
+      type: "rescue-map-data-updated",
+      url: request.url,
+    });
+  }
+}
+
+async function networkFirst(
+  event,
+  request,
+  cacheName,
+  notifyOnUpdate = false,
+) {
   const cache = await caches.open(cacheName);
   try {
     const fresh = await fetchWithTimeout(request, API_TIMEOUT_MS);
-    if (fresh.ok) await putWithTimestamp(cache, request, fresh.clone());
+    if (fresh.ok) {
+      const previous = notifyOnUpdate ? await cache.match(request) : null;
+      await putWithTimestamp(cache, request, fresh.clone());
+      if (notifyOnUpdate) {
+        await notifyRescueDataUpdate(request, previous, fresh.clone());
+      }
+    }
     return fresh;
   } catch {
     const cached = await cache.match(request);
@@ -220,7 +324,15 @@ async function networkFirst(event, request, cacheName) {
       // backend para el siguiente poll de la app (60 s).
       event.waitUntil(
         fetchWithTimeout(new Request(request.url), 30_000)
-          .then((late) => (late.ok ? putWithTimestamp(cache, request, late) : null))
+          .then(async (late) => {
+            if (!late.ok) return null;
+            const previous = notifyOnUpdate ? await cache.match(request) : null;
+            await putWithTimestamp(cache, request, late.clone());
+            if (notifyOnUpdate) {
+              await notifyRescueDataUpdate(request, previous, late);
+            }
+            return null;
+          })
           .catch(() => {}),
       );
       return markStale(cached);
@@ -306,7 +418,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 4. Assets estáticos de Next y públicos: cache-first.
+  // 4. Datos estáticos del mapa de rescate: network-first, timestamp y aviso
+  //    cuando llega una versión nueva. Nunca se presentan como actuales si se
+  //    sirven desde cache.
+  if (sameOrigin && RESCUE_DATA_PATHS.includes(url.pathname)) {
+    event.respondWith(
+      networkFirst(event, request, RESCUE_DATA_CACHE, true),
+    );
+    return;
+  }
+
+  // 5. Assets estáticos de Next y públicos: cache-first.
   if (
     sameOrigin &&
     (url.pathname.startsWith("/_next/static/") ||
@@ -318,6 +440,7 @@ self.addEventListener("fetch", (event) => {
       url.pathname === "/icon-192.png" ||
       url.pathname === "/icon-512.png" ||
       url.pathname === "/manifest.webmanifest" ||
+      url.pathname === "/mapa-de-rescate.webmanifest" ||
       url.pathname.endsWith(".png") ||
       url.pathname.endsWith(".svg") ||
       url.pathname.endsWith(".css") ||

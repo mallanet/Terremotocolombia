@@ -5,7 +5,7 @@ export interface SectionLink {
   icon: string;
   tone?: "default" | "primary" | "purple" | "emerald" | "sky";
   badge?: "missing" | "found";
-  /** Visible en la barra inferior móvil (máx. 3 + botón Menú). */
+  /** Visible en la barra inferior móvil (máx. 4 + botón Menú). */
   mobileBar?: boolean;
 }
 
@@ -19,6 +19,14 @@ export const PRIMARY_MAP_LINK: SectionLink = {
 };
 
 export const SECTION_LINKS: SectionLink[] = [
+  {
+    href: "/mapa-de-rescate",
+    label: "Mapa de rescate",
+    shortLabel: "Rescate",
+    icon: "🧭",
+    tone: "primary",
+    mobileBar: true,
+  },
   {
     href: "#e-directory",
     label: "Personas desaparecidas",

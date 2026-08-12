@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 @import "../styles/shell-layout.css";
+@import "../styles/rescue-map.css";
 
 /* ==========================================================================
    Disaster response template — design tokens
