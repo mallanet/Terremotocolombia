@@ -265,6 +265,7 @@ export const MODELS = [
     columns: [
       { key: "id", label: "ID" },
       { key: "name", label: "Nombre" },
+      { key: "code", label: "Código" },
       { key: "contact", label: "Contacto" },
       { key: "zone", label: "Ciudad / país" },
       { key: "source", label: "Origen" },
@@ -314,6 +315,22 @@ export const MODELS = [
       { key: "transportNote", label: "Nota de transporte" },
     ],
     // Sin canDelete: una tarea se cancela por estado, no se borra.
+  },
+  {
+    path: "volunteer-checkins",
+    label: "Check-ins de voluntarios",
+    readCapability: "volunteer:read",
+    capabilityRoot: "volunteer",
+    columns: [
+      { key: "volunteerName", label: "Voluntario" },
+      { key: "volunteerCode", label: "Código" },
+      { key: "place", label: "Lugar" },
+      { key: "note", label: "Qué dejó" },
+      { key: "hasPhoto", label: "Foto" },
+      { key: "createdAt", label: "Fecha" },
+    ],
+    // Solo lectura: los check-ins ENTRAN por la vía pública (/checkin con el
+    // código del voluntario). Aquí el equipo solo verifica quién estuvo dónde.
   },
   {
     path: "deletion-requests",

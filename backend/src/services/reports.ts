@@ -67,6 +67,8 @@ export interface CreateReportInput {
   affected?: number;
   needs?: string;
   photo?: string | null;
+  /** Atribución interna (resuelta desde el código en el route). No sale en el DTO. */
+  volunteerId?: string | null;
 }
 
 export const DEFAULT_REPORT_PAGE_SIZE = 500;
@@ -234,6 +236,7 @@ export async function addReport(input: CreateReportInput): Promise<ReportDTO> {
     needs: report.needs,
     photo: stored,
     photoMigratedAt: migratedAt,
+    volunteerId: input.volunteerId ?? null,
     createdAt: report.createdAt,
   });
   invalidate();

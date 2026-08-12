@@ -35,12 +35,20 @@ humano.
 | API | Cloudflare Workers, `api.terremotocolombia.co` |
 | Base de datos | Neon Postgres (externa) |
 | Secretos | Doppler — no ficheros `.env` |
+| Panel de administración | Cloudflare Workers, `admin.terremotocolombia.co` (detrás de Cloudflare Access) |
 | Despliegue del frontend | **Automático, en cada push a `main`** que toque `frontend/**` |
-| Despliegue del backend | Solo manual, con confirmación explícita |
+| Despliegue del admin | **Automático, en cada push a `main`** que toque `admin/**` |
+| Despliegue del backend | **Solo manual** — `workflow_dispatch`, nunca con el merge |
 
-No hay entorno de staging: **`main` es producción.** Hoy sin desplegar: el panel
-de administración y el worker de colas BullMQ. Turnstile está desactivado — ver
-[`SECURITY.md`](SECURITY.md).
+**`main` es producción**, y además existe la rama y el entorno de `staging`
+(`staging.terremotocolombia.co`, con su propia rama de Neon) donde todo el
+stack —API incluida— se despliega solo. La asimétrica es producción: el
+frontend y el panel salen con el merge, pero la API solo sale cuando un humano
+lanza `deploy-backend.yml`, que antes corre un gate de deriva de esquema que
+falla cerrado. Las migraciones no las corre CI en ningún entorno.
+
+Hoy sin desplegar: el worker de colas BullMQ (sus jobs se portaron a Cloudflare
+Queues y Cron Triggers).
 
 ## Para quién es
 
@@ -100,9 +108,12 @@ Drizzle ORM sobre Postgres) sirve todo bajo `/api`, más
 geocodificación, deduplicación y federación de hub opcional. `admin/` es un
 microservicio Next.js separado —un backend-for-frontend con su propio RBAC
 (JWT en cookie httpOnly) que habla con el backend por la red interna, nunca
-directo a la base de datos. Producción es **un solo VPS**:
-`docker-compose.prod.yml` + Caddy como único reverse proxy que termina TLS,
-con Postgres y Valkey co-ubicados por defecto. Ver
+directo a la base de datos. El camino de **un solo VPS** de la plantilla
+(`docker-compose.prod.yml` + Caddy como único reverse proxy que termina TLS,
+con Postgres y Valkey co-ubicados) sigue soportado y es el único donde funcionan
+las colas y las transacciones interactivas — pero **no** es lo que sirve
+terremotocolombia.co hoy. Este despliegue corre en Cloudflare Workers con Neon
+Postgres, como dice la tabla de arriba. Ver
 [`docs/architecture.md`](docs/architecture.md) para el panorama completo.
 
 ## Guía rápida

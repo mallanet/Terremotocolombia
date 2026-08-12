@@ -38,6 +38,8 @@ export interface VolunteerInput {
 
 export interface VolunteerResponse {
   message?: string;
+  /** Código único del voluntario: se muestra UNA vez en la pantalla de éxito. */
+  code?: string;
 }
 
 export function useVolunteerSubmit() {

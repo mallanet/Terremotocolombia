@@ -34,12 +34,20 @@ without a human.
 | API | Cloudflare Workers, `api.terremotocolombia.co` |
 | Database | Neon Postgres (external) |
 | Secrets | Doppler — not `.env` files |
+| Admin panel | Cloudflare Workers, `admin.terremotocolombia.co` (behind Cloudflare Access) |
 | Frontend deploys | **Automatically, on every push to `main`** touching `frontend/**` |
-| Backend deploys | Manual only, with an explicit confirmation |
+| Admin deploys | **Automatically, on every push to `main`** touching `admin/**` |
+| Backend deploys | **Manual only** — `workflow_dispatch`, never on merge |
 
-There is no staging environment: **`main` is production.** Not currently
-deployed: the admin panel and the BullMQ queue worker. Turnstile is disabled —
-see [`SECURITY.md`](SECURITY.md).
+**`main` is production**, and there is also a `staging` branch and environment
+(`staging.terremotocolombia.co`, its own Neon branch) where the whole stack —
+including the API — deploys automatically. Production is the asymmetric one: the
+frontend and admin panel ship with the merge, but the API only ships when a human
+launches `deploy-backend.yml`, which first runs a schema-drift gate that fails
+closed. Migrations are never run by CI, in either environment.
+
+Not currently deployed: the BullMQ queue worker (its jobs were ported to
+Cloudflare Queues and Cron Triggers).
 
 ## Who this is for
 
@@ -99,8 +107,11 @@ ORM over Postgres) serves everything under `/api`, plus `backend/worker/`
 optional hub federation. `admin/` is a separate Next.js microservice — a
 backend-for-frontend with its own RBAC (JWT in an httpOnly cookie) that talks
 to the backend over the internal network, never straight to the database.
-Production is **one VPS**: `docker-compose.prod.yml` + Caddy as the single
-TLS-terminating reverse proxy, Postgres and Valkey co-located by default. See
+The template's **one VPS** path (`docker-compose.prod.yml` + Caddy as the single
+TLS-terminating reverse proxy, Postgres and Valkey co-located) is still
+supported and is the only path where queues and interactive transactions all
+work — but it is **not** what serves terremotocolombia.co today. This deployment
+runs on Cloudflare Workers with Neon Postgres, as the table above says. See
 [`docs/architecture.md`](docs/architecture.md) for the full picture.
 
 ## Quickstart

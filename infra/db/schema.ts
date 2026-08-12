@@ -49,6 +49,11 @@ export const reports = pgTable(
     needs: text("needs").notNull().default(""),
     photo: text("photo"),
     confirmations: integer("confirmations").notNull().default(0),
+    // Atribución opcional: voluntario que reporta (resuelto desde su código
+    // único en el route). Nunca se expone en el DTO público del reporte.
+    volunteerId: text("volunteer_id").references(() => volunteers.id, {
+      onDelete: "set null",
+    }),
     createdAt: epochMs("created_at").notNull(),
     // Set when this row's `photo` has been moved off the DB (base64) / external
     // host and onto R2. NULL = not yet migrated. Lets the image-rehost worker
@@ -694,6 +699,9 @@ export const volunteers = pgTable(
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     contact: text("contact").notNull(),
+    // Código único de 6 dígitos: lo conoce el voluntario (se muestra una vez
+    // al registrarse) y el equipo. Credencial para check-ins y atribución.
+    code: text("code").notNull(),
     offer: text("offer").notNull(),
     zone: text("zone").notNull(),
     availability: text("availability"),
@@ -715,6 +723,29 @@ export const volunteers = pgTable(
   (t) => [
     index("volunteers_created_at_idx").on(t.createdAt.desc()),
     index("volunteers_status_idx").on(t.status, t.createdAt.desc()),
+    uniqueIndex("volunteers_code_unique").on(t.code),
+  ],
+);
+
+/* -------------------------------------------------- volunteer_checkins */
+// Check-in de voluntario en un punto físico (centro de acopio, refugio):
+// qué dejó (caja/espacio) + foto de evidencia. La credencial es el código
+// único del voluntario (volunteers.code), verificado en el route.
+export const volunteerCheckins = pgTable(
+  "volunteer_checkins",
+  {
+    id: text("id").primaryKey(),
+    volunteerId: text("volunteer_id")
+      .notNull()
+      .references(() => volunteers.id, { onDelete: "cascade" }),
+    place: text("place").notNull(),
+    note: text("note").notNull().default(""),
+    photo: text("photo"),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (t) => [
+    index("volunteer_checkins_volunteer_idx").on(t.volunteerId, t.createdAt.desc()),
+    index("volunteer_checkins_created_at_idx").on(t.createdAt.desc()),
   ],
 );
 

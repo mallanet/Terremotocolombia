@@ -27,6 +27,7 @@ interface ReportFormProps {
     affected: number;
     needs: string;
     photo: string | null;
+    volunteerCode?: string;
     turnstileToken?: string;
   }) => Promise<void>;
 }
@@ -54,6 +55,7 @@ export default function ReportForm({
   const [place, setPlace] = useState("");
   const [affected, setAffected] = useState("");
   const [needs, setNeeds] = useState("");
+  const [volunteerCode, setVolunteerCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -117,6 +119,7 @@ export default function ReportForm({
         affected: copy.showAffected ? Number(affected) || 0 : 0,
         needs: needs.trim(),
         photo,
+        volunteerCode: volunteerCode.trim() || undefined,
         turnstileToken,
       });
       trackEvent("report_created", {
@@ -324,6 +327,30 @@ export default function ReportForm({
               placeholder={copy.needsPlaceholder}
               className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
             />
+          </div>
+
+          <div>
+            <label
+              htmlFor="volunteer-code"
+              className="mb-1 block text-sm font-medium text-slate-700"
+            >
+              ¿Eres voluntario? Tu código (opcional)
+            </label>
+            <input
+              id="volunteer-code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={volunteerCode}
+              onChange={(e) => setVolunteerCode(e.target.value)}
+              placeholder="483 920"
+              maxLength={12}
+              className="e-input w-40 font-mono tracking-widest"
+            />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Si te registraste como voluntario, tu código firma este reporte:
+              sabremos que viene de ti.
+            </p>
           </div>
 
           <div>

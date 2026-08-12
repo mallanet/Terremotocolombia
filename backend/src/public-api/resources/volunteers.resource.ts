@@ -46,6 +46,7 @@ const responseSchema = z.object({
   id: z.string(),
   name: z.string(),
   contact: z.string(),
+  code: z.string(),
   offer: z.string(),
   zone: z.string(),
   availability: z.string().nullable(),

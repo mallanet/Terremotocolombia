@@ -35,8 +35,10 @@ rama de trabajo  ──PR──▶  staging  ──(probar de verdad)──▶  
   desaparecidas. En producción eso no se hace nunca.
 - En **staging se despliegan los dos tiers automáticamente** (frontend y API).
   Es el motivo de existir del entorno: si probar un cambio de API exigiera un
-  paso manual, nadie lo probaría. En **`main` el backend sigue siendo manual**
-  y con confirmación explícita.
+  paso manual, nadie lo probaría. En **`main` el backend es manual**: se
+  despliega lanzando `deploy-backend.yml` a mano, nunca con el merge. Mergear
+  a `main` deja el código listo; la API vieja sigue sirviendo hasta que alguien
+  pulsa el botón.
 - Excepción justificable: un hotfix de producción puede ir directo a `main`,
   pero se porta a `staging` inmediatamente después para que no diverjan.
 

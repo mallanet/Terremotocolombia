@@ -27,6 +27,7 @@ export interface VolunteerDTO {
   id: string;
   name: string;
   contact: string;
+  code: string;
   offer: string;
   zone: string;
   availability: string | null;
@@ -50,6 +51,50 @@ export interface VolunteerStats {
   last24h: number;
 }
 
+const CODE_DIGITS = 6;
+const CODE_SPACE = 1_000_000;
+const CODE_MAX_ATTEMPTS = 20;
+
+function randomCode(): string {
+  const n = crypto.getRandomValues(new Uint32Array(1))[0]! % CODE_SPACE;
+  return String(n).padStart(CODE_DIGITS, "0");
+}
+
+/** Código de 6 dígitos único (reintenta ante colisión; sin transacción). */
+async function generateUniqueCode(): Promise<string> {
+  const db = await getDb();
+  for (let attempt = 0; attempt < CODE_MAX_ATTEMPTS; attempt += 1) {
+    const code = randomCode();
+    const clash = await db
+      .select({ id: volunteers.id })
+      .from(volunteers)
+      .where(eq(volunteers.code, code))
+      .limit(1);
+    if (clash.length === 0) return code;
+  }
+  throw new Error("volunteers: no se pudo generar un código único");
+}
+
+/** Normaliza lo que escribe la persona: "483 920" → "483920". */
+export function normalizeVolunteerCode(raw: string): string {
+  return raw.replace(/\D/g, "").slice(0, CODE_DIGITS);
+}
+
+/** Dueño del código (id + nombre), o null si no existe. */
+export async function getVolunteerByCode(
+  rawCode: string,
+): Promise<{ id: string; name: string } | null> {
+  const code = normalizeVolunteerCode(rawCode);
+  if (code.length !== CODE_DIGITS) return null;
+  const db = await getDb();
+  const rows = await db
+    .select({ id: volunteers.id, name: volunteers.name })
+    .from(volunteers)
+    .where(eq(volunteers.code, code))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export async function createVolunteer(input: {
   name: string;
   contact: string;
@@ -65,14 +110,16 @@ export async function createVolunteer(input: {
   ownVehicle?: boolean;
   source?: string;
   ipHash?: string | null;
-}): Promise<{ id: string }> {
+}): Promise<{ id: string; code: string }> {
   const id = crypto.randomUUID();
   const db = await getDb();
+  const code = await generateUniqueCode();
   const now = Date.now();
   await db.insert(volunteers).values({
     id,
     name: input.name,
     contact: input.contact,
+    code,
     offer: input.offer,
     zone: input.zone,
     availability: input.availability,
@@ -89,7 +136,7 @@ export async function createVolunteer(input: {
     createdAt: now,
     updatedAt: now,
   });
-  return { id };
+  return { id, code };
 }
 
 /** Lista de voluntarios para el panel admin (DTO allowlist, sin ip_hash). */
@@ -100,6 +147,7 @@ export async function listVolunteers(): Promise<VolunteerDTO[]> {
       id: volunteers.id,
       name: volunteers.name,
       contact: volunteers.contact,
+      code: volunteers.code,
       offer: volunteers.offer,
       zone: volunteers.zone,
       availability: volunteers.availability,
@@ -129,6 +177,7 @@ export async function getVolunteerById(id: string): Promise<VolunteerDTO | null>
       id: volunteers.id,
       name: volunteers.name,
       contact: volunteers.contact,
+      code: volunteers.code,
       offer: volunteers.offer,
       zone: volunteers.zone,
       availability: volunteers.availability,
@@ -206,6 +255,7 @@ function toDTO(r: {
   id: string;
   name: string;
   contact: string;
+  code: string;
   offer: string;
   zone: string;
   availability: string | null;
@@ -226,6 +276,7 @@ function toDTO(r: {
     id: r.id,
     name: r.name,
     contact: r.contact,
+    code: r.code,
     offer: r.offer,
     zone: r.zone,
     availability: r.availability,

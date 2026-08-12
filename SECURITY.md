@@ -58,18 +58,24 @@ tenga que construir desde cero:
   estar presente o las escrituras públicas quedan sin verificación
   anti-bot.
 
-  > **ESTADO EN terremotocolombia.co (2026-08-10): DESACTIVADO.**
-  > `TURNSTILE_SECRET_KEY` está **retirada** del Worker de la API, así que las
-  > escrituras públicas **no tienen prueba de humanidad** ahora mismo. No fue
-  > una decisión de diseño: el bundle del frontend no estaba enviando la site
-  > key pública, el widget no se montaba, no se generaba token, y **todos** los
-  > reportes de personas desaparecidas fallaban con 403. Se prefirió aceptar
-  > spam a impedir que alguien reporte a un familiar.
+  > **ESTADO EN terremotocolombia.co (verificado 2026-08-11): ACTIVO.**
+  > `TURNSTILE_SECRET_KEY` está puesta en el Worker de la API (`wrangler secret
+  > list`) y un `POST /api/missing` sin token responde **403**, así que la
+  > verificación se está aplicando de verdad.
   >
-  > Mitigaciones que siguen activas: WAF gestionado y rate limiting de
-  > Cloudflare en el borde, más el rate-limit del propio backend.
+  > Estuvo **desactivado** entre el 2026-08-10 y el 2026-08-11: el bundle del
+  > frontend no enviaba la site key pública, el widget no se montaba, no se
+  > generaba token, y **todos** los reportes de personas desaparecidas fallaban
+  > con 403. Se prefirió aceptar spam a impedir que alguien reporte a un
+  > familiar. Se repuso una vez confirmada la site key en el bundle.
   >
-  > Para reactivarlo, **en este orden**: (1) verificar que
+  > **Consecuencia para código nuevo:** todo formulario público que escriba DEBE
+  > mandar `turnstileToken` (patrón canónico: `useTurnstile()` + `getToken()` por
+  > submit, ver `components/features/contacts/ContactForm.tsx`). Un `POST` sin
+  > token responde 403 — que es exactamente como se rompieron los reportes en su
+  > día.
+  >
+  > Si alguna vez hay que rehacer ese ciclo, **en este orden**: (1) verificar que
   > `NEXT_PUBLIC_TURNSTILE_SITE_KEY` llega al bundle desplegado, (2) recién
   > entonces reponer `TURNSTILE_SECRET_KEY` en el Worker. Al revés se vuelven a
   > romper los reportes.

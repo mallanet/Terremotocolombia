@@ -23,6 +23,7 @@ import { chatResource } from "@/public-api/resources/chat.resource";
 import { contactResource } from "@/public-api/resources/contact.resource";
 import { volunteersResource } from "@/public-api/resources/volunteers.resource";
 import { volunteerTasksResource } from "@/public-api/resources/volunteer-tasks.resource";
+import { volunteerCheckinsResource } from "@/public-api/resources/volunteer-checkins.resource";
 import { rolesResource } from "@/public-api/resources/roles.resource";
 // Routers RBAC escritos a mano (verbos irregulares que no encajan en la fábrica).
 import { usersRouter } from "@/public-api/routers/users.router";
@@ -59,6 +60,7 @@ export const PUBLIC_RESOURCES: Record<string, AnyResource> = {
   contact: contactResource as AnyResource,
   volunteers: volunteersResource as AnyResource,
   "volunteer-tasks": volunteerTasksResource as AnyResource,
+  "volunteer-checkins": volunteerCheckinsResource as AnyResource,
   // RBAC: roles encaja en el cuarteto CRUD (read/create/edit/delete) → fábrica.
   roles: rolesResource as AnyResource,
 };
