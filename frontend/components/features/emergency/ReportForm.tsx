@@ -149,85 +149,97 @@ export default function ReportForm({
         onKeyDown={(e) => {
           if (e.key === "Escape") onCancel();
         }}
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-[var(--esurf)] p-5 shadow-xl outline-none sm:rounded-2xl sm:p-6"
+        className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-[var(--esurf)] shadow-xl outline-none sm:rounded-2xl"
       >
-        <div className="mb-3 flex items-start justify-between">
-          <h2 id="form-title" className="text-lg font-bold text-slate-900">
-            🚨 Reportar Información
-          </h2>
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--eborder)] px-5 pb-3 pt-4 sm:px-6">
+          <div>
+            <h2 id="form-title" className="e-report-modal__title">
+              Reportar Información
+            </h2>
+            <p className="e-report-modal__subtitle">
+              Lo que compartas ayuda a coordinar la respuesta en tu zona.
+            </p>
+          </div>
           <button
             type="button"
             onClick={onCancel}
             data-track="report_modal_close"
             aria-label="Cerrar"
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="e-report-modal__close"
           >
             ×
           </button>
         </div>
 
-        <div
-          className={`mb-4 rounded-lg border p-3 ${
-            coords
-              ? "border-slate-200 bg-slate-50"
-              : "border-amber-300 bg-amber-50"
-          }`}
+        <form
+          onSubmit={handleSubmit}
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 sm:px-6"
         >
-          <p className="mb-2 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-700">
-            <span aria-hidden>📍</span> Ubicación del reporte
-            <span
-              className={`font-normal ${coords ? "text-slate-500" : "text-amber-700"}`}
-            >
-              {coords
-                ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`
-                : "sin definir — elígela abajo"}
-            </span>
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {onPickOnMap && (
-              <button
-                type="button"
-                onClick={onPickOnMap}
-                className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                🗺️ Elegir en el mapa
-              </button>
-            )}
-            {onCoordsChange && (
-              <button
-                type="button"
-                onClick={useMyLocation}
-                data-track="report_use_geolocation_click"
-                disabled={locating}
-                className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-              >
-                {locating ? "Localizando…" : "🛰️ Usar mi ubicación"}
-              </button>
-            )}
-            {coords && onClearLocation && (
-              <button
-                type="button"
-                onClick={onClearLocation}
-                aria-label="Quitar la ubicación elegida"
-                className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-              >
-                ✕ Quitar
-              </button>
-            )}
+          <div
+            className={`rounded-xl border p-3 ${
+              coords
+                ? "border-[var(--eborder)] bg-[var(--esurf2)]"
+                : "border-amber-300 bg-amber-50"
+            }`}
+          >
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <p className="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-semibold text-[var(--etext)]">
+                <span aria-hidden>📍</span>
+                {coords ? (
+                  <span className="truncate font-normal tabular-nums text-[var(--etext2)]">
+                    {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                  </span>
+                ) : (
+                  <span className="font-normal text-amber-700">
+                    Ubicación sin definir — elígela aquí
+                  </span>
+                )}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {onPickOnMap && (
+                  <button
+                    type="button"
+                    onClick={onPickOnMap}
+                    className="inline-flex items-center gap-1 rounded-full border border-[var(--eborder)] bg-[var(--esurf)] px-2.5 py-1.5 text-xs font-semibold text-[var(--etext)] hover:bg-[var(--esurf2)]"
+                  >
+                    🗺️ Elegir en el mapa
+                  </button>
+                )}
+                {onCoordsChange && (
+                  <button
+                    type="button"
+                    onClick={useMyLocation}
+                    data-track="report_use_geolocation_click"
+                    disabled={locating}
+                    className="inline-flex items-center gap-1 rounded-full border border-[var(--eborder)] bg-[var(--esurf)] px-2.5 py-1.5 text-xs font-medium text-[var(--etext)] hover:bg-[var(--esurf2)] disabled:opacity-60"
+                  >
+                    {locating ? "Localizando…" : "🛰️ Usar mi ubicación"}
+                  </button>
+                )}
+                {coords && onClearLocation && (
+                  <button
+                    type="button"
+                    onClick={onClearLocation}
+                    aria-label="Quitar la ubicación elegida"
+                    className="inline-flex items-center gap-1 rounded-full border border-[var(--eborder)] bg-[var(--esurf)] px-2.5 py-1.5 text-xs font-medium text-[var(--etext2)] hover:bg-[var(--esurf2)]"
+                  >
+                    ✕ Quitar
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-        {geoError && (
-          <p className="-mt-2 mb-3 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800">
-            {geoError}
-          </p>
-        )}
+          {geoError && (
+            <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800">
+              {geoError}
+            </p>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
           <fieldset>
-            <legend className="mb-2 block text-sm font-medium text-slate-700">
+            <legend className="e-report-modal__label">
               Tipo de marcador
             </legend>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2">
               {MAP_REPORT_TYPE_KEYS.map((key) => {
                 const meta = REPORT_TYPES[key];
                 const active = type === key;
@@ -236,14 +248,14 @@ export default function ReportForm({
                     key={key}
                     data-track="report_type_selected"
                     data-report-type={key}
-                    className={`relative flex cursor-pointer flex-col items-center gap-1 rounded-xl border-2 p-3 text-center text-xs transition ${
+                    className={`flex cursor-pointer items-center gap-2.5 rounded-xl border-[1.5px] px-3 py-2.5 transition ${
                       active
-                        ? "border-slate-900 bg-slate-50 shadow-sm"
-                        : "border-slate-200 hover:border-slate-300"
+                        ? "shadow-sm"
+                        : "border-[var(--eborder)] bg-[var(--esurf)] hover:border-[var(--etext3)] hover:bg-[var(--esurf2)]"
                     }`}
                     style={
                       active
-                        ? { borderColor: meta.color, background: `${meta.color}10` }
+                        ? { borderColor: meta.color, background: `${meta.color}14` }
                         : undefined
                     }
                   >
@@ -256,20 +268,20 @@ export default function ReportForm({
                       className="sr-only"
                     />
                     <span
-                      className="grid h-10 w-10 place-items-center rounded-full text-xl text-white shadow-sm"
+                      className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-base text-white"
                       style={{ background: meta.color }}
                       aria-hidden
                     >
                       {meta.icon}
                     </span>
-                    <span className="font-semibold leading-tight text-slate-800">
+                    <span className="min-w-0 text-xs font-semibold leading-tight text-[var(--etext)]">
                       {meta.label}
                     </span>
                   </label>
                 );
               })}
             </div>
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-[var(--etext2)]">
               {REPORT_TYPES[type].description}
             </p>
           </fieldset>
@@ -277,7 +289,7 @@ export default function ReportForm({
           <div>
             <label
               htmlFor="place"
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="e-report-modal__label"
             >
               {copy.placeLabel}
             </label>
@@ -296,7 +308,7 @@ export default function ReportForm({
             <div>
               <label
                 htmlFor="affected"
-                className="mb-1 block text-sm font-medium text-slate-700"
+                className="e-report-modal__label"
               >
                 {copy.affectedLabel}
               </label>
@@ -307,7 +319,7 @@ export default function ReportForm({
                 value={affected}
                 onChange={(e) => setAffected(e.target.value)}
                 placeholder="0"
-                className="e-input"
+                className="e-input w-28"
               />
             </div>
           )}
@@ -315,7 +327,7 @@ export default function ReportForm({
           <div>
             <label
               htmlFor="needs"
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="e-report-modal__label"
             >
               {copy.needsLabel}
             </label>
@@ -325,14 +337,14 @@ export default function ReportForm({
               onChange={(e) => setNeeds(e.target.value)}
               rows={3}
               placeholder={copy.needsPlaceholder}
-              className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
+              className="e-input resize-none"
             />
           </div>
 
           <div>
             <label
               htmlFor="volunteer-code"
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="e-report-modal__label"
             >
               ¿Eres voluntario? Tu código (opcional)
             </label>
@@ -347,14 +359,14 @@ export default function ReportForm({
               maxLength={12}
               className="e-input w-40 font-mono tracking-widest"
             />
-            <p className="mt-1 text-[11px] text-slate-500">
+            <p className="mt-1 text-[11px] text-[var(--etext2)]">
               Si te registraste como voluntario, tu código firma este reporte:
               sabremos que viene de ti.
             </p>
           </div>
 
           <div>
-            <p className="mb-1 block text-sm font-medium text-slate-700">
+            <p className="e-report-modal__label">
               {type === "building"
                 ? "Foto del edificio (muy recomendada)"
                 : "Foto (opcional)"}
@@ -366,72 +378,75 @@ export default function ReportForm({
               onChange={handleFile}
               className="hidden"
             />
-            <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={processingPhoto}
+              className="e-report-modal__upload"
+            >
               {photo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={photo}
                   alt="Vista previa"
-                  className="h-20 w-20 rounded-lg object-cover ring-1 ring-slate-200"
+                  className="e-report-modal__upload-preview"
                 />
               ) : (
-                <div className="grid h-20 w-20 place-items-center rounded-lg bg-slate-100 text-2xl text-slate-400">
+                <span className="e-report-modal__upload-icon" aria-hidden>
                   📷
-                </div>
+                </span>
               )}
-              <div className="flex flex-col gap-1">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={processingPhoto}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >
+              <span className="e-report-modal__upload-text">
+                <strong>
                   {processingPhoto
                     ? "Procesando…"
                     : photo
                       ? "Cambiar foto"
                       : "Subir foto"}
-                </button>
-                {photo && (
-                  <button
-                    type="button"
-                    onClick={clearPhoto}
-                    className="text-xs text-slate-500 hover:text-red-600"
-                  >
-                    Quitar
-                  </button>
-                )}
-                <p className="text-[11px] text-slate-500">
+                </strong>
+                <span>
                   {type === "building"
                     ? "Muestra grietas, inclinaciones, fachadas o columnas. Útil para que ingenieros evalúen."
                     : "Ayuda a los rescatistas a verificar la situación."}
-                </p>
-              </div>
-            </div>
+                </span>
+              </span>
+            </button>
+            {photo && (
+              <button
+                type="button"
+                onClick={clearPhoto}
+                className="mt-1.5 text-xs text-[var(--etext2)] hover:text-red-500"
+              >
+                Quitar foto
+              </button>
+            )}
           </div>
 
           {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p
+              role="alert"
+              className="rounded-lg border border-[var(--eayuda-bd)] bg-[var(--eayuda-bg)] px-3 py-2 text-sm text-[var(--eayuda-ic)]"
+            >
               {error}
             </p>
           )}
 
           <div ref={turnstileMount} className="flex justify-center empty:hidden" />
 
-          <LegalConsentNotice />
+          <LegalConsentNotice className="text-xs text-[var(--etext2)]" />
 
-          <div className="flex gap-2">
+          <div className="sticky bottom-0 -mx-5 flex gap-2 border-t border-[var(--eborder)] bg-[var(--esurf)] px-5 py-3 sm:-mx-6 sm:px-6">
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="e-btn e-btn-secondary flex-1"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={submitting || processingPhoto}
-              className="flex-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+              className="e-btn e-btn-primary flex-1 disabled:opacity-60"
             >
               {submitting ? "Publicando…" : "Reportar información"}
             </button>

@@ -125,17 +125,16 @@ const schema = z.object({
   MINIMAX_OCR_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
   MINIMAX_OCR_PROMPT: z.string().optional(),
 
-  // --- Módulos ResponseGrid (needs + acopio) — RFC "gating", OFF por defecto ---
-  // Sin ENABLE_RESPONSEGRID=true, ni el router /api/needs ni /api/acopio se
-  // montan en el composition root (server.ts): 404 en vez de una integración a
-  // medio configurar. Si se activa, RESPONSEGRID_API_URL y
-  // RESPONSEGRID_EMERGENCY_SLUG son obligatorios (se valida más abajo, fail-fast
-  // en el arranque nombrando la var que falte).
+  // --- Módulos ResponseGrid (needs + acopio opcional) — RFC "gating" ---
+  // /api/acopio siempre está montado (lista estática de centros del sismo).
+  // Sin ENABLE_RESPONSEGRID=true, /api/needs NO se monta (404). Si se activa,
+  // RESPONSEGRID_API_URL y RESPONSEGRID_EMERGENCY_SLUG son obligatorios (abajo)
+  // y acopio fusiona ResponseGrid con la lista estática.
   ENABLE_RESPONSEGRID: z.coerce.boolean().default(false),
   // API externa de centros de acopio / necesidades (logística humanitaria). El
-  // backend la PROXEA en /api/acopio (cache + rate-limit + ETag); el navegador
-  // NUNCA la llama directo. SIN default: pon la URL de tu propio proveedor
-  // (ejemplo: https://api.example.org) y el slug de tu emergencia/evento.
+  // backend la PROXEA y fusiona en /api/acopio cuando el flag está activo; el
+  // navegador NUNCA la llama directo. SIN default: pon la URL de tu propio
+  // proveedor (ejemplo: https://api.example.org) y el slug de tu emergencia.
   RESPONSEGRID_API_URL: z.string().optional(),
   RESPONSEGRID_EMERGENCY_SLUG: z.string().optional(),
   // api-key de service account de ResponseGrid para PUBLICAR (escritura:

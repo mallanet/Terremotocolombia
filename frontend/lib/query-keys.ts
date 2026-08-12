@@ -60,5 +60,10 @@ export const qk = {
     list: (p: { country?: string; category?: string; q?: string }) =>
       ["acopio", "list", p] as const,
   },
+  needs: {
+    all: ["needs"] as const,
+    publication: (jobId: string | null) =>
+      ["needs", "publication", jobId] as const,
+  },
   geocode: (q: string) => ["geocode", q] as const,
 } as const;

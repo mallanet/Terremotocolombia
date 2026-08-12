@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  useNeedPublicationStatus,
   usePublishNeed,
   NEED_CATEGORIES,
   NEED_PRIORITIES,
@@ -52,9 +53,11 @@ export default function PublishNeedForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [moduleDisabled, setModuleDisabled] = useState(false);
+  const [publicationJobId, setPublicationJobId] = useState<string | null>(null);
 
   const publishMutation = usePublishNeed();
-  const submitting = publishMutation.isPending;
+  const publicationStatus = useNeedPublicationStatus(publicationJobId);
+  const submitting = publishMutation.isPending || Boolean(publicationJobId);
   const { mountRef: turnstileMount, getToken: turnstileGetToken } =
     useTurnstile();
 
@@ -80,6 +83,40 @@ export default function PublishNeedForm() {
     if (contactPhone.trim()) author.phone = contactPhone.trim();
     return Object.keys(author).length ? author : undefined;
   }
+
+  function resetForm() {
+    setTitle("");
+    setAddress("");
+    setDescription("");
+    setPriority("high");
+    setItems([emptyItem()]);
+    setWantsContact(false);
+    setContactName("");
+    setContactEmail("");
+    setContactPhone("");
+  }
+
+  /* eslint-disable react-hooks/set-state-in-effect -- TanStack Query is the
+   * external status subscription; terminal transitions intentionally update
+   * the form once, then clear jobId so the effect cannot repeat. */
+  useEffect(() => {
+    const state = publicationStatus.data;
+    if (!publicationJobId || !state) return;
+    if (state.state === "completed") {
+      setSuccess(
+        "Tu necesidad se publicó correctamente y quedó en revisión de ResponseGrid.",
+      );
+      resetForm();
+      setPublicationJobId(null);
+    } else if (state.state === "failed") {
+      setError(
+        state.failedReason ||
+          "No se pudo completar la publicación. Tus datos siguen en el formulario para que puedas intentarlo de nuevo.",
+      );
+      setPublicationJobId(null);
+    }
+  }, [publicationJobId, publicationStatus.data]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -107,19 +144,10 @@ export default function PublishNeedForm() {
         turnstileToken,
       },
       {
-        onSuccess: () => {
-          setSuccess(
-            "Tu necesidad fue enviada y está en revisión. Aparecerá cuando el equipo de ResponseGrid la valide.",
-          );
-          setTitle("");
-          setAddress("");
-          setDescription("");
-          setPriority("high");
-          setItems([emptyItem()]);
-          setWantsContact(false);
-          setContactName("");
-          setContactEmail("");
-          setContactPhone("");
+        onSuccess: ({ jobId }) => {
+          // 202 solo significa "encolado". El éxito visible y el vaciado del
+          // formulario esperan la confirmación terminal del status endpoint.
+          setPublicationJobId(jobId);
         },
         onError: (err) => {
           if (isNeedsModuleDisabledError(err)) {
@@ -154,6 +182,24 @@ export default function PublishNeedForm() {
           </p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
+            {publicationJobId && !publicationStatus.isError && (
+              <p
+                role="status"
+                className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900"
+              >
+                Estamos publicando tu necesidad. Mantén esta página abierta
+                mientras confirmamos el resultado.
+              </p>
+            )}
+            {publicationJobId && publicationStatus.isError && (
+              <p
+                role="alert"
+                className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900"
+              >
+                La solicitud quedó en cola, pero no pudimos confirmar todavía
+                si terminó. Reintentaremos automáticamente.
+              </p>
+            )}
             <div>
               <label
                 htmlFor="need-title"

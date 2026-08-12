@@ -9,6 +9,7 @@ import {
   type ReportType,
 } from "@/lib/types";
 import { distanceMeters } from "@/lib/format";
+import { chipFitPoints } from "./chip-fit";
 import { deploymentConfig } from "@/lib/deployment-config";
 import { qk } from "@/lib/query-keys";
 import {
@@ -20,6 +21,7 @@ import {
   type ReportsResponse,
 } from "@/hooks/emergency";
 import { usePetsMap } from "@/hooks/pets";
+import { useCollectionCenters, ACOPIO_DEFAULT_FILTERS } from "@/hooks/acopio";
 import { useLowBandwidthMode } from "@/hooks/useLowBandwidthMode";
 import { useMissingStats } from "@/hooks/missing";
 import type { MapBounds } from "@/components/features/map";
@@ -76,7 +78,8 @@ export default function EmergencyApp() {
   const missingMapQuery = useMissingMap(debouncedBounds);
   // Mismo queryKey que EarthquakesPanel: TanStack deduplica por clave,
   // asi que tener dos consumidores no dispara una segunda peticion.
-  const { data: earthquakes } = useEarthquakes(60_000);
+  const { data: earthquakesEnvelope } = useEarthquakes(60_000);
+  const earthquakes = earthquakesEnvelope?.earthquakes;
   const missingMapMarkers = useMemo(
     () => missingMapQuery.data ?? [],
     [missingMapQuery.data],
@@ -89,6 +92,15 @@ export default function EmergencyApp() {
   const [showPetsOnMap, setShowPetsOnMap] = useState(true);
   const togglePets = useCallback(() => setShowPetsOnMap((v) => !v), []);
 
+  // Centros de acopio oficiales (capa verde, /api/acopio — siempre montado).
+  const acopioQuery = useCollectionCenters(ACOPIO_DEFAULT_FILTERS);
+  const acopioCenters = useMemo(
+    () => acopioQuery.data?.items ?? [],
+    [acopioQuery.data],
+  );
+  const [showAcopioOnMap, setShowAcopioOnMap] = useState(true);
+  const toggleAcopio = useCallback(() => setShowAcopioOnMap((v) => !v), []);
+
   const confirmMutation = useConfirmReport();
   const resolveMutation = useResolveReport();
 
@@ -98,7 +110,14 @@ export default function EmergencyApp() {
       qc.setQueryData<ReportsResponse>(qk.reports.list, (prev) =>
         prev
           ? { ...prev, reports: fn(prev.reports) }
-          : { reports: fn([]), persistent: true },
+          : {
+              reports: fn([]),
+              persistent: true,
+              total: 0,
+              page: 1,
+              pageSize: 500,
+              totalPages: 1,
+            },
       );
     },
     [qc],
@@ -339,25 +358,19 @@ export default function EmergencyApp() {
     setPlacing(false);
   }, []);
 
-  // Al tocar un chip: alterna ese tipo en la selección y RECALCULA el encuadre
-  // a la unión de pines seleccionados, tanto al agregar como al quitar (los
-  // "missing" del cluster dependen del viewport; sumamos los cargados). Si no
-  // queda nada seleccionado, no movemos el mapa.
+  // Al PRENDER un chip volamos solo a SUS pines ("muéstrame dónde está X").
+  // Al apagarlo el mapa no se mueve: re-encuadrar a la unión de lo seleccionado
+  // sacaba al usuario de su ciudad ante cualquier toque (los tipos tienen
+  // pines en todo el país). Sin pines del tipo, no movemos el mapa.
   const handleChipClick = useCallback(
     (type: ReportType) => {
       const next = new Set(selectedTypes);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
+      const activating = !next.has(type);
+      if (activating) next.add(type);
+      else next.delete(type);
       setSelectedTypes(next);
-      const points = reports
-        .filter((r) => next.has(r.type))
-        .map((r) => ({ lat: r.lat, lng: r.lng }));
-      if (next.has("missing")) {
-        for (const m of missingMapMarkers) {
-          points.push({ lat: m.lat, lng: m.lng });
-        }
-      }
-      if (points.length > 0) setFitRequest({ points, ts: Date.now() });
+      const points = chipFitPoints(type, activating, reports, missingMapMarkers);
+      if (points) setFitRequest({ points, ts: Date.now() });
     },
     [selectedTypes, reports, missingMapMarkers],
   );
@@ -589,6 +602,9 @@ export default function EmergencyApp() {
           petMapMarkers={petMapMarkers}
           showPetsOnMap={showPetsOnMap}
           onTogglePets={togglePets}
+          acopioCenters={acopioCenters}
+          showAcopioOnMap={showAcopioOnMap}
+          onToggleAcopio={toggleAcopio}
           draft={draft}
           confirmed={confirmed}
           isAdmin={isAdmin}

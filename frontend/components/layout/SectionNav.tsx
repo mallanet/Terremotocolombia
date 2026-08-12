@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { HandCoins, HeartHandshake, MapPinned } from "lucide-react";
-import TranslateWidget from "@/components/ui/TranslateWidget";
+import { Brain, HandCoins, HeartHandshake, MapPinned } from "lucide-react";
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { SiteBrand } from "./HeroSection";
 import { toggleTheme } from "./ThemeProvider";
 import { useMissingStats } from "@/hooks/missing";
-import { usePsychHelpClickCount } from "@/hooks/psychology-help";
+import { usePsychHelpClickCount, trackPsychosocialClick } from "@/hooks/psychology-help";
 import { trackPsychHelpClicked } from "@/lib/analytics";
 import { SITE_PRODUCT_NAME } from "@/lib/site";
 import {
@@ -27,7 +27,7 @@ const MOBILE_NAV_BOTTOM = "calc(3.25rem + env(safe-area-inset-bottom))";
 // quedara fuera del menu movil.
 const DESKTOP_HEADER_LINKS = [
   { href: "/mapa-de-rescate", label: "Mapa de rescate" },
-  { href: "#mapa", label: "Mapa" },
+  { href: "#mapa", label: "Mapa de suministro" },
   { href: "#e-directory", label: "Personas" },
   { href: "/mascotas", label: "Mascotas" },
   { href: "/acopio", label: "Acopio" },
@@ -111,76 +111,143 @@ function badgeValue(
 function NavHeaderActions() {
   return (
     <div className="e-nav__actions">
-      <TranslateWidget variant="header" />
-      <PsychNavLink variant="desktop" />
+      <HelpNavLink variant="desktop" />
       <DonateNavLink variant="desktop" />
     </div>
   );
 }
 
-// Botón de ayuda psicológica → formulario de registro de la red de salud
-// mental (Google Forms, dato entregado por el mantenedor). Externo: pestaña
-// nueva. El portal /psicologia (login) sigue existiendo como endpoint propio.
-const PSYCH_HELP_FORM_URL =
-  "https://docs.google.com/forms/d/e/1FAIpQLSf7_hS5l381uI7ziedi0uMbpOuFmA6xZBMIztEvdCMl2LW7jA/viewform";
+// Botón "Ayuda" del header: menú con las dos rutas de apoyo — ayuda
+// psicosocial (grupo de WhatsApp; Doppler NEXT_PUBLIC_WHATSAPP_GROUP_URL,
+// nunca commiteado: el content audit veta el dominio de invitaciones) y ayuda
+// psicológica (directorio /apoyo-disponible). Sin la variable solo se ofrece
+// el directorio. El portal /psicologia (login) sigue existiendo como endpoint
+// propio.
+const PSYCHOSOCIAL_WHATSAPP_URL =
+  process.env.NEXT_PUBLIC_WHATSAPP_GROUP_URL ?? "";
 
-function PsychNavLink({
+function HelpNavLink({
   variant,
   onNavigate,
 }: {
   variant: "desktop" | "sheet";
   onNavigate?: () => void;
 }) {
-  // El contador cuenta ENVÍOS del formulario (callback del Apps Script con
-  // secreto), no clics — el clic solo se registra en OpenPanel.
+  // El contador cuenta CLICS únicos por IP (dedup server-side): el destino es
+  // WhatsApp y no hay "envío" observable — el clic es la señal real.
   const { data: count } = usePsychHelpClickCount();
-  const className =
-    variant === "desktop"
-      ? "e-nav__psych"
-      : "flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-950 transition hover:bg-blue-100";
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLSpanElement>(null);
 
-  const button = (
-    <a
-      href={PSYCH_HELP_FORM_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={() => {
-        trackPsychHelpClicked(variant === "desktop" ? "header" : "mobile_sheet");
-        onNavigate?.();
-      }}
-      className={className}
-      aria-label="Ayuda psicológica: formulario de la red de salud mental (se abre en pestaña nueva)"
-    >
-      <HeartHandshake aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
-      Ayuda psicológica
-    </a>
-  );
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
-  const caption = (
-    <span
-      className={
-        variant === "desktop"
-          ? "e-nav__psych-caption"
-          : "mt-2 block text-center text-xs text-slate-500"
-      }
-    >
-      Ayuda ofrecida ·{" "}
-      <strong>{count !== undefined ? count.toLocaleString("es") : "…"}</strong>
-    </span>
-  );
+  const countLabel = count !== undefined ? count.toLocaleString("es") : null;
 
-  if (variant === "desktop") {
+  if (variant === "sheet") {
+    const sheetClass =
+      "flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-950 transition hover:bg-blue-100";
     return (
-      <span className="e-nav__psych-wrap">
-        {button}
-        {caption}
+      <span className="grid gap-2">
+        {PSYCHOSOCIAL_WHATSAPP_URL ? (
+          <a
+            href={PSYCHOSOCIAL_WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => {
+              trackPsychosocialClick();
+              trackPsychHelpClicked("mobile_sheet");
+              onNavigate?.();
+            }}
+            className={sheetClass}
+            aria-label="Ayuda psicosocial: únete al grupo de WhatsApp (se abre en pestaña nueva)"
+          >
+            <HeartHandshake aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+            Ayuda psicosocial
+            {count !== undefined ? (
+              <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-bold text-white">
+                {countLabel}
+              </span>
+            ) : null}
+          </a>
+        ) : null}
+        <Link
+          href="/apoyo-disponible"
+          onClick={onNavigate}
+          className={sheetClass}
+          aria-label="Ayuda psicológica: directorio de apoyo psicológico"
+        >
+          <Brain aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+          Ayuda psicológica
+        </Link>
       </span>
     );
   }
+
+  const buttonAriaLabel =
+    countLabel !== null
+      ? `Ayuda: ${countLabel} personas se han sumado; abre el menú de opciones de ayuda`
+      : "Ayuda: abre el menú de opciones de ayuda";
+
   return (
-    <span className="block">
-      {button}
-      {caption}
+    <span className="e-nav__psych-wrap e-nav__help" ref={wrapRef}>
+      <button
+        type="button"
+        className="e-nav__psych"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={buttonAriaLabel}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <HeartHandshake aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+        Ayuda
+        {count !== undefined ? (
+          <span className="e-nav__psych-count">{countLabel}</span>
+        ) : null}
+      </button>
+      {open ? (
+        <span role="menu" aria-label="Opciones de ayuda" className="e-nav__help-menu">
+          {PSYCHOSOCIAL_WHATSAPP_URL ? (
+            <a
+              role="menuitem"
+              href={PSYCHOSOCIAL_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Ayuda psicosocial: únete al grupo de WhatsApp (se abre en pestaña nueva)"
+              onClick={() => {
+                trackPsychosocialClick();
+                trackPsychHelpClicked("header");
+                setOpen(false);
+              }}
+            >
+              <WhatsAppIcon className="h-4 w-4 shrink-0" aria-hidden />
+              Ayuda psicosocial
+            </a>
+          ) : null}
+          <Link
+            role="menuitem"
+            href="/apoyo-disponible"
+            aria-label="Ayuda psicológica: directorio de apoyo psicológico"
+            onClick={() => setOpen(false)}
+          >
+            <Brain aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+            Ayuda psicológica
+          </Link>
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -487,7 +554,7 @@ export function MobileStickyNav() {
                 </button>
               </li>
               <li className="e-nav__sheet-section">
-                <PsychNavLink variant="sheet" onNavigate={closeSheet} />
+                <HelpNavLink variant="sheet" onNavigate={closeSheet} />
               </li>
               <li className="e-nav__sheet-section">
                 <DonateNavLink variant="sheet" onNavigate={closeSheet} />

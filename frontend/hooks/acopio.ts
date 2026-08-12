@@ -2,8 +2,9 @@
 
 /**
  * Hook de datos del dominio "acopio" (centros de acopio) — sigue el patrón
- * canónico de hooks/hospitals.ts. El backend proxea ResponseGrid en /api/acopio
- * (cache + ETag), así que el navegador solo habla con NUESTRO backend vía apiGet.
+ * El backend sirve /api/acopio (lista estática de centros oficiales del sismo
+ * + ResponseGrid opcional), así que el navegador solo habla con NUESTRO
+ * backend vía apiGet.
  *
  * El filtrado (país/categoría/texto) ocurre en el servidor sobre el set cacheado;
  * las facetas vienen en la misma respuesta para poblar los chips de filtro. El

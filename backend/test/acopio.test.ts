@@ -171,6 +171,44 @@ describe("infrastructure/ResponseGridClient", () => {
   });
 });
 
+describe("infrastructure/static + merged", () => {
+  it("StaticCollectionCenterProvider lista centros cerca del sismo", async () => {
+    const { StaticCollectionCenterProvider } = await import(
+      "@/modules/acopio/infrastructure/static/static-collection-center-provider"
+    );
+    const items = await new StaticCollectionCenterProvider().list();
+    expect(items.length).toBeGreaterThanOrEqual(10);
+    expect(items.every((c) => c.country === "Colombia")).toBe(true);
+    expect(items.some((c) => c.city === "Cali")).toBe(true);
+    expect(items.some((c) => c.city === "Pereira")).toBe(true);
+    expect(items.every((c) => c.location.latitude != null)).toBe(true);
+  });
+
+  it("MergedCollectionCenterProvider deduplica y tolera fallos", async () => {
+    const { MergedCollectionCenterProvider } = await import(
+      "@/modules/acopio/infrastructure/merged-collection-center-provider"
+    );
+    const ok: CollectionCenterProvider = {
+      sourceName: "ok",
+      list: async () => [center({ id: "a", city: "Cali" }), center({ id: "b" })],
+    };
+    const boom: CollectionCenterProvider = {
+      sourceName: "boom",
+      list: async () => {
+        throw new Error("down");
+      },
+    };
+    const dup: CollectionCenterProvider = {
+      sourceName: "dup",
+      list: async () => [center({ id: "a", city: "Other" })],
+    };
+    const merged = new MergedCollectionCenterProvider([ok, boom, dup]);
+    const items = await merged.list();
+    expect(items.map((c) => c.id).sort()).toEqual(["a", "b"]);
+    expect(items.find((c) => c.id === "a")?.city).toBe("Cali");
+  });
+});
+
 describe("interface/presenter", () => {
   it("aplana location → address/lat/lng en el DTO público", () => {
     const view = toCollectionCenterListView({

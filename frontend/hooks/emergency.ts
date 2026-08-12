@@ -16,38 +16,91 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend } from "@/lib/api";
 import { qk } from "@/lib/query-keys";
-import type { EmergencyReport, Earthquake } from "@/lib/types";
+import type { EmergencyReport, EarthquakesListResponse } from "@/lib/types";
 import type { MissingMapMarker } from "@/hooks/missing";
 import type { MapBounds } from "@/components/features/map";
 
 export interface ReportsResponse {
   reports: EmergencyReport[];
   persistent: boolean;
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
-/** Lista de reportes de emergencia (polleada). Mismo contrato que el GET. */
+const REPORT_PAGE_SIZE = 500;
+const REPORT_PAGE_CONCURRENCY = 4;
+
+type FetchReportsPage = (
+  page: number,
+  signal?: AbortSignal,
+) => Promise<ReportsResponse>;
+
+/**
+ * Recorre el contrato paginado del backend sin volver a truncar el mapa en la
+ * primera página. Las páginas adicionales se piden en lotes pequeños para no
+ * convertir cada poll en una ráfaga sin límite contra la API.
+ */
+export async function fetchAllReportPages(
+  fetchPage: FetchReportsPage,
+  signal?: AbortSignal,
+): Promise<ReportsResponse> {
+  const first = await fetchPage(1, signal);
+  const totalPages = Math.max(1, Math.trunc(first.totalPages || 1));
+  const pages: ReportsResponse[] = [first];
+
+  for (let page = 2; page <= totalPages; page += REPORT_PAGE_CONCURRENCY) {
+    const pageNumbers = Array.from(
+      { length: Math.min(REPORT_PAGE_CONCURRENCY, totalPages - page + 1) },
+      (_, index) => page + index,
+    );
+    pages.push(
+      ...(await Promise.all(
+        pageNumbers.map((number) => fetchPage(number, signal)),
+      )),
+    );
+  }
+
+  // Una inserción durante el recorrido por offsets puede repetir el último
+  // elemento de una página. Conservamos el orden más-reciente-primero y
+  // eliminamos ese duplicado por id.
+  const reports = Array.from(
+    new Map(
+      pages
+        .flatMap((response) => response.reports)
+        .map((report) => [report.id, report]),
+    ).values(),
+  );
+  return { ...first, reports };
+}
+
+async function fetchReportsPage(page: number, signal?: AbortSignal) {
+  return apiGet<ReportsResponse>(
+    `/api/reports?page=${page}&pageSize=${REPORT_PAGE_SIZE}`,
+    signal,
+  );
+}
+
+/** Lista completa de reportes de emergencia (polleada) para el mapa. */
 export function useReports(pollMs: number) {
   return useQuery({
     queryKey: qk.reports.list,
-    queryFn: ({ signal }) => apiGet<ReportsResponse>("/api/reports", signal),
+    queryFn: ({ signal }) => fetchAllReportPages(fetchReportsPage, signal),
     refetchInterval: pollMs,
     placeholderData: (prev) => prev,
   });
 }
 
-export interface EarthquakesResponse {
-  earthquakes: Earthquake[];
-}
+export type EarthquakesResponse = EarthquakesListResponse;
 
-/** Sismos recientes en la región (catálogo USGS, polleado). El backend ya
- * devuelve más-reciente-primero y cachea con ETag; aquí solo polleamos. */
+/** Sismos recientes (catálogo USGS + sync). Returns the full envelope so the
+ * panel can distinguish quiet catalog from dead sync / transport errors. */
 export function useEarthquakes(pollMs: number) {
   return useQuery({
     queryKey: qk.earthquakes.list,
     queryFn: ({ signal }) =>
-      apiGet<EarthquakesResponse>("/api/earthquakes", signal).then(
-        (r) => r.earthquakes ?? [],
-      ),
+      apiGet<EarthquakesResponse>("/api/earthquakes", signal),
     refetchInterval: pollMs,
     placeholderData: (prev) => prev,
   });

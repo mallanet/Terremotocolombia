@@ -1,7 +1,12 @@
 /**
- * Service del contador de clics de "ayuda psicológica". Port directo de
- * lib/click-counters.ts (rama hasDbEnv), preservando el CTE atómico de dedup por
- * IP + incremento + lectura en una sola sentencia (escape `sql`).
+ * Service del contador de clics de "ayuda psicosocial". CTE atómico de dedup
+ * por IP + incremento + lectura en una sola sentencia (escape `sql`).
+ *
+ * Los identificadores van LITERALES, nunca como objetos columna de Drizzle:
+ * interpolarlos los renderiza calificados ("tabla"."columna") y Postgres
+ * rechaza esa forma en la lista de columnas del INSERT y en el LHS del SET
+ * (42703 column "t" of relation "t" does not exist) — bug que dejó el
+ * contador en 0 en producción. Los VALORES siguen parametrizados ($1, $2…).
  *
  * El dedup recibe el HASH de IP (no la IP cruda) — el route pasa hashIp(req).
  */
@@ -10,7 +15,7 @@ import { eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { env } from "@/config/env";
 
-const { clickCounters, clickCounterDedup } = schema;
+const { clickCounters } = schema;
 
 const PSYCHOLOGY_HELP_KEY = "psychology_help";
 
@@ -55,9 +60,9 @@ export async function incrementPsychologyHelpFromForm(): Promise<number> {
     .values({ key: PSYCHOLOGY_HELP_KEY, count: 0 })
     .onConflictDoNothing({ target: clickCounters.key });
   const result = await db.execute(sql`
-    UPDATE ${clickCounters} SET ${clickCounters.count} = ${clickCounters.count} + 1
-    WHERE ${clickCounters.key} = ${PSYCHOLOGY_HELP_KEY}
-    RETURNING ${clickCounters.count}
+    UPDATE click_counters SET count = count + 1
+    WHERE key = ${PSYCHOLOGY_HELP_KEY}
+    RETURNING count
   `);
   const rows = (Array.isArray(result) ? result : result.rows) as {
     count: number;
@@ -81,19 +86,19 @@ export async function incrementPsychologyHelpClick(
   //  - IP repite → `ins` vacío → `upd` no corre → caemos al total actual.
   const result = await db.execute(sql`
     WITH ins AS (
-      INSERT INTO ${clickCounterDedup} (${clickCounterDedup.counterKey}, ${clickCounterDedup.ipHash}, ${clickCounterDedup.createdAt})
+      INSERT INTO click_counter_dedup (counter_key, ip_hash, created_at)
       VALUES (${PSYCHOLOGY_HELP_KEY}, ${ipKey}, ${Date.now()})
       ON CONFLICT DO NOTHING
-      RETURNING ${clickCounterDedup.counterKey}
+      RETURNING counter_key
     ),
     upd AS (
-      UPDATE ${clickCounters} SET ${clickCounters.count} = ${clickCounters.count} + 1
-      WHERE ${clickCounters.key} = ${PSYCHOLOGY_HELP_KEY} AND EXISTS (SELECT 1 FROM ins)
-      RETURNING ${clickCounters.count}
+      UPDATE click_counters SET count = count + 1
+      WHERE key = ${PSYCHOLOGY_HELP_KEY} AND EXISTS (SELECT 1 FROM ins)
+      RETURNING count
     )
     SELECT COALESCE(
       (SELECT count FROM upd),
-      (SELECT ${clickCounters.count} FROM ${clickCounters} WHERE ${clickCounters.key} = ${PSYCHOLOGY_HELP_KEY})
+      (SELECT count FROM click_counters WHERE key = ${PSYCHOLOGY_HELP_KEY})
     ) AS count
   `);
   const rows = (Array.isArray(result) ? result : result.rows) as {

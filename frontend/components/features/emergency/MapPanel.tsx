@@ -9,6 +9,7 @@ import type { MapBounds } from "@/components/features/map";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import type { MissingMapMarker } from "@/hooks/missing";
 import type { PetMapMarker } from "@/lib/pets";
+import type { CollectionCenter } from "@/hooks/acopio";
 import type { EmergencyReport, ReportType, Earthquake } from "@/lib/types";
 import { deploymentConfig } from "@/lib/deployment-config";
 import FilterChips from "./FilterChips";
@@ -30,6 +31,9 @@ export interface MapPanelProps {
 	petMapMarkers: PetMapMarker[];
 	showPetsOnMap: boolean;
 	onTogglePets: () => void;
+	acopioCenters: CollectionCenter[];
+	showAcopioOnMap: boolean;
+	onToggleAcopio: () => void;
 	draft: { lat: number; lng: number } | null;
 	confirmed: Set<string>;
 	isAdmin: boolean;
@@ -58,6 +62,9 @@ export default function MapPanel({
 	petMapMarkers,
 	showPetsOnMap,
 	onTogglePets,
+	acopioCenters,
+	showAcopioOnMap,
+	onToggleAcopio,
 	earthquakes,
 	showMissingOnMap,
 	draft,
@@ -104,9 +111,11 @@ export default function MapPanel({
 					reports={mapReports}
 					missingMarkers={missingMapMarkers}
 					petMarkers={petMapMarkers}
+					acopioCenters={acopioCenters}
 					earthquakes={earthquakes}
 					showMissingOnMap={showMissingOnMap}
 					showPetsOnMap={showPetsOnMap}
+					showAcopioOnMap={showAcopioOnMap}
 					onBoundsChange={onBoundsChange}
 					draft={draft}
 					onPick={onPick}
@@ -153,6 +162,23 @@ export default function MapPanel({
 						<span aria-hidden>🐾</span> Mascotas
 						{petMapMarkers.length > 0 && (
 							<span className="ml-1 tabular-nums">{petMapMarkers.length}</span>
+						)}
+					</button>
+					<button
+						type="button"
+						onClick={onToggleAcopio}
+						aria-pressed={showAcopioOnMap}
+						title={`Centros de acopio: ${acopioCenters.length}`}
+						aria-label={`Centros de acopio: ${acopioCenters.length} en el mapa. ${
+							showAcopioOnMap
+								? "Visibles, toca para ocultar."
+								: "Ocultos, toca para mostrar."
+						}`}
+						className={`e-m-chip shrink-0${showAcopioOnMap ? " e-m-chip--active" : ""}`}
+					>
+						<span aria-hidden>📦</span> Acopio
+						{acopioCenters.length > 0 && (
+							<span className="ml-1 tabular-nums">{acopioCenters.length}</span>
 						)}
 					</button>
 				</div>

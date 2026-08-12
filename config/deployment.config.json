@@ -4,10 +4,14 @@
   "disasterName": "Terremoto Colombia 2026",
   "disasterType": "earthquake",
   "regionLabel": "Colombia",
-  "mapCenter": [4.8436, -76.2422],
+  "mapCenter": [
+    4.8436,
+    -76.2422
+  ],
   "mapZoom": 9,
   "languageTag": "es",
   "contactEmail": "info@mallanet.org",
+  "communityWhatsappUrl": "https://chat.whatsapp.com/DR0kbPPw8TnL2FOJ09pwGH",
   "domains": {
     "web": "terremotocolombia.co",
     "api": "api.terremotocolombia.co",

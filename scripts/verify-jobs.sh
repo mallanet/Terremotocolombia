@@ -26,21 +26,32 @@ check() { # check <etiqueta> <ok?1:0> <detalle>
 code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$API/api/readyz" || echo 000)
 check "API readyz" "$([ "$code" = "200" ] && echo 1 || echo 0)" "HTTP $code"
 
-# 2. Cron de sismos: el catálogo debe tener actividad reciente (feed USGS cada
-#    5 min; umbral generoso de 24 h para no dar falsos rojos en días quietos).
+# 2. Cron de sismos: salud del SYNC (no edad del último evento).
+#    El catálogo USGS puede estar quieto días; lo que importa es que el Cron
+#    Trigger haya escrito fetched_at recientemente. Umbral SYNC_AGE_MS = 20 min
+#    (cron */5 ≈ 3–4 ciclos perdidos + jitter de cache). Falta `sync` → FAIL
+#    (API vieja sin el campo). Mantener alineado con
+#    backend/src/lib/earthquake-sync-age.ts → EARTHQUAKE_SYNC_AGE_MS.
+SYNC_AGE_MS=1200000
 eq_json=$(curl -s --max-time 30 "$API/api/earthquakes?limit=1" || echo "")
-eq_fresh=$(python3 - "$eq_json" <<'PY'
-import json, sys, time
+eq_fresh=$(SYNC_AGE_MS="$SYNC_AGE_MS" python3 - "$eq_json" <<'PY'
+import json, os, sys, time
+SYNC_AGE_MS = int(os.environ.get("SYNC_AGE_MS", "1200000"))
 try:
     data = json.loads(sys.argv[1])
-    items = data if isinstance(data, list) else data.get("items") or data.get("earthquakes") or []
-    newest = max((e.get("time") or e.get("occurredAt") or 0) for e in items) if items else 0
-    print(1 if newest and time.time() * 1000 - newest < 24 * 3600 * 1000 else 0)
+    if not isinstance(data, dict) or "sync" not in data:
+        print(0)
+        raise SystemExit
+    fetched = data["sync"].get("fetchedAt") if isinstance(data.get("sync"), dict) else None
+    if fetched is None or not isinstance(fetched, (int, float)):
+        print(0)
+        raise SystemExit
+    print(1 if time.time() * 1000 - float(fetched) <= SYNC_AGE_MS else 0)
 except Exception:
     print(0)
 PY
 )
-check "cron sismos (catálogo <24h)" "$eq_fresh" "último evento reciente: $eq_fresh"
+check "cron sismos (sync <20m)" "$eq_fresh" "sync.fetchedAt fresco: $eq_fresh"
 
 # 3. Publicación de necesidades: SIN emergencia de ResponseGrid para Colombia
 #    no hay prueba end-to-end posible — se declara, no se finge un PASS.

@@ -246,7 +246,10 @@ export default function RescueMapExperience({
   // El selector global del header traduce la página completa. Mantener una
   // segunda preferencia local produciría combinaciones inconsistentes.
   const language = "es" satisfies RescueMapLanguage;
-  const [mode, setMode] = useState<RescueMapMode>("reference");
+  // Arranca en "map" (OSM): la imagen Esri de referencia sale oscura y con
+  // nubes sobre la cordillera y como primera impresión parece un mapa roto.
+  // La capa satelital sigue a un clic en "Referencia".
+  const [mode, setMode] = useState<RescueMapMode>("map");
   const [incident, setIncident] = useState(initialIncident);
   const [mapping, setMapping] = useState(initialMapping);
   const [selectedAoiId, setSelectedAoiId] = useState<string | null>(null);
@@ -596,14 +599,17 @@ export default function RescueMapExperience({
             <strong>{connectionLabel}</strong>
             <span>
               {text.localUpdate}:{" "}
-              <time dateTime={new Date(lastLocalUpdate).toISOString()}>
+              <time
+                dateTime={new Date(lastLocalUpdate).toISOString()}
+                suppressHydrationWarning
+              >
                 {localizedDate(lastLocalUpdate, language)}
               </time>
             </span>
           </div>
           <div className="e-rescue-status-line">
             <strong>{text.verified}</strong>
-            <time dateTime={mapping.lastCheckedAt}>
+            <time dateTime={mapping.lastCheckedAt} suppressHydrationWarning>
               {localizedDate(mapping.lastCheckedAt, language)}
             </time>
           </div>

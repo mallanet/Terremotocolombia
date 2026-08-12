@@ -232,22 +232,29 @@ adentro (la infraestructura depende del dominio, no al revés):
 - `<dominio>-module.ts`: composition root; el único sitio que lee `env` y
   cablea adaptador → puerto → caso de uso → router.
 
-Primer módulo: **acopio** (`modules/acopio/`, gateado por
-`ENABLE_RESPONSEGRID`), que proxea el directorio de centros de acopio de
-ResponseGrid (config en `RESPONSEGRID_API_URL` / `RESPONSEGRID_EMERGENCY_SLUG`).
-Añadir otra fuente = otro adaptador del mismo puerto, cableado en el
-composition root; el dominio y la capa HTTP no cambian. Las reglas ESLint de
-endpoints (`require-rate-limit`, guard de mutaciones) también cubren
-`src/modules/**`.
+Primer módulo: **acopio** (`modules/acopio/`, siempre montado en
+`/api/acopio`). Sirve una lista estática de centros oficiales del sismo
+(`infrastructure/static/`) y, si `ENABLE_RESPONSEGRID=true`, fusiona el
+directorio de ResponseGrid (`RESPONSEGRID_API_URL` /
+`RESPONSEGRID_EMERGENCY_SLUG`). Añadir otra fuente = otro adaptador del mismo
+puerto, cableado en el composition root; el dominio y la capa HTTP no cambian.
+Las reglas ESLint de endpoints (`require-rate-limit`, guard de mutaciones)
+también cubren `src/modules/**`.
 
 Segundo módulo: **needs** (`modules/needs/`), lado de ESCRITURA: publica una
 necesidad de insumos en ResponseGrid vía `POST /api/needs` (mutación pública
 con Turnstile + rate-limit). La API devuelve `202` con un identificador
-consultable en `GET /api/needs/status/{jobId}`; el worker BullMQ geocodifica
-la dirección con un puerto `Geocoder` (adaptador sobre `services/geocode` →
-Nominatim) y delega en el puerto `NeedPublisher`, con reintentos e
-idempotencia opcional mediante `Idempotency-Key`. La escritura autentica con
-la **api-key** de service account (`x-api-key`, `RESPONSEGRID_API_KEY`) y
+consultable en `GET /api/needs/status/{jobId}`. Un `202` solo confirma que
+el job quedó en cola: el navegador no muestra éxito ni vacía el formulario
+hasta que el estado llega a `completed`, y conserva los datos si llega a
+`failed`. BullMQ expone su estado nativo. En Cloudflare Queues, productor,
+consumidor y DLQ guardan en `audit_log` solo el job ID, estado, referencia
+pública externa y motivo de fallo; nunca guardan el payload ciudadano. El
+worker geocodifica la dirección con un puerto `Geocoder` (adaptador sobre
+`services/geocode` → Nominatim) y delega en el puerto `NeedPublisher`, con
+reintentos e idempotencia opcional mediante `Idempotency-Key`. La escritura
+autentica con la **api-key** de service account (`x-api-key`,
+`RESPONSEGRID_API_KEY`) y
 envía un campo opcional **`author`** (contacto del solicitante, `verified:
 false` fijado por el servidor) para atribuir la necesidad sin que la persona
 se registre en ResponseGrid. Sin api-key, se cablea un publisher
@@ -299,7 +306,7 @@ Turnstile + rate-limit).
 >
 > | Superficie | Estado en Workers |
 > | --- | --- |
-> | `GET /api/earthquakes` | **sync vivo** por Cron Trigger (`*/5`) |
+> | `GET /api/earthquakes` | **sync vivo** por Cron Trigger (`*/5`); respuesta `{ earthquakes, sync: { fetchedAt } }` |
 > | Geocodificación pendiente | **viva** por Cron Trigger (`2-59/5`) |
 > | `POST /api/needs` (publicación) | **viva**: Cloudflare Queue + consumidor `queue` en `src/worker.ts`; DLQ persistido en `audit_log` (`queue.dead_letter`) |
 > | Sync de fuentes (personas) | pendiente (U5; sin fuentes `ENABLE_*` habilitadas no hay nada que sincronizar) |
@@ -338,17 +345,23 @@ Turnstile + rate-limit).
   dedup, ver capa de identidad abajo) y cada corrección humana de una fila
   OCR queda registrada en `ocr_corrections` (log inmutable, id determinista —
   el activo de aprendizaje de la fase 3).
-- **Sismos** (`earthquakes.queue.ts`): el worker poll-ea un feed público de
-  sismos (por defecto el feed realtime del USGS, global) cada
-  `EARTHQUAKES_EVERY_MS` (default 60s), filtra al bounding box configurado
-  (`EARTHQUAKES_MIN_LAT`/`MAX_LAT`/`MIN_LNG`/`MAX_LNG`, sin recortar por
-  defecto) y hace upsert por id de evento en la tabla `earthquakes`. Al
-  arrancar, si la tabla está vacía, encola un backfill puntual (últimos
-  `EARTHQUAKES_BACKFILL_DAYS` días, una sola llamada). Este scheduler
-  **siempre corre** (no va bajo `SYNC_SCHEDULERS`): es dato público y barato.
-  El backfill de arranque es idempotente (solo si la tabla está vacía), así
-  que el primer deploy siembra solo. La superficie pública es `GET
-  /api/earthquakes` (read-only, anónima, cacheada con ETag).
+- **Sismos** (`earthquakes.queue.ts` / Cron Trigger): fuente **USGS-only**
+  (Slice A — sin SGC/RSNC). En **compose/BullMQ** el worker poll-ea el feed
+  realtime USGS cada `EARTHQUAKES_EVERY_MS` (default **60s**). En **producción
+  Workers** el Cron Trigger es `*/5` (~cada 5 min). Filtra al bounding box
+  (`EARTHQUAKES_MIN_LAT`/`MAX_LAT`/`MIN_LNG`/`MAX_LNG`) y hace upsert por id
+  de evento en `earthquakes`. Si el feed/backfill termina OK con
+  `upserted===0`, un solo `UPDATE` refresca `fetched_at` de la fila más
+  reciente por `occurred_at` (para que la frescura del sync no se congele).
+  Al arrancar en compose, si la tabla está vacía, encola un backfill puntual
+  (últimos `EARTHQUAKES_BACKFILL_DAYS` días). El scheduler compose **siempre
+  corre** (no va bajo `SYNC_SCHEDULERS`). La superficie pública es `GET
+  /api/earthquakes` (read-only, anónima, cacheada con ETag) y devuelve
+  `{ earthquakes, sync: { fetchedAt } }` donde `sync.fetchedAt` es
+  `MAX(fetched_at)` en epoch-ms, o `null` si la tabla está vacía / nunca
+  sincronizada. `scripts/verify-jobs.sh` juzga **salud del sync**
+  (`sync.fetchedAt` ≤ 20 min / `SYNC_AGE_MS=1200000`), no la edad del último
+  evento sísmico (un catálogo quieto con sync fresco es PASS).
 
 ## Capa de identidad (Family Search)
 

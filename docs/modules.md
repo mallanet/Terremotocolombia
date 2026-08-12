@@ -24,7 +24,7 @@ Los cuatro módulos actuales:
 
 | Flag | Qué hace | Vendor/superficie |
 |---|---|---|
-| `ENABLE_RESPONSEGRID` | Directorio de centros de acopio + publicar necesidades de insumos | API pública de terceros (ResponseGrid) |
+| `ENABLE_RESPONSEGRID` | Fusiona ResponseGrid en `/api/acopio` + publicar necesidades de insumos | API pública de terceros (ResponseGrid) |
 | `ENABLE_HUB_FEDERATION` | Sincroniza reportes con despliegues hermanos del mismo template + réplica SQL pública opcional | Tu propia infraestructura hermana, o un consumidor de datos externo |
 | `ENABLE_PATIENT_OCR` | Extrae registros de pacientes desde fotos/PDF de listas de hospital vía un proveedor de visión (VL) | API de terceros que recibe imágenes con PII/datos de salud |
 | `ENABLE_EXAMPLE_SOURCE` | Fuente de sincronización de ejemplo (fixture sintético, sin red) — el patrón para tu fuente real | Ninguno (fixture en el propio repo) |
@@ -33,16 +33,14 @@ Los cuatro módulos actuales:
 
 ## `ENABLE_RESPONSEGRID`
 
-Proxea el directorio público de centros de acopio de
-[ResponseGrid](https://responsegrid.app) y, opcionalmente, publica
-necesidades de insumos hacia esa misma plataforma. El navegador nunca llama a
-ResponseGrid directo — todo pasa por el backend (`backend/src/modules/acopio/`
-para lectura, `backend/src/modules/needs/` para escritura), que controla
-cache, contrato y CORS.
+`GET /api/acopio` **siempre** está montado: sirve una lista estática de
+centros oficiales del sismo (`modules/acopio/infrastructure/static/`). Con
+este flag en `true`, además fusiona el directorio de
+[ResponseGrid](https://responsegrid.app) y habilita la publicación de
+necesidades (`/api/needs`). El navegador nunca llama a ResponseGrid directo.
 
-**Endpoints que expone:** `GET /api/acopio` (lista de centros, cacheada),
-`POST /api/needs` (publicar una necesidad, mutación pública con Turnstile +
-rate-limit) + `GET /api/needs/status/{jobId}` (poll del resultado).
+**Endpoints:** `GET /api/acopio` (siempre; estática ± ResponseGrid),
+`POST /api/needs` + `GET /api/needs/status/{jobId}` (solo con el flag).
 
 **Variables requeridas** (solo si `ENABLE_RESPONSEGRID=true`):
 
