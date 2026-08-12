@@ -9,6 +9,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -40,6 +41,17 @@ export function VolunteerAnalyticsCharts({ data }: ChartsProps) {
   const skills = data.digitalSkills.map((s) => ({ name: s.key, count: s.count }));
   const hourly = data.hourly.map((h) => ({ name: String(h.hour), count: h.count }));
   const sources = data.sources.map((s) => ({ name: s.key, count: s.count }));
+  const offerTypes = data.offerTypes.map((o) => ({ name: o.key, count: o.count }));
+  const modality = [
+    { name: "Campo", count: data.modality.campo },
+    { name: "Digital", count: data.modality.digital },
+    { name: "Sin claro", count: data.modality.unclear },
+  ];
+  const pipelineByIntent = data.pipelineByIntent.map((p) => ({
+    name: p.label,
+    pending: p.pending,
+    contacted: p.contacted,
+  }));
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -65,6 +77,45 @@ export function VolunteerAnalyticsCharts({ data }: ChartsProps) {
             </Pie>
             <Tooltip />
           </PieChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      <ChartCard title="Tipos de oferta">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={offerTypes} dataKey="count" nameKey="name" outerRadius={80} label>
+              {offerTypes.map((_, i) => (
+                <Cell key={offerTypes[i]!.name} fill={SERIES_PALETTE[i % SERIES_PALETTE.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+          </PieChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      <ChartCard title="Modalidad">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={modality} layout="vertical" margin={{ left: 8, right: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis type="number" allowDecimals={false} />
+            <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Bar dataKey="count" fill={CHART_COLORS.volunteerGreen} radius={[0, 4, 4, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      <ChartCard title="Pipeline por intención">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={pipelineByIntent} layout="vertical" margin={{ left: 8, right: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis type="number" allowDecimals={false} />
+            <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="pending" stackId="pipe" fill={CHART_COLORS.warning} name="Pending" />
+            <Bar dataKey="contacted" stackId="pipe" fill={CHART_COLORS.success} name="Contacted" />
+          </BarChart>
         </ResponsiveContainer>
       </ChartCard>
 
