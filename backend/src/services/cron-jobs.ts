@@ -26,24 +26,18 @@ export const CRON_EARTHQUAKES = "*/5 * * * *";
  */
 export const CRON_GEOCODE = "2-59/5 * * * *";
 
-/**
- * Reconciliación de PRNs (U7, KTD8): estampa registros sin PRN (backfill en
- * sus primeras corridas; red de seguridad de la carrera del camino inline en
- * régimen permanente) y corre los invariantes de cluster de U9. Misma
- * cadencia de 5 minutos, DESFASADA dos minutos más que `CRON_GEOCODE` (y
- * cuatro que `CRON_EARTHQUAKES`) por el mismo motivo: `controller.cron` es lo
- * único que distingue un trigger de otro, así que las tres expresiones deben
- * ser distintas, y el desfase evita que compitan por el mismo presupuesto de
- * invocación.
+/*
+ * La reconciliación de PRNs (U7, KTD8) — estampar registros sin PRN, correr
+ * los invariantes de cluster de U9 y drenar failed_submissions — NO tiene
+ * expresión propia: corre dentro del handler de `CRON_GEOCODE` (ver
+ * worker.ts). La cuenta está en Workers Free (5 crons en total entre prod y
+ * staging) y una tercera expresión de este Worker no cupo — el primer
+ * dispatch a producción (2026-08-11) falló exactamente ahí. Con Workers Paid
+ * puede volver a su propia expresión ("4-59/5 * * * *").
  */
-export const CRON_PERSON_RECONCILE = "4-59/5 * * * *";
 
 /** Todas las expresiones que este Worker espera recibir. */
-export const CRON_EXPRESSIONS = [
-  CRON_EARTHQUAKES,
-  CRON_GEOCODE,
-  CRON_PERSON_RECONCILE,
-] as const;
+export const CRON_EXPRESSIONS = [CRON_EARTHQUAKES, CRON_GEOCODE] as const;
 
 export type CronHandler = (now: number) => Promise<void>;
 

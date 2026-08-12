@@ -13,7 +13,6 @@ import {
   CRON_EARTHQUAKES,
   CRON_EXPRESSIONS,
   CRON_GEOCODE,
-  CRON_PERSON_RECONCILE,
   dispatchCron,
 } from "@/services/cron-jobs";
 
@@ -49,22 +48,12 @@ describe("dispatchCron", () => {
     expect(sismos).not.toHaveBeenCalled();
   });
 
-  it("enruta la expresión de reconciliación de PRNs a su handler y a ningún otro", async () => {
-    const sismos = vi.fn(async () => {});
-    const geocode = vi.fn(async () => {});
-    const reconcile = vi.fn(async () => {});
-
-    await dispatchCron(CRON_PERSON_RECONCILE, 1_700_000_000_000, {
-      [CRON_EARTHQUAKES]: sismos,
-      [CRON_GEOCODE]: geocode,
-      [CRON_PERSON_RECONCILE]: reconcile,
-    });
-
-    expect(reconcile).toHaveBeenCalledOnce();
-    expect(reconcile).toHaveBeenCalledWith(1_700_000_000_000);
-    expect(sismos).not.toHaveBeenCalled();
-    expect(geocode).not.toHaveBeenCalled();
-  });
+  // La reconciliación de PRNs ya no tiene expresión propia: corre dentro del
+  // handler de CRON_GEOCODE (límite de 5 crons de Workers Free, ver
+  // cron-jobs.ts). El enrutado que le tocaba probar aquí es ahora el mismo de
+  // geocode (test de arriba). El encadenamiento geocode->reconcile vive
+  // inline en worker.ts, igual que el resto del cableado de handlers (no se
+  // importa en tests: es el entry de Workers y arrastra cloudflare:node).
 
   it("una expresión desconocida avisa y vuelve, sin lanzar", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
