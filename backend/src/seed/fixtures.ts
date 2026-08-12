@@ -175,6 +175,30 @@ export interface DemoChat {
   createdAt: number;
 }
 
+/** Synthetic volunteer row for analytics DEMO (no real crisis PII). */
+export interface DemoVolunteer {
+  id: string;
+  name: string;
+  contact: string;
+  offer: string;
+  zone: string;
+  status: string;
+  notes: string | null;
+  ipHash: string | null;
+  createdAt: number;
+  updatedAt: number | null;
+  availability: string | null;
+  offerTypes: string[] | null;
+  digitalSkills: string[] | null;
+  crisisExperience: boolean | null;
+  fieldCity: string | null;
+  rescueTraining: boolean | null;
+  fieldRole: string | null;
+  ownVehicle: boolean | null;
+  source: string | null;
+  code: string;
+}
+
 // Hospitales FICTICIOS de demostración (mezcla de "estados"/municipios
 // inventados + algunos marcados como prioritarios). Reemplaza este bloque con
 // el directorio real de tu propio despliegue.
@@ -208,6 +232,105 @@ const SUPPLY_STATUS = ["green", "yellow", "red"] as const;
 const PATIENT_CONDITION = ["stable", "serious", "critical", "recovering"] as const;
 const PATIENT_STATUS = ["hospitalized", "hospitalized", "recovering", "transferred"] as const;
 
+/** One fixture per frozen IntentKey (+ other) for analytics board demos. */
+const VOLUNTEER_INTENT_SEEDS: Array<{
+  suffix: string;
+  fieldRole: string | null;
+  offerTypes: string[] | null;
+  digitalSkills: string[] | null;
+  offer: string;
+  status: string;
+}> = [
+  {
+    suffix: "digital",
+    fieldRole: "digital",
+    offerTypes: null,
+    digitalSkills: ["verificacion_datos"],
+    offer: "DEMO apoyo remoto",
+    status: "pending",
+  },
+  {
+    suffix: "acopio",
+    fieldRole: "acopio",
+    offerTypes: null,
+    digitalSkills: null,
+    offer: "DEMO centro de acopio",
+    status: "pending",
+  },
+  {
+    suffix: "logistica",
+    fieldRole: "logistica",
+    offerTypes: null,
+    digitalSkills: null,
+    offer: "DEMO logística de campo",
+    status: "pending",
+  },
+  {
+    suffix: "salud",
+    fieldRole: "salud",
+    offerTypes: null,
+    digitalSkills: null,
+    offer: "DEMO salud clínica",
+    status: "pending",
+  },
+  {
+    suffix: "general",
+    fieldRole: "general",
+    offerTypes: null,
+    digitalSkills: null,
+    offer: "DEMO manos generales",
+    status: "contacted",
+  },
+  {
+    suffix: "cocina",
+    fieldRole: "cocina",
+    offerTypes: null,
+    digitalSkills: null,
+    offer: "DEMO cocina",
+    status: "pending",
+  },
+  {
+    suffix: "estructural",
+    fieldRole: "evaluacion_estructural",
+    offerTypes: null,
+    digitalSkills: null,
+    offer: "DEMO evaluación",
+    status: "pending",
+  },
+  {
+    suffix: "psicosocial",
+    fieldRole: "psicosocial",
+    offerTypes: null,
+    digitalSkills: null,
+    offer: "DEMO apoyo psicosocial",
+    status: "pending",
+  },
+  {
+    suffix: "transporte",
+    fieldRole: "transporte",
+    offerTypes: null,
+    digitalSkills: null,
+    offer: "DEMO transporte",
+    status: "pending",
+  },
+  {
+    suffix: "donacion",
+    fieldRole: null,
+    offerTypes: ["donacion"],
+    digitalSkills: null,
+    offer: "DEMO donación especie",
+    status: "contacted",
+  },
+  {
+    suffix: "other",
+    fieldRole: null,
+    offerTypes: null,
+    digitalSkills: null,
+    offer: "DEMO sin clasificar xyz",
+    status: "pending",
+  },
+];
+
 export interface DemoData {
   reports: DemoReport[];
   missing: DemoMissing[];
@@ -217,6 +340,7 @@ export interface DemoData {
   supplyNeeds: DemoSupplyNeed[];
   donations: DemoDonation[];
   chat: DemoChat[];
+  volunteers: DemoVolunteer[];
 }
 
 export function buildFixtures(now: number): DemoData {
@@ -344,5 +468,41 @@ export function buildFixtures(now: number): DemoData {
     createdAt: now - i * 11 * MIN,
   }));
 
-  return { reports, missing, hospitals, patients, supplyStatuses, supplyNeeds, donations, chat };
+  const volunteers: DemoVolunteer[] = VOLUNTEER_INTENT_SEEDS.map((seed, i) => {
+    const city = pick(CITIES, i + 3);
+    return {
+      id: `${DEMO_PREFIX}vol-${seed.suffix}`,
+      name: `DEMO Volunteer ${seed.suffix}`,
+      contact: `+00 555-${2000 + i}`,
+      offer: seed.offer,
+      zone: city.name,
+      status: seed.status,
+      notes: null,
+      ipHash: null,
+      createdAt: now - (i + 1) * HOUR,
+      updatedAt: now - i * MIN,
+      availability: i % 2 === 0 ? "parcial" : "fines de semana",
+      offerTypes: seed.offerTypes,
+      digitalSkills: seed.digitalSkills,
+      crisisExperience: i % 3 === 0,
+      fieldCity: city.name,
+      rescueTraining: false,
+      fieldRole: seed.fieldRole,
+      ownVehicle: seed.suffix === "transporte",
+      source: "demo-seed",
+      code: `${DEMO_PREFIX}VCODE-${seed.suffix.toUpperCase()}`,
+    };
+  });
+
+  return {
+    reports,
+    missing,
+    hospitals,
+    patients,
+    supplyStatuses,
+    supplyNeeds,
+    donations,
+    chat,
+    volunteers,
+  };
 }

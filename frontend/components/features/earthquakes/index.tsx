@@ -6,6 +6,12 @@ import { useEarthquakes } from "@/hooks/emergency";
 import { useTick } from "@/hooks/useTick";
 import { qk } from "@/lib/query-keys";
 import { deploymentConfig } from "@/lib/deployment-config";
+import {
+  EARTHQUAKES_CADENCE_COPY_ES,
+  earthquakesPanelSubtitle,
+  earthquakesQuietMessage,
+  resolveEarthquakesPanelView,
+} from "@/lib/earthquakes-panel";
 import { EarthquakeCard } from "./EarthquakeCard";
 
 const USGS_MAP_URL = "https://earthquake.usgs.gov/earthquakes/map/";
@@ -15,17 +21,25 @@ const INITIAL_VISIBLE = 8;
 
 export default function EarthquakesPanel() {
   const queryClient = useQueryClient();
-  const { data: quakes, isLoading, isError } = useEarthquakes(POLL_MS);
+  const { data, isLoading, isError } = useEarthquakes(POLL_MS);
+  const quakes = data?.earthquakes;
+  const syncFetchedAt = data?.sync?.fetchedAt ?? null;
   const [minMag, setMinMag] = useState<(typeof MIN_MAG_OPTIONS)[number]>(2);
   const [showAll, setShowAll] = useState(false);
   const now = useTick();
 
+  // Magnitude filter only — Slice A does not add a client time-window cut.
   const filtered = useMemo(
     () => (quakes ?? []).filter((q) => (q.magnitude ?? 0) >= minMag),
     [quakes, minMag],
   );
   const visible = showAll ? filtered : filtered.slice(0, INITIAL_VISIBLE);
   const hidden = filtered.length - visible.length;
+  const view = resolveEarthquakesPanelView({
+    isLoading,
+    isError,
+    filteredCount: filtered.length,
+  });
 
   return (
     <section aria-labelledby="earthquakes-heading" className="e-m-section e-m-section--wash">
@@ -37,7 +51,7 @@ export default function EarthquakesPanel() {
             </h2>
             <hr className="e-m-section__rule" />
             <p className="e-m-section__sub">
-              Catálogo USGS de {deploymentConfig.regionLabel}, actualizado cada minuto.
+              {earthquakesPanelSubtitle(deploymentConfig.regionLabel)}
             </p>
           </div>
           <div
@@ -62,7 +76,7 @@ export default function EarthquakesPanel() {
           </div>
         </div>
 
-        {isLoading ? (
+        {view === "loading" ? (
           <ul className="e-m-quake-list" aria-hidden>
             {Array.from({ length: 5 }).map((_, i) => (
               <li
@@ -71,7 +85,7 @@ export default function EarthquakesPanel() {
               />
             ))}
           </ul>
-        ) : isError ? (
+        ) : view === "error" ? (
           <div className="e-m-hub-card">
             <p className="e-m-hub-card__title">No se pudieron cargar los sismos</p>
             <p className="e-m-hub-card__desc">
@@ -97,9 +111,13 @@ export default function EarthquakesPanel() {
               </a>
             </div>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : view === "quiet" ? (
           <p className="py-6 text-center text-sm text-[var(--m-gray-500)]">
-            Sin sismos de magnitud {minMag}+ en el catálogo reciente.
+            {earthquakesQuietMessage({
+              minMag,
+              syncFetchedAt,
+              nowMs: now,
+            })}
           </p>
         ) : (
           <>
@@ -118,6 +136,8 @@ export default function EarthquakesPanel() {
               <a href={USGS_MAP_URL} target="_blank" rel="noopener noreferrer" className="e-m-link">
                 USGS
               </a>
+              {" · "}
+              {EARTHQUAKES_CADENCE_COPY_ES}
             </p>
           </>
         )}

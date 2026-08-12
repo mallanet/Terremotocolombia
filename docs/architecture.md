@@ -224,6 +224,22 @@ require human review before any deployment.
   email) and `source: "admin_api"`, and they do NOT mirror needs to
   ResponseGrid — that stays inside the POC flow. The panel
   (`admin/app/hospital-supplies`) consumes this API through its BFF.
+- **Analítica de voluntarios en `api/public/volunteer-analytics`.** Board de
+  agregados (sin PII) para ops: KPIs (voluntarios/pending/contacted + conteos
+  de tasks/assignments), buckets de intención (taxonomía congelada del canvas
+  + `other`), pipeline, geo, disponibilidad, skills digitales, altas por hora,
+  fuentes y `callouts[]`. Router a mano
+  (`public-api/routers/volunteer-analytics.router.ts`) con
+  `requireCapability("volunteer:read")` (CROSS_CUTTING; el seedAuth la liga
+  solo al rol sistema `admin`) + `cached()` SWR ~120s
+  (`vol:analytics:full` / `vol:analytics:inc:{since}`) y bypass `?refresh=1`.
+  Clasificador puro en
+  `services/volunteer-analytics/classify-intent.ts`
+  (prioridad field_role → offer_types → digital → free-text). El panel
+  (`admin/app/volunteer-analytics`) consume el BFF
+  `/api/admin/volunteer-analytics` (`Cache-Control: no-store`) con Recharts
+  y Query `staleTime` 60s. Schema `volunteers*` en Drizzle: expand-only;
+  **migrar Neon stg/prd es humano** (nunca el agente).
 
 ## Third-party integrations (`ENABLE_*` flags)
 
@@ -359,7 +375,7 @@ surface. Turnstile and rate limiting remain the real protection.
 >
 > | Surface | State on Cloudflare Workers |
 > | --- | --- |
-> | `GET /api/earthquakes` | **live sync**, by Cron Trigger (`*/5`) |
+> | `GET /api/earthquakes` | **live sync**, by Cron Trigger (`*/5`); response `{ earthquakes, sync: { fetchedAt } }` |
 > | Pending geocoding | **live**, by Cron Trigger (`2-59/5`) |
 > | `POST /api/needs` (publication) | **live**: a Cloudflare Queue, with a `queue` consumer in `src/worker.ts`. The dead-letter queue persists to `audit_log` (`queue.dead_letter`) |
 > | Source sync (people) | pending (unit U5; with no `ENABLE_*` source turned on, there is nothing to sync) |
@@ -414,7 +430,10 @@ surface. Turnstile and rate limiting remain the real protection.
   public and cheap to fetch. The startup backfill is idempotent (it runs
   only when the table is empty), so the first deploy seeds the table once.
   The public surface is `GET /api/earthquakes` (read-only, anonymous,
-  cached with an ETag).
+  cached with an ETag). It returns `{ earthquakes, sync: { fetchedAt } }`
+  where `sync.fetchedAt` is `MAX(fetched_at)` in epoch-ms, or `null`.
+  `scripts/verify-jobs.sh` judges **sync health** (`sync.fetchedAt` ≤ 20 min),
+  not the age of the latest earthquake.
 
 ## Identity layer (Family Search)
 

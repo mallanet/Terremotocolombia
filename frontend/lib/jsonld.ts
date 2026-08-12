@@ -3,7 +3,7 @@ import {
   SITE_NAME,
   SITE_LOGO,
   CONTACT_EMAIL,
-  DISCORD_INVITE_URL,
+  COMMUNITY_WHATSAPP_URL,
 } from "@/lib/site";
 import { deploymentConfig } from "@/lib/deployment-config";
 import { OG_IMAGE_URL } from "@/lib/og-image";
@@ -45,7 +45,7 @@ export function organizationSchema(): JsonLdNode {
     areaServed: { "@type": "Place", name: deploymentConfig.regionLabel },
     sameAs: [
       "https://mallanet.org",
-      DISCORD_INVITE_URL,
+      COMMUNITY_WHATSAPP_URL,
       "https://github.com/mallanet/Terremotocolombia",
     ],
     knowsAbout: [

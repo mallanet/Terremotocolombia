@@ -54,6 +54,7 @@ const CORE_ASSETS = [
   "/icon-192.png",
   "/icon-512.png",
   "/brand/isotipo-oscuro.svg",
+  "/brand/isotipo-claro.svg",
   "/manifest.webmanifest",
   "/mapa-de-rescate.webmanifest",
 ];

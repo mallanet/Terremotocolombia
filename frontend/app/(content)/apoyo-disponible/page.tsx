@@ -3,18 +3,17 @@ import { pageMetadata } from "@/lib/metadata";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import SubPageShell from "@/components/layout/SubPageShell";
+import OfficialQuickLinks from "@/components/features/support/OfficialQuickLinks";
+import { PSYCH_HELP_FORM_URL } from "@/lib/psych-help-form";
+import { telHref } from "@/lib/official-support-links";
 
 export const metadata: Metadata = pageMetadata({
   title: "Apoyo disponible",
   description:
-    "Directorio de apoyo durante la emergencia: psicológico, civil y rescate, transporte, discapacidad, mascotas y más. Contactos directos. Iniciativa ciudadana, independiente y no gubernamental.",
+    "Directorio de apoyo durante la emergencia: líneas oficiales 1XY, portales del Estado, psicológico, civil y rescate, transporte, discapacidad, mascotas y más. Iniciativa ciudadana, independiente y no gubernamental.",
   path: "/apoyo-disponible",
 });
 
-/** Convierte un número mostrado a un href tel: válido para marcar al tocarlo. */
-function telHref(display: string): string {
-  return `tel:${display.replace(/[^\d*+]/g, "")}`;
-}
 
 function Card({
   emoji,
@@ -48,7 +47,6 @@ function Card({
   );
 }
 
-/** Caja interior con contacto telefónico. */
 function ContactRow({
   label,
   sublabel,
@@ -89,7 +87,6 @@ function ContactRow({
   );
 }
 
-/** Caja interior con texto y una acción (enlace interno). */
 function ActionRow({
   label,
   sublabel,
@@ -97,6 +94,7 @@ function ActionRow({
   href,
   cta,
   filled = false,
+  external = false,
 }: {
   label?: string;
   sublabel?: string;
@@ -104,7 +102,11 @@ function ActionRow({
   href: string;
   cta: string;
   filled?: boolean;
+  external?: boolean;
 }) {
+  const className = filled
+    ? "e-m-btn e-m-btn--crisis e-m-btn--block mt-4"
+    : "e-m-btn e-m-btn--crisis mt-3";
   return (
     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
       {label ? <p className="font-bold text-slate-900">{label}</p> : null}
@@ -114,24 +116,27 @@ function ActionRow({
       {body ? (
         <p className="text-sm leading-relaxed text-slate-600">{body}</p>
       ) : null}
-      <Link
-        href={href}
-        className={
-          filled
-            ? "e-m-btn e-m-btn--crisis e-m-btn--block mt-4"
-            : "e-m-btn e-m-btn--crisis mt-3"
-        }
-      >
-        {cta}
-      </Link>
+      {external ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={className}
+        >
+          {cta}
+        </a>
+      ) : (
+        <Link href={href} className={className}>
+          {cta}
+        </Link>
+      )}
     </div>
   );
 }
 
 /**
- * CUSTOMIZE ME: los contactos de abajo son EJEMPLOS sintéticos. Reemplázalos
- * con los directorios reales (psicológico, protección civil, transporte,
- * discapacidad, mascotas, etc.) de la región de este deployment.
+ * Directorio por tipo de apoyo + franja de accesos oficiales (1XY / .gov.co).
+ * Las líneas cortas siguen `frontend/lib/emergency-contacts.ts`.
  */
 export default function ApoyoPage() {
   return (
@@ -140,9 +145,22 @@ export default function ApoyoPage() {
         <h1 className="mb-2 text-[28px] font-bold text-slate-900 sm:text-[32px]">
           Apoyo disponible
         </h1>
-        <p className="mb-10 text-[15px] text-slate-600 sm:text-base">
-          Selecciona el tipo de apoyo que necesitas. Toca una tarjeta para ver
-          los contactos directos.
+        <p className="mb-8 text-[15px] text-slate-600 sm:text-base">
+          Empieza por las líneas y portales oficiales, o elige el tipo de apoyo
+          que necesitas más abajo.
+        </p>
+
+        <OfficialQuickLinks />
+
+        <h2 className="mb-2 text-xl font-bold text-slate-900">
+          Por tipo de apoyo
+        </h2>
+        <p className="mb-6 text-sm text-slate-600">
+          Contactos y formularios por categoría. En emergencia llama al{" "}
+          <a href="tel:123" className="font-semibold text-[var(--ebuscar-ic)]">
+            123
+          </a>
+          .
         </p>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -152,15 +170,23 @@ export default function ApoyoPage() {
             title="Psicológico"
             subtitle="Apoyo emocional y mental"
           >
-            <ContactRow
-              label="Línea de apoyo emocional (ejemplo)"
-              sublabel="Emergencia emocional"
-              phone="+00 000 000 0000"
+            <ActionRow
+              label="Red de salud mental"
+              sublabel="Solicita apoyo psicológico o regístrate como profesional"
+              href={PSYCH_HELP_FORM_URL}
+              cta="Abrir formulario"
+              external
+              filled
             />
             <ContactRow
-              label="Apoyo para niños y adolescentes (ejemplo)"
-              sublabel="Atención especializada"
-              phone="+00 000 000 0001"
+              label="Línea de ayuda e intervención en crisis"
+              sublabel="Apoyo psicosocial · oficial"
+              phone="106"
+            />
+            <ContactRow
+              label="Cruz Roja Colombiana"
+              sublabel="Orientación y respuesta humanitaria"
+              phone="132"
             />
           </Card>
 
@@ -171,14 +197,19 @@ export default function ApoyoPage() {
             subtitle="Protección Civil y emergencias"
           >
             <ContactRow
-              label="Protección Civil (ejemplo)"
-              sublabel="Rescate · 24h"
-              phone="+00 000 000 0002"
-            />
-            <ContactRow
-              label="Emergencias"
+              label="Número Único de Emergencias"
               sublabel="Línea nacional"
               phone="123"
+            />
+            <ContactRow
+              label="Atención de desastres"
+              sublabel="Línea nacional"
+              phone="111"
+            />
+            <ContactRow
+              label="Defensa Civil Colombiana"
+              sublabel="Rescate y protección civil"
+              phone="144"
             />
           </Card>
 
@@ -190,9 +221,14 @@ export default function ApoyoPage() {
           >
             <ContactRow
               label="Bomberos"
-              sublabel="Traslado en emergencia"
-              phone="172"
+              sublabel="Traslado y emergencia"
+              phone="119"
               stacked
+            />
+            <ContactRow
+              label="Ambulancia"
+              sublabel="Traslado sanitario"
+              phone="125"
             />
             <ActionRow
               label="Voluntarios con vehículo"
@@ -208,11 +244,17 @@ export default function ApoyoPage() {
             title="Discapacidad"
             subtitle="Apoyo especializado para personas con discapacidad"
           >
-            <ContactRow
-              label="Consejo de apoyo a personas con discapacidad (ejemplo)"
-              sublabel="Línea de atención"
-              phone="+00 000 000 0003"
-              stacked
+            <ActionRow
+              body="En emergencia llama al 123 e indica si hay una persona con discapacidad. Para coordinar apoyo ciudadano, usa el espacio de voluntarios."
+              href="/voluntario"
+              cta="Espacio de voluntarios"
+              filled
+            />
+            <ActionRow
+              label="Directorio de teléfonos"
+              sublabel="Líneas oficiales 1XY"
+              href="/telefonos"
+              cta="Ver teléfonos"
             />
           </Card>
 
@@ -222,14 +264,18 @@ export default function ApoyoPage() {
             title="Mascotas"
             subtitle="Refugio y atención para animales"
           >
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <p className="font-bold text-slate-900">
-                Fundación de rescate animal (ejemplo)
-              </p>
-              <p className="text-[13px] leading-relaxed text-slate-500">
-                Atención y refugio temporal para animales afectados.
-              </p>
-            </div>
+            <ActionRow
+              body="Coordina rescate o refugio temporal de animales con la comunidad de voluntarios. En riesgo inmediato prioriza también al 123."
+              href="/voluntario"
+              cta="Espacio de voluntarios"
+              filled
+            />
+            <ActionRow
+              label="Reportar mascota"
+              sublabel="Personas y animales en la plataforma"
+              href="/mascotas"
+              cta="Ir a mascotas"
+            />
           </Card>
 
           <Card
@@ -243,6 +289,12 @@ export default function ApoyoPage() {
               href="/voluntario"
               cta="Espacio de voluntarios"
               filled
+            />
+            <ActionRow
+              label="Donaciones verificadas"
+              sublabel="Canales oficiales (Cruz Roja, ABACO, bancos de sangre)"
+              href="/donaciones"
+              cta="Ver canales"
             />
           </Card>
         </div>

@@ -126,7 +126,7 @@ function initGoogleTranslate() {
 export default function TranslateWidget({
   variant = "default",
 }: {
-  variant?: "default" | "header";
+  variant?: "default" | "fab";
 }) {
   const [open, setOpen] = useState(false);
   // Servidor y primer render cliente deben usar el mismo idioma para evitar
@@ -146,13 +146,14 @@ export default function TranslateWidget({
     const lang = getCookieLang();
     // Con traducción activa el script debe cargar en cada página para que
     // esta se traduzca sola; sin cookie se difiere hasta la interacción.
-	// Un timer conserva el arranque en pestañas ocultas (donde rAF se pausa) y
-	// evita una actualización síncrona en el cuerpo del efecto.
-	const syncTimer = window.setTimeout(() => {
-	  if (lang !== TRANSLATE_SOURCE_LANG) setGtRequested(true);
+    // La decisión se toma síncrona y no dentro del rAF: los navegadores
+    // pausan rAF en pestañas ocultas y una página abierta en segundo plano
+    // quedaría sin traducir hasta hacerse visible.
+    if (lang !== TRANSLATE_SOURCE_LANG) setGtRequested(true);
+    const syncFrame = window.requestAnimationFrame(() => {
       setActiveLang(lang);
-	}, 0);
-	return () => window.clearTimeout(syncTimer);
+    });
+    return () => window.cancelAnimationFrame(syncFrame);
   }, []);
 
   useEffect(() => {
@@ -187,8 +188,12 @@ export default function TranslateWidget({
           setOpen((v) => !v);
         }}
         className={
-          variant === "header"
-            ? `e-nav__language${isTranslated ? " e-nav__language--active" : ""}`
+          variant === "fab"
+            ? `flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border-[1.5px] px-3.5 text-xs font-bold shadow-lg shadow-black/20 transition ${
+                isTranslated
+                  ? "border-sky-300 bg-sky-50 text-sky-800"
+                  : "border-[var(--eborder)] bg-[var(--esurf)] text-[var(--etext2)] hover:bg-[var(--einput)]"
+              }`
             : `inline-flex h-9 min-h-0 shrink-0 items-center justify-center gap-1.5 rounded-full border-[1.5px] px-3 text-xs font-bold transition ${
                 isTranslated
                   ? "border-sky-300 bg-sky-50 text-sky-800"
@@ -197,7 +202,7 @@ export default function TranslateWidget({
         }
         title={`Idioma: ${current.label}`}
       >
-        {variant === "header" ? (
+        {variant === "fab" ? (
           <>
             <Languages aria-hidden className="h-4 w-4" strokeWidth={2.2} />
             <span>{current.code.toUpperCase()}</span>
@@ -210,7 +215,11 @@ export default function TranslateWidget({
         <span className="hidden sm:inline">{current.label}</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-[2000] mt-1.5 min-w-[10rem] animate-[fadeUp_0.18s_ease-out] overflow-hidden rounded-xl border border-[var(--eborder)] bg-[var(--esurf)] shadow-xl">
+        <div
+          className={`absolute right-0 z-[2000] min-w-[10rem] animate-[fadeUp_0.18s_ease-out] overflow-hidden rounded-xl border border-[var(--eborder)] bg-[var(--esurf)] shadow-xl ${
+            variant === "fab" ? "bottom-full mb-2" : "top-full mt-1.5"
+          }`}
+        >
           {TRANSLATE_LANGS.map((lang) => (
             <button
               key={lang.code}

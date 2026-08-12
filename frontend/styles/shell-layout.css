@@ -344,6 +344,29 @@
 	object-fit: contain;
 }
 
+/* Dual isotipo: light chrome shows oscuro; dark chrome shows claro. No filter. */
+.e-hero__brand-logo--on-dark {
+	display: none;
+}
+
+[data-dark="true"] .e-hero__brand-logo--on-light {
+	display: none;
+}
+
+[data-dark="true"] .e-hero__brand-logo--on-dark {
+	display: block;
+}
+
+[data-dark="true"] .e-hero__brand-name,
+[data-dark="true"] .e-nav__links a {
+	color: var(--etext);
+}
+
+[data-dark="true"] .e-nav__links a:hover,
+[data-dark="true"] .e-nav__links a[aria-current="page"] {
+	color: var(--etext);
+}
+
 .e-hero__brand-lockup {
 	display: flex;
 	min-width: 0;
@@ -541,7 +564,6 @@
 }
 
 .e-nav__support,
-.e-nav__language,
 .e-nav__psych,
 .e-nav__donate {
 	display: inline-flex;
@@ -571,20 +593,6 @@
 .e-nav__support--open {
 	background: var(--brand-blue-light);
 	color: var(--brand-navy);
-}
-
-.e-nav__language {
-	border: 1px solid var(--brand-gray-200);
-	background: var(--esurf);
-	color: var(--brand-gray-600);
-	cursor: pointer;
-}
-
-.e-nav__language:hover,
-.e-nav__language--active {
-	border-color: var(--brand-blue);
-	background: var(--brand-blue-light);
-	color: var(--brand-blue-dark);
 }
 
 .e-nav__donate {
@@ -634,6 +642,44 @@
 .e-nav__psych:hover .e-nav__psych-count {
 	background: #fff;
 	color: var(--brand-blue-dark);
+}
+
+/* Menú "Ayuda": desplegable del header con las dos rutas de apoyo. */
+.e-nav__help {
+	position: relative;
+}
+
+.e-nav__help-menu {
+	position: absolute;
+	top: calc(100% + 6px);
+	right: 0;
+	z-index: 70;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 200px;
+	padding: 4px;
+	border: 1px solid var(--brand-blue-light);
+	border-radius: var(--qi-radius-md);
+	background: #fff;
+	box-shadow: 0 10px 28px rgba(12, 35, 64, 0.16);
+}
+
+.e-nav__help-menu a {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 9px 12px;
+	border-radius: calc(var(--qi-radius-md) - 4px);
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--brand-navy);
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.e-nav__help-menu a:hover {
+	background: var(--brand-blue-light);
 }
 
 @media (max-width: 980px) {
@@ -687,13 +733,6 @@
 @media (max-width: 430px) {
 	.e-nav__inner {
 		gap: 8px;
-	}
-
-	/* El selector global sustituye el selector duplicado del mapa. La ayuda
-	   psicológica sigue disponible en la hoja "Más" del móvil. */
-	.e-nav__language {
-		min-width: 44px;
-		padding-inline: 10px;
 	}
 }
 
@@ -2964,8 +3003,9 @@
 	gap: 8px;
 	padding: 10px 16px;
 	border-radius: 999px;
-	background: #fff;
-	color: #06182d;
+	/* WhatsApp brand green — scoped community CTA only (not a sticker). */
+	background: #25d366;
+	color: #fff;
 	font-size: 0.8125rem;
 	font-weight: 700;
 	line-height: 1.3;
@@ -2973,9 +3013,16 @@
 	transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+.e-footer__cta-icon {
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
+	color: inherit;
+}
+
 .e-footer__cta:hover {
-	background: var(--m-blue-100);
-	color: #06182d;
+	background: var(--m-green-600);
+	color: #fff;
 }
 
 .e-footer__legal {
