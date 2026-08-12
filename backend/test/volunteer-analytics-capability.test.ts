@@ -1,8 +1,8 @@
 /**
- * RBAC-1/2/3 — volunteer:read capability foundation (WU1).
+ * RBAC — volunteer:read for analytics board.
  *
- * Analytics HTTP 403 lands with the router in a later work unit; here we lock
- * the catalog + seedAuth auto-grant path that WU2/WU3 will rely on.
+ * Staging already exposes `volunteer:read` via MODELS CRUD (`volunteer`).
+ * Analytics MUST reuse that key (no duplicate CROSS_CUTTING entry).
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import "./helpers";
@@ -10,28 +10,23 @@ import { ensureSeed, makeAdmin, makeUserWithCaps } from "./helpers";
 import { eq, and } from "drizzle-orm";
 
 describe("volunteer:read capability catalog (unit)", () => {
-  it("is present in CAPABILITIES as CROSS_CUTTING volunteers category", async () => {
-    const { CAPABILITIES, isKnownCapability } = await import("@/auth/capabilities");
+  it("is present from volunteer MODEL CRUD (analytics reuses it)", async () => {
+    const { CAPABILITIES, MODELS, isKnownCapability, CROSS_CUTTING } = await import(
+      "@/auth/capabilities"
+    );
+    expect(MODELS.some((m) => m.key === "volunteer")).toBe(true);
     expect(isKnownCapability("volunteer:read")).toBe(true);
     const entry = CAPABILITIES.find((c) => c.key === "volunteer:read");
     expect(entry).toEqual(
       expect.objectContaining({
         key: "volunteer:read",
         category: "volunteers",
-        description: expect.stringMatching(/anal[ií]tica|voluntar/i),
       }),
     );
-  });
-
-  it("is CROSS_CUTTING analytics, not a model CRUD verb on volunteer", async () => {
-    const { MODELS, CAPABILITIES } = await import("@/auth/capabilities");
-    // Staging already has a `volunteer` CRUD model; analytics must not invent
-    // volunteer:create/edit/delete — only volunteer:read as cross-cutting.
-    expect(MODELS.some((m) => m.key === "volunteer")).toBe(true);
-    expect(CAPABILITIES.some((c) => c.key === "volunteer:create")).toBe(false);
-    expect(CAPABILITIES.some((c) => c.key === "volunteer:edit")).toBe(false);
-    expect(CAPABILITIES.some((c) => c.key === "volunteer:delete")).toBe(false);
-    expect(CAPABILITIES.some((c) => c.key === "volunteer:read")).toBe(true);
+    // No duplicate CROSS_CUTTING key — Set would collapse, but seed/catalog
+    // length must stay unique per key.
+    expect(CROSS_CUTTING.some((c) => c.key === "volunteer:read")).toBe(false);
+    expect(CAPABILITIES.filter((c) => c.key === "volunteer:read")).toHaveLength(1);
   });
 });
 
@@ -75,7 +70,6 @@ describe("volunteer:read seed AuthZ (integration)", () => {
   it("non-admin role without grant does NOT get volunteer:read (RBAC-3)", async () => {
     const { getDb, schema } = await import("@/db");
     const { userHasCapability, loadAuthUser } = await import("@/auth/resolve");
-    // Role with an unrelated cap only — seed must not inject volunteer:read.
     const { id, roleId } = await makeUserWithCaps(["report:read"]);
     expect(roleId).toBeTruthy();
     const injected = await getDb()

@@ -82,14 +82,8 @@ export const CROSS_CUTTING: { key: string; category: string; description: string
   { key: "grant:read", category: "auth", description: "Ver grants de capacidades" },
   { key: "grant:manage", category: "auth", description: "Conceder/revocar capacidades individuales" },
   { key: "audit:read", category: "audit", description: "Ver la bitácora de auditoría" },
-  // Analítica agregada de voluntarios (ops board). CROSS_CUTTING read-only: no
-  // es CRUD de filas. seedAuth la vincula al rol semilla `admin` junto al resto
-  // del catálogo; otros roles solo por grant manual (RBAC-3).
-  {
-    key: "volunteer:read",
-    category: "volunteers",
-    description: "Ver analítica agregada de voluntarios",
-  },
+  // Analítica agregada de voluntarios reutiliza `volunteer:read` del MODEL
+  // CRUD (`MODELS.volunteer`) — no duplicar la key en CROSS_CUTTING.
   // Self-service: gestionar TUS PROPIAS API keys. Se siembra en todos los roles
   // (cualquier usuario invitado puede crear sus llaves). Revocar llaves AJENAS es
   // potestad del admin semilla (no necesita esta cap). Es capability — no "solo
