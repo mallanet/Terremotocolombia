@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Languages } from "lucide-react";
+import { loadGoogleTranslateScript } from "@/lib/google-translate-loader";
 import {
   TRANSLATE_LANGS,
   TRANSLATE_SOURCE_LANG,
@@ -30,7 +31,6 @@ declare global {
         ) => void;
       };
     };
-    googleTranslateElementInit?: () => void;
   }
 }
 
@@ -133,6 +133,9 @@ export default function TranslateWidget({
   // una hidratación distinta cuando ya existe la cookie `googtrans`.
   const [activeLang, setActiveLang] =
     useState<TranslateLangCode>(TRANSLATE_SOURCE_LANG);
+  // El script de Google Translate solo se pide cuando hace falta: traducción
+  // ya activa (cookie) o primera interacción con el widget.
+  const [gtRequested, setGtRequested] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const handleLangApplied = useCallback((lang: TranslateLangCode) => {
@@ -140,8 +143,15 @@ export default function TranslateWidget({
   }, []);
 
   useEffect(() => {
+    const lang = getCookieLang();
+    // Con traducción activa el script debe cargar en cada página para que
+    // esta se traduzca sola; sin cookie se difiere hasta la interacción.
+    // La decisión se toma síncrona y no dentro del rAF: los navegadores
+    // pausan rAF en pestañas ocultas y una página abierta en segundo plano
+    // quedaría sin traducir hasta hacerse visible.
+    if (lang !== TRANSLATE_SOURCE_LANG) setGtRequested(true);
     const syncFrame = window.requestAnimationFrame(() => {
-      setActiveLang(getCookieLang());
+      setActiveLang(lang);
     });
     return () => window.cancelAnimationFrame(syncFrame);
   }, []);
@@ -157,23 +167,11 @@ export default function TranslateWidget({
   }, [open]);
 
   useEffect(() => {
+    if (!gtRequested) return;
     patchDomForGoogleTranslate();
-
-    if (document.getElementById("google-translate-script")) {
-      return attachComboListener(handleLangApplied);
-    }
-
-    window.googleTranslateElementInit = initGoogleTranslate;
-
-    const script = document.createElement("script");
-    script.id = "google-translate-script";
-    script.src =
-      "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
-    script.async = true;
-    document.head.appendChild(script);
-
+    loadGoogleTranslateScript(initGoogleTranslate);
     return attachComboListener(handleLangApplied);
-  }, [handleLangApplied]);
+  }, [gtRequested, handleLangApplied]);
 
   const current = TRANSLATE_LANGS.find((lang) => lang.code === activeLang)!;
   const isTranslated = activeLang !== TRANSLATE_SOURCE_LANG;
@@ -185,7 +183,10 @@ export default function TranslateWidget({
         type="button"
         aria-label="Cambiar idioma de la página"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setGtRequested(true);
+          setOpen((v) => !v);
+        }}
         className={
           variant === "fab"
             ? `flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border-[1.5px] px-3.5 text-xs font-bold shadow-lg shadow-black/20 transition ${
