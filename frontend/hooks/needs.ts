@@ -1,8 +1,9 @@
 "use client";
 
 // Mutación para publicar una necesidad (POST /api/needs), con sus catálogos de UI.
-import { useMutation } from "@tanstack/react-query";
-import { apiSend } from "@/lib/api";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiGet, apiSend } from "@/lib/api";
+import { qk } from "@/lib/query-keys";
 
 export const NEED_PRIORITIES = [
   { value: "urgent", label: "Urgente" },
@@ -55,12 +56,49 @@ export interface PublishNeedInput {
 }
 
 export interface PublishNeedResult {
-  need?: { id: string; status: string };
+  queued: true;
+  jobId: string;
+}
+
+export interface NeedPublicationState {
+  jobId: string;
+  state: string;
+  progress: unknown;
+  result: { id: string; status: string } | null;
+  failedReason: string | null;
 }
 
 export function usePublishNeed() {
   return useMutation({
-    mutationFn: (input: PublishNeedInput) =>
-      apiSend<PublishNeedResult>("POST", "/api/needs", input),
+    mutationFn: async (input: PublishNeedInput) => {
+      const result = await apiSend<PublishNeedResult>(
+        "POST",
+        "/api/needs",
+        input,
+      );
+      if (result.queued !== true || !result.jobId) {
+        throw new Error("La API no confirmó que la publicación quedó en cola.");
+      }
+      return result;
+    },
+  });
+}
+
+const TERMINAL_NEED_STATES = new Set(["completed", "failed"]);
+
+/** Sigue el job encolado hasta que el backend confirma éxito o fallo. */
+export function useNeedPublicationStatus(jobId: string | null) {
+  return useQuery({
+    queryKey: qk.needs.publication(jobId),
+    queryFn: ({ signal }) =>
+      apiGet<NeedPublicationState>(
+        `/api/needs/status/${encodeURIComponent(jobId ?? "")}`,
+        signal,
+      ),
+    enabled: Boolean(jobId),
+    refetchInterval: (query) =>
+      query.state.data && TERMINAL_NEED_STATES.has(query.state.data.state)
+        ? false
+        : 2_000,
   });
 }

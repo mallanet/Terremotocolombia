@@ -227,11 +227,17 @@ endpoints (`require-rate-limit`, guard de mutaciones) también cubren
 Segundo módulo: **needs** (`modules/needs/`), lado de ESCRITURA: publica una
 necesidad de insumos en ResponseGrid vía `POST /api/needs` (mutación pública
 con Turnstile + rate-limit). La API devuelve `202` con un identificador
-consultable en `GET /api/needs/status/{jobId}`; el worker BullMQ geocodifica
-la dirección con un puerto `Geocoder` (adaptador sobre `services/geocode` →
-Nominatim) y delega en el puerto `NeedPublisher`, con reintentos e
-idempotencia opcional mediante `Idempotency-Key`. La escritura autentica con
-la **api-key** de service account (`x-api-key`, `RESPONSEGRID_API_KEY`) y
+consultable en `GET /api/needs/status/{jobId}`. Un `202` solo confirma que
+el job quedó en cola: el navegador no muestra éxito ni vacía el formulario
+hasta que el estado llega a `completed`, y conserva los datos si llega a
+`failed`. BullMQ expone su estado nativo. En Cloudflare Queues, productor,
+consumidor y DLQ guardan en `audit_log` solo el job ID, estado, referencia
+pública externa y motivo de fallo; nunca guardan el payload ciudadano. El
+worker geocodifica la dirección con un puerto `Geocoder` (adaptador sobre
+`services/geocode` → Nominatim) y delega en el puerto `NeedPublisher`, con
+reintentos e idempotencia opcional mediante `Idempotency-Key`. La escritura
+autentica con la **api-key** de service account (`x-api-key`,
+`RESPONSEGRID_API_KEY`) y
 envía un campo opcional **`author`** (contacto del solicitante, `verified:
 false` fijado por el servidor) para atribuir la necesidad sin que la persona
 se registre en ResponseGrid. Sin api-key, se cablea un publisher
