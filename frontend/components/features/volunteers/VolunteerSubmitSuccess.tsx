@@ -1,7 +1,6 @@
 "use client";
 
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
-import { VolunteerPostSubmitBanner } from "./VolunteerPostSubmitBanner";
 
 const WHATSAPP_GROUP_URL = process.env.NEXT_PUBLIC_WHATSAPP_GROUP_URL ?? "";
 
@@ -26,7 +25,6 @@ export function VolunteerSubmitSuccess({
         </span>
         <span className="mt-1 block">{message}</span>
       </div>
-      <VolunteerPostSubmitBanner />
       {volunteerCode && (
         <div className="rounded-[20px] bg-slate-900 p-5 text-center text-white">
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-300">

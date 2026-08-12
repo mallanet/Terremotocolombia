@@ -3,6 +3,7 @@ import { HardHat, Laptop } from "lucide-react";
 import { pageMetadata } from "@/lib/metadata";
 import SubPageShell from "@/components/layout/SubPageShell";
 import VolunteerForm from "@/components/features/volunteers/VolunteerForm";
+import { VolunteerPostSubmitBanner } from "@/components/features/volunteers/VolunteerPostSubmitBanner";
 
 export const metadata: Metadata = pageMetadata({
   title: "Súmate como voluntario",
@@ -67,6 +68,9 @@ export default function VoluntarioPage() {
           </p>
 
           <VolunteerForm />
+          <div className="mt-8">
+            <VolunteerPostSubmitBanner />
+          </div>
         </div>
       </section>
     </SubPageShell>
