@@ -85,8 +85,7 @@ const copy = {
     acquisition: "Adquisición programada",
     delivery: "Entrega estimada",
     waiting: "En espera",
-    officialStatus: "Estado oficial",
-    noTsunami: "Sin amenaza de tsunami",
+    mapAreas: "Áreas Copernicus",
     magnitude: "Magnitud",
     depth: "Profundidad",
     futureLayers: "Capas operativas",
@@ -149,8 +148,7 @@ const copy = {
     acquisition: "Scheduled acquisition",
     delivery: "Expected delivery",
     waiting: "Waiting",
-    officialStatus: "Official status",
-    noTsunami: "No tsunami threat",
+    mapAreas: "Copernicus areas",
     magnitude: "Magnitude",
     depth: "Depth",
     futureLayers: "Operational layers",
@@ -626,8 +624,8 @@ export default function RescueMapExperience({
             <strong>{incident.event.depthKm} km</strong>
           </div>
           <div className="e-rescue-fact">
-            <span>{text.officialStatus}</span>
-            <strong>{text.noTsunami}</strong>
+            <span>{text.mapAreas}</span>
+            <strong>{mapping.aois.length} AOI</strong>
           </div>
         </section>
 

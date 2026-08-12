@@ -201,7 +201,10 @@ test("permite teclado, skip link, cambio ES/EN y pasa WCAG AA automatizado", asy
   await expect(
     page.getByRole("button", { name: "Before", exact: true }),
   ).toBeDisabled();
-  await expect(page.getByText("No tsunami threat", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Copernicus areas", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("4 AOI", { exact: true })).toBeVisible();
 
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
