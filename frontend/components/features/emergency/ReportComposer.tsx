@@ -7,6 +7,7 @@ export interface ReportComposerSubmit {
   type: ReportType;
   place: string;
   affected: number;
+  volunteerCode?: string;
   needs: string;
   photo: string | null;
 }

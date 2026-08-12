@@ -23,6 +23,7 @@ import { logDbFailure } from "@/lib/db-error";
 import { captureFailedSubmission } from "@/lib/failed-submission";
 import { badRequest, HttpError, notFound, payloadTooLarge, serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/reports";
+import { getVolunteerByCode } from "@/services/volunteers";
 import { publishNeedAtLocation } from "@/modules/needs";
 
 export const reportsRouter = Router();
@@ -43,6 +44,8 @@ const createBody = z.object({
   affected: z.union([z.number(), z.string()]).optional(),
   needs: z.string().max(1000).optional(),
   photo: z.string().max(service.MAX_REPORT_PHOTO_CHARS, "La foto es demasiado grande.").nullable().optional(),
+  // Opcional: código único del voluntario que reporta (atribución interna).
+  volunteerCode: z.string().trim().min(4).max(12).optional(),
   // Turnstile lo consume requireHuman; lo permitimos sin reflejarlo en la salida.
   turnstileToken: z.string().optional(),
 });
@@ -120,6 +123,19 @@ reportsRouter.post(
         throw payloadTooLarge("La foto es demasiado grande. Usa una imagen más liviana.");
       }
     }
+    // Atribución opcional: código de voluntario → volunteer_id. Un código
+    // inválido RECHAZA el reporte con 400 claro: la persona corrige el typo
+    // o lo deja vacío; nunca perdemos la atribución en silencio.
+    let volunteerId: string | null = null;
+    if (body.volunteerCode) {
+      const volunteer = await getVolunteerByCode(body.volunteerCode);
+      if (!volunteer) {
+        throw badRequest(
+          "El código de voluntario no es válido. Revísalo o déjalo vacío.",
+        );
+      }
+      volunteerId = volunteer.id;
+    }
     try {
       const report = await service.addReport({
         type: body.type as service.ReportType,
@@ -129,6 +145,7 @@ reportsRouter.post(
         affected: Number(body.affected) || 0,
         needs: typeof body.needs === "string" ? body.needs : "",
         photo: body.photo ?? null,
+        volunteerId,
       });
       res.status(201).json({ report }); // report ya es DTO
       // Espejo fire-and-forget tras responder: no bloquea ni afecta al reporte.

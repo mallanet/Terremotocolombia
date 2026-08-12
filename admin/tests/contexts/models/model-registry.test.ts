@@ -15,6 +15,7 @@ describe("model-registry", () => {
         "patients",
         "reports",
         "volunteers",
+        "volunteer-checkins",
         "volunteer-tasks",
       ].sort(),
     );
@@ -53,6 +54,7 @@ function capabilityRoot(path: string): string {
     contact: "contact",
     "deletion-requests": "deletion",
     volunteers: "volunteer",
+    "volunteer-checkins": "volunteer",
     "volunteer-tasks": "volunteer",
   };
   return map[path] ?? path;

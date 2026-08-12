@@ -18,6 +18,7 @@ interface FakeVolunteerRow {
   id: string;
   name: string;
   contact: string;
+  code: string;
   offer: string;
   zone: string;
   availability: string | null;
@@ -112,9 +113,12 @@ describe("POST /api/volunteers", () => {
     expect(response.body.ok).toBe(true);
     expect(typeof response.body.id).toBe("string");
     expect(response.body.id.length).toBeGreaterThan(0);
+    // El código único se devuelve UNA vez, al registrarse, y queda persistido.
+    expect(response.body.code).toMatch(/^\d{6}$/);
     expect(dbMocks.insertedRows).toHaveLength(1);
     expect(dbMocks.insertedRows[0]).toMatchObject({
       id: response.body.id,
+      code: response.body.code,
       name: "DEMO-Voluntario Uno",
       contact: "DEMO-3000000000",
       offerTypes: ["persona"],
@@ -245,6 +249,7 @@ describe("service de voluntarios: mapeo a VolunteerDTO (allowlist, nunca ip_hash
       id: "demo-vol-1",
       name: "DEMO-Nombre Admin",
       contact: "DEMO-3000000001",
+      code: "483920",
       offer: "DEMO-oferta",
       zone: "DEMO-zona",
       availability: "DEMO-puntual",

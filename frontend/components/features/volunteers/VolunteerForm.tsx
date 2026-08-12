@@ -94,6 +94,8 @@ export default function VolunteerForm() {
   const [branch, setBranch] = useState<BranchState>(EMPTY_BRANCH);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [volunteerCode, setVolunteerCode] = useState<string | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const volunteerMutation = useVolunteerSubmit();
   const submitting = volunteerMutation.isPending;
@@ -147,6 +149,9 @@ export default function VolunteerForm() {
           data.message ??
             "¡Gracias! Tu registro quedó guardado. Recibirás el mensaje de onboarding con los siguientes pasos. Conectar también salva vidas.",
         );
+        // El backend viejo no devuelve code: la tarjeta solo aparece si viene.
+        setVolunteerCode(data.code ?? null);
+        setCodeCopied(false);
         setName("");
         setContact("");
         setZone("");
@@ -264,6 +269,35 @@ export default function VolunteerForm() {
             </span>
             <span className="mt-1 block">{success}</span>
           </div>
+          {volunteerCode && (
+            <div className="rounded-[20px] bg-slate-900 p-5 text-center text-white">
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-300">
+                Tu código de voluntario
+              </p>
+              <p className="my-2 font-mono text-4xl font-bold tracking-[0.35em]">
+                {volunteerCode}
+              </p>
+              <p className="mx-auto max-w-md text-xs text-slate-300">
+                Guárdalo bien: lo usarás para registrar tus actividades
+                (check-ins) y firmar tus reportes. Solo tú y el equipo de
+                coordinación lo conocen.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(volunteerCode);
+                    setCodeCopied(true);
+                  } catch {
+                    setCodeCopied(false);
+                  }
+                }}
+                className="mt-3 rounded-full bg-white px-4 py-1.5 text-xs font-bold text-slate-900 hover:bg-slate-100"
+              >
+                {codeCopied ? "¡Copiado!" : "Copiar código"}
+              </button>
+            </div>
+          )}
           {WHATSAPP_GROUP_URL && (
           <div className="rounded-[20px] border border-[#25D366]/30 bg-[#25D366]/5 p-5 text-center">
             <WhatsAppIcon className="mx-auto mb-2 h-9 w-9 text-[#25D366]" />

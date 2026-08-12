@@ -22,6 +22,8 @@ export interface QueuedPayload {
   affected: number;
   needs: string;
   photo: string | null;
+  /** Código de voluntario que firma el reporte (opcional; atribución interna). */
+  volunteerCode?: string;
 }
 
 export interface QueuedReport {

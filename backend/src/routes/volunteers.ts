@@ -154,6 +154,9 @@ volunteersRouter.post(
       res.status(200).json({
         ok: true,
         id: volunteer.id,
+        // El código se expone UNA sola vez, a la persona que se acaba de
+        // registrar: es su credencial para check-ins y reportes atribuidos.
+        code: volunteer.code,
         message: "Registro recibido. El equipo de coordinación te contactará.",
       });
     } catch (err) {
