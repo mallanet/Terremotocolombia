@@ -278,7 +278,7 @@ test("permite teclado, usa el idioma global y pasa WCAG AA automatizado", async 
     name: "Cambiar idioma de la página",
   });
   await globalLanguage.click();
-  await page.getByRole("button", { name: "English", exact: true }).click();
+  await page.getByRole("menuitem", { name: "English", exact: true }).click();
   await expect
     .poll(async () =>
       (await context.cookies()).some(
