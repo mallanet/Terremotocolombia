@@ -105,6 +105,26 @@ export const COLOMBIA_QUAKE_COLLECTION_CENTERS: readonly CollectionCenter[] = [
     description: "Uno de los siete CAFE habilitados en Pereira tras el sismo. Zona afectada (Risaralda).",
   },
   {
+    id: "co-static-pereira-club-de-leones",
+    name: "Club de Leones de Pereira",
+    manager: "Club de Leones",
+    location: {
+      address: "Cra. 13 #13-42, barrio Centro",
+      latitude: 4.8088681,
+      longitude: -75.6909216,
+    },
+    city: "Pereira",
+    country: "Colombia",
+    accepts: ["water", "food", "hygiene", "blankets", "clothing"],
+    contact: "321 874 5409",
+    schedule: "Lunes a viernes 8:00-17:00; sábados 8:00-12:00",
+    status: "active",
+    verificationLevel: "verified",
+    disputed: false,
+    description:
+      "Se recibe: agua, leche en polvo, pañales (bebé y adultos), toallas higiénicas, cepillos de dientes, papel higiénico, comida para mascotas, ropa de bebé, colchonetas, cobijas, almohadas, alimentos no perecederos y kits de aseo.",
+  },
+  {
     id: "co-static-pereira-cafe-san-nicolas",
     name: "CAFE San Nicolás (Centro de Atención)",
     manager: "Alcaldía de Pereira",
