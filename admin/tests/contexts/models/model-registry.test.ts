@@ -15,6 +15,7 @@ describe("model-registry", () => {
         "patients",
         "reports",
         "volunteers",
+        "volunteer-tasks",
       ].sort(),
     );
   });
@@ -39,6 +40,8 @@ describe("model-registry", () => {
 
 // El path plural del recurso vs la raíz singular de la capacidad
 // (reports->report, missing->missing, hospitals->hospital, ...).
+// volunteer-tasks reutiliza volunteer:* a propósito: quien gestiona
+// voluntarios gestiona sus tareas (sin entradas nuevas en el catálogo).
 function capabilityRoot(path: string): string {
   const map: Record<string, string> = {
     reports: "report",
@@ -50,6 +53,7 @@ function capabilityRoot(path: string): string {
     contact: "contact",
     "deletion-requests": "deletion",
     volunteers: "volunteer",
+    "volunteer-tasks": "volunteer",
   };
   return map[path] ?? path;
 }

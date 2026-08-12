@@ -11,11 +11,11 @@ export function Home() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Inicio</h1>
-      <p className="mt-1 text-sm text-gray-500">Selecciona un módulo para administrar.</p>
+      <h1 className="text-2xl font-bold text-ink">Inicio</h1>
+      <p className="mt-1 text-sm text-ink-muted">Selecciona un módulo para administrar.</p>
 
       {visible.length === 0 ? (
-        <p className="mt-6 text-sm text-gray-500">
+        <p className="mt-6 text-sm text-ink-muted">
           Tu cuenta no tiene capacidades de lectura asignadas. Contacta a un administrador.
         </p>
       ) : (
@@ -24,9 +24,9 @@ export function Home() {
             <Link
               key={m.path}
               href={`/${m.path}`}
-              className="rounded border p-4 transition hover:bg-gray-50"
+              className="rounded-2xl border border-border-soft bg-white p-4 shadow-sm transition hover:border-brand-blue"
             >
-              <span className="font-semibold">{m.label}</span>
+              <span className="font-semibold text-ink">{m.label}</span>
             </Link>
           ))}
         </div>

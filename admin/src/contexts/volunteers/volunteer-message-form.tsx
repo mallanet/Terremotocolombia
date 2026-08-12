@@ -70,11 +70,11 @@ export function VolunteerMessageForm({
   return (
     <form
       onSubmit={submit}
-      className="grid gap-3 rounded border bg-gray-50 p-3 sm:grid-cols-2"
+      className="grid gap-3 rounded-2xl border border-border-soft bg-white p-4 shadow-sm sm:grid-cols-2"
     >
-      <p className="text-sm text-gray-600 sm:col-span-2">
+      <p className="text-sm text-ink-muted sm:col-span-2">
         Enviar correo a <strong>{contact}</strong>. Al enviarse, el registro pasa a
-        &quot;contacted&quot; si estaba pendiente.
+        &quot;Contactado&quot; si estaba pendiente.
       </p>
       <Input
         label="Asunto"
@@ -85,7 +85,7 @@ export function VolunteerMessageForm({
       <label className="text-sm sm:col-span-2">
         <span className="mb-1 block font-medium">Mensaje</span>
         <textarea
-          className="w-full rounded border px-3 py-2"
+          className="w-full rounded-lg border border-border-soft bg-white px-3 py-2"
           rows={4}
           required
           value={message}

@@ -227,6 +227,8 @@ describe("POST /api/public/volunteer-tasks/:id/assign", () => {
     expect(dbMocks.assignments).toHaveLength(1);
     expect(dbMocks.assignments[0]!.token).toMatch(/^[0-9a-f]{48}$/);
     expect(dbMocks.updates.some((u) => u.status === "assigned")).toBe(true);
+    // El correo de asignación cuenta como contacto: pending → contacted.
+    expect(dbMocks.updates.some((u) => u.status === "contacted")).toBe(true);
     expect(dbMocks.sendMail).toHaveBeenCalledOnce();
     const [to, payload] = dbMocks.sendMail.mock.calls[0]!;
     expect(to).toBe("demo@example.org");

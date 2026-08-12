@@ -6,3 +6,20 @@
  * aunque cambie la heurística de auto-detección.
  */
 @source "../src/**/*.{ts,tsx}";
+
+/* Paleta de marca Mallanet / Terremoto Colombia — espejo de docs/DESIGN.md
+ * y frontend/app/globals.css. Genera utilidades bg-brand-*, text-ink, etc. */
+@theme {
+  --color-brand-navy: #0f2154;
+  --color-brand-blue: #4080f2;
+  --color-brand-blue-dark: #0f2154;
+  --color-brand-blue-light: #e1eaff;
+  --color-canvas: #eef2f7;
+  --color-surface-muted: #f7f8f9;
+  --color-border-soft: #dce3ec;
+  --color-ink: #0f2154;
+  --color-ink-muted: #52606d;
+  --color-crisis: #ce1126;
+  --color-success: #10b981;
+  --color-warning: #fbb658;
+}

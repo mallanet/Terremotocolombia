@@ -171,6 +171,11 @@ export async function assignVolunteer(
     .update(volunteerTasks)
     .set({ status: "assigned", updatedAt: now })
     .where(sql`${volunteerTasks.id} = ${taskId} AND ${volunteerTasks.status} = 'open'`);
+  // El correo de asignación ya es un contacto: pending → contacted (claim).
+  await db
+    .update(volunteers)
+    .set({ status: "contacted", updatedAt: now })
+    .where(sql`${volunteers.id} = ${volunteerId} AND ${volunteers.status} = 'pending'`);
   return {
     ok: true,
     assignmentId,

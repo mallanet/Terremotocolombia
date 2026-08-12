@@ -71,21 +71,26 @@ function AuthedShell({ children }: { children: ReactNode }) {
   const pendingSignalsBadge = usePendingSignalsBadge(can("person:search"));
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between border-b px-6 py-3">
+    <div className="flex min-h-screen flex-col bg-canvas text-ink">
+      <header className="flex items-center justify-between bg-brand-navy px-6 py-3 text-white">
         <Link href="/" className="text-lg font-bold">
-          Panel de administración
+          Terremoto Colombia · Administración
         </Link>
         <div className="flex items-center gap-3 text-sm">
-          <span className="text-gray-500">{user?.email}</span>
-          <Button type="button" variant="ghost" onClick={() => void logout()}>
+          <span className="text-white/70">{user?.email}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            className="text-white hover:bg-white/10"
+            onClick={() => void logout()}
+          >
             Salir
           </Button>
         </div>
       </header>
 
       <div className="flex flex-1">
-        <nav className="w-48 shrink-0 border-r p-4">
+        <nav className="w-52 shrink-0 border-r border-border-soft bg-white p-4">
           <ul className="flex flex-col gap-1">
             {visible.map((m) => (
               <NavLink key={m.path} href={`/${m.path}`} label={m.label} pathname={pathname} />
@@ -114,7 +119,7 @@ function AuthedShell({ children }: { children: ReactNode }) {
               <NavLink href="/hospital-supplies" label="Insumos hospitalarios" pathname={pathname} />
             )}
             {visible.length === 0 && (
-              <li className="px-3 py-2 text-sm text-gray-500">Sin permisos de lectura.</li>
+              <li className="px-3 py-2 text-sm text-ink-muted">Sin permisos de lectura.</li>
             )}
           </ul>
 
@@ -142,7 +147,7 @@ function AuthedShell({ children }: { children: ReactNode }) {
             can("grant:read") ||
             can("audit:read")) && (
             <>
-              <h3 className="mt-6 mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              <h3 className="mt-6 mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-ink-muted">
                 Administración
               </h3>
               <ul className="flex flex-col gap-1">
@@ -182,15 +187,15 @@ function NavLink({
       <Link
         href={href}
         className={[
-          "flex items-center justify-between gap-2 rounded px-3 py-2 text-sm",
-          active ? "bg-gray-900 text-white" : "hover:bg-gray-100",
+          "flex items-center justify-between gap-2 rounded-full px-3 py-2 text-sm",
+          active ? "bg-brand-navy text-white" : "hover:bg-brand-blue-light",
         ].join(" ")}
       >
         <span>{label}</span>
         {badge && (
           <span
             data-testid="nav-pending-signals-badge"
-            className="rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-semibold leading-none text-white"
+            className="rounded-full bg-crisis px-1.5 py-0.5 text-xs font-semibold leading-none text-white"
           >
             {badge}
           </span>

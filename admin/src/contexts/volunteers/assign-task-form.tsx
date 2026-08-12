@@ -69,7 +69,10 @@ export function AssignTaskForm({
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-3 rounded border bg-gray-50 p-3 sm:grid-cols-2">
+    <form
+      onSubmit={submit}
+      className="grid gap-3 rounded-2xl border border-border-soft bg-white p-4 shadow-sm sm:grid-cols-2"
+    >
       <p className="text-sm text-gray-600 sm:col-span-2">
         Asignar <strong>{taskTitle}</strong> a un voluntario. Recibirá el correo de
         bienvenida con el mapa y los botones de respuesta.
@@ -77,7 +80,7 @@ export function AssignTaskForm({
       <label className="text-sm">
         <span className="mb-1 block font-medium">Voluntario</span>
         <select
-          className="w-full rounded border px-3 py-2"
+          className="w-full rounded-lg border border-border-soft bg-white px-3 py-2"
           required
           value={volunteerId}
           onChange={(event) => setVolunteerId(event.target.value)}

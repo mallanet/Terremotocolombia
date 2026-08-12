@@ -16,6 +16,37 @@ function renderCell(value: unknown): string {
   return String(value);
 }
 
+/**
+ * Rótulos en español + color para los estados conocidos (voluntarios y sus
+ * tareas). Así "¿ya se le envió?" se responde de un vistazo: Pendiente = aún
+ * sin contactar; Contactado = ya se le envió correo.
+ */
+const STATUS_BADGES: Record<string, { label: string; classes: string }> = {
+  pending: { label: "Pendiente", classes: "bg-amber-100 text-amber-800" },
+  contacted: { label: "Contactado", classes: "bg-blue-100 text-blue-800" },
+  active: { label: "Activo", classes: "bg-green-100 text-green-800" },
+  declined: { label: "Declinado", classes: "bg-gray-200 text-gray-600" },
+  open: { label: "Abierta", classes: "bg-amber-100 text-amber-800" },
+  assigned: { label: "Asignada", classes: "bg-blue-100 text-blue-800" },
+  done: { label: "Terminada", classes: "bg-green-100 text-green-800" },
+  cancelled: { label: "Cancelada", classes: "bg-gray-200 text-gray-600" },
+};
+
+function statusBadge(value: unknown): { label: string; classes: string } | null {
+  if (typeof value !== "string") return null;
+  return STATUS_BADGES[value] ?? null;
+}
+
+function StatusBadge({ value }: { value: unknown }) {
+  const badge = statusBadge(value);
+  if (!badge) return <>{renderCell(value)}</>;
+  return (
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge.classes}`}>
+      {badge.label}
+    </span>
+  );
+}
+
 function parseFieldValue(field: ModelField, value: unknown): unknown {
   if (field.type === "number") return Number(value);
   if (value === "true") return true;
@@ -26,7 +57,11 @@ function parseFieldValue(field: ModelField, value: unknown): unknown {
 function matchesQuery(row: ModelRow, q: string): boolean {
   if (!q) return true;
   const needle = q.toLowerCase();
-  return Object.values(row).some((v) => renderCell(v).toLowerCase().includes(needle));
+  return Object.values(row).some((v) => {
+    if (renderCell(v).toLowerCase().includes(needle)) return true;
+    const badge = statusBadge(v);
+    return badge !== null && badge.label.toLowerCase().includes(needle);
+  });
 }
 
 /**
@@ -55,7 +90,7 @@ export function ModelTable({ model }: { model: ModelConfig }) {
     [data, query],
   );
 
-  if (isLoading) return <p className="mt-4 text-sm text-gray-500">Cargando {model.label}…</p>;
+  if (isLoading) return <p className="mt-4 text-sm text-ink-muted">Cargando {model.label}…</p>;
   if (isError) {
     return (
       <p role="alert" className="mt-4 text-sm text-red-600">
@@ -75,7 +110,7 @@ export function ModelTable({ model }: { model: ModelConfig }) {
           onChange={(e) => setQuery(e.target.value)}
           className="max-w-xs"
         />
-        <span className="text-sm text-gray-500">{rows.length} resultado(s)</span>
+        <span className="text-sm text-ink-muted">{rows.length} resultado(s)</span>
       </div>
       {canCreate && (
         <ModelForm
@@ -87,16 +122,16 @@ export function ModelTable({ model }: { model: ModelConfig }) {
       )}
       {mutation.error && <p className="text-sm text-red-600">{mutation.error.message}</p>}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-2xl border border-border-soft bg-white shadow-sm">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b text-left">
+            <tr className="border-b border-border-soft bg-surface-muted text-left">
               {model.columns.map((c) => (
-                <th key={c.key} className="px-3 py-2 font-semibold">
+                <th key={c.key} className="px-3 py-2 font-semibold text-ink">
                   {c.label}
                 </th>
               ))}
-              {hasActions && <th className="px-3 py-2 font-semibold">Acciones</th>}
+              {hasActions && <th className="px-3 py-2 font-semibold text-ink">Acciones</th>}
             </tr>
           </thead>
           <tbody>
@@ -104,17 +139,17 @@ export function ModelTable({ model }: { model: ModelConfig }) {
               <tr>
                 <td
                   colSpan={model.columns.length + (hasActions ? 1 : 0)}
-                  className="px-3 py-6 text-center text-gray-500"
+                  className="px-3 py-6 text-center text-ink-muted"
                 >
                   Sin datos.
                 </td>
               </tr>
             ) : (
               rows.map((row, i) => (
-                <tr key={renderCell(row.id) + String(i)} className="border-b last:border-0">
+                <tr key={renderCell(row.id) + String(i)} className="border-b border-border-soft last:border-0">
                   {model.columns.map((c) => (
                     <td key={c.key} className="px-3 py-2 align-top">
-                      {renderCell(row[c.key])}
+                      {c.key === "status" ? <StatusBadge value={row[c.key]} /> : renderCell(row[c.key])}
                     </td>
                   ))}
                   {hasActions && (
@@ -223,7 +258,7 @@ function SelectModelField({
     <label className="text-sm">
       <span className="mb-1 block font-medium">{field.label}</span>
       <select
-        className="w-full rounded border px-3 py-2"
+        className="w-full rounded-lg border border-border-soft bg-white px-3 py-2"
         required={field.required}
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -271,7 +306,10 @@ function ModelForm({
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-3 rounded border bg-gray-50 p-3 sm:grid-cols-2">
+    <form
+      onSubmit={submit}
+      className="grid gap-3 rounded-2xl border border-border-soft bg-white p-4 shadow-sm sm:grid-cols-2"
+    >
       {fields.map((field) =>
         field.type === "select-model" ? (
           <SelectModelField
