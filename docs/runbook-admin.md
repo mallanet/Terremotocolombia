@@ -79,6 +79,35 @@ Orden natural en el panel:
 > (`queue.dead_letter`). Archivos CSV/XLSX: el productor materializa las filas
 > antes de encolar (límite de 128 KB por mensaje de Queues).
 
+## Analítica de voluntarios
+
+Página **Analítica de voluntarios** (`/volunteer-analytics`): agregados sin
+PII, gated por `volunteer:read` (nav oculta sin la capacidad). El sistema
+`admin` la recibe en el seed; otros roles solo con grant manual.
+
+### Verificar en local (compose)
+
+1. Levantar stack: `docker compose up --build` (Postgres + Valkey + API + admin).
+2. Migraciones + seed DEMO: el servicio `migrate`/`seed` inserta `DEMO-vol-*`
+   que cubren la taxonomía de intenciones.
+3. Entrar al panel con el admin local sembrado (`admin@example.org` / la
+   contraseña del seed de auth local documentada en compose).
+4. Abrir **Analítica de voluntarios**: KPIs + charts + callouts con corpus
+   completo. **Actualizar** debe forzar `refresh=1` y refrescar el payload.
+5. Vacío: si no hay filas (DB limpia sin seed), la UI muestra estado
+   vacío/bloqueado — no gráficos vacíos como “éxito”.
+
+### Staging-first (humano) — no desplegar a main sin esto
+
+1. **Humano**: aplicar migración expand-only de `volunteers*` en Neon
+   **staging** (URL directa, no `-pooler`). Ver apply-progress / CLAUDE.md.
+2. Opcional: `ALLOW_STAGING_DEMO_SEED=1` + `npm run seed:volunteers-demo` en
+   host staging (nunca producción, nunca CI auto).
+3. Smoke en `admin-staging.terremotocolombia.co` con un admin que tenga
+   `volunteer:read`.
+4. Solo entonces merge a `main` (auto-deploy admin+backend). Board de
+   producción necesita además migración Neon **production** (paso humano).
+
 ## Despliegues del panel
 
 - **Staging**: automático en cada push a `staging` (job `admin` de
