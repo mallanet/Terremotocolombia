@@ -3,7 +3,7 @@ import localFont from "next/font/local";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 import PwaRegister from "@/components/layout/PwaRegister";
-import PsychosocialSticky from "@/components/layout/PsychosocialSticky";
+import CornerActions from "@/components/layout/CornerActions";
 import PrivacyConsentGate from "@/components/layout/PrivacyConsentGate";
 import OpenPanelProduction from "@/components/layout/OpenPanelProduction";
 import ThemeProvider from "@/components/layout/ThemeProvider";
@@ -216,7 +216,7 @@ export default function RootLayout({
           <PrivacyConsentGate>{children}</PrivacyConsentGate>
         </QueryProvider>
         <PwaRegister />
-        <PsychosocialSticky />
+        <CornerActions />
         <JsonLd data={jsonLd} />
       </body>
       {GA_MEASUREMENT_ID && <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />}

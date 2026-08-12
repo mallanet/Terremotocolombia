@@ -3,6 +3,7 @@ import { pageMetadata } from "@/lib/metadata";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import SubPageShell from "@/components/layout/SubPageShell";
+import { PSYCH_HELP_FORM_URL } from "@/lib/psych-help-form";
 
 export const metadata: Metadata = pageMetadata({
   title: "Apoyo disponible",
@@ -11,7 +12,6 @@ export const metadata: Metadata = pageMetadata({
   path: "/apoyo-disponible",
 });
 
-/** Convierte un número mostrado a un href tel: válido para marcar al tocarlo. */
 function telHref(display: string): string {
   return `tel:${display.replace(/[^\d*+]/g, "")}`;
 }
@@ -48,7 +48,6 @@ function Card({
   );
 }
 
-/** Caja interior con contacto telefónico. */
 function ContactRow({
   label,
   sublabel,
@@ -89,7 +88,6 @@ function ContactRow({
   );
 }
 
-/** Caja interior con texto y una acción (enlace interno). */
 function ActionRow({
   label,
   sublabel,
@@ -97,6 +95,7 @@ function ActionRow({
   href,
   cta,
   filled = false,
+  external = false,
 }: {
   label?: string;
   sublabel?: string;
@@ -104,7 +103,11 @@ function ActionRow({
   href: string;
   cta: string;
   filled?: boolean;
+  external?: boolean;
 }) {
+  const className = filled
+    ? "e-m-btn e-m-btn--crisis e-m-btn--block mt-4"
+    : "e-m-btn e-m-btn--crisis mt-3";
   return (
     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
       {label ? <p className="font-bold text-slate-900">{label}</p> : null}
@@ -114,16 +117,20 @@ function ActionRow({
       {body ? (
         <p className="text-sm leading-relaxed text-slate-600">{body}</p>
       ) : null}
-      <Link
-        href={href}
-        className={
-          filled
-            ? "e-m-btn e-m-btn--crisis e-m-btn--block mt-4"
-            : "e-m-btn e-m-btn--crisis mt-3"
-        }
-      >
-        {cta}
-      </Link>
+      {external ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={className}
+        >
+          {cta}
+        </a>
+      ) : (
+        <Link href={href} className={className}>
+          {cta}
+        </Link>
+      )}
     </div>
   );
 }
@@ -152,6 +159,14 @@ export default function ApoyoPage() {
             title="Psicológico"
             subtitle="Apoyo emocional y mental"
           >
+            <ActionRow
+              label="Red de salud mental"
+              sublabel="Solicita apoyo psicológico o regístrate como profesional"
+              href={PSYCH_HELP_FORM_URL}
+              cta="Abrir formulario"
+              external
+              filled
+            />
             <ContactRow
               label="Línea de apoyo emocional (ejemplo)"
               sublabel="Emergencia emocional"

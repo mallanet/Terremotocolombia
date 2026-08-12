@@ -541,7 +541,6 @@
 }
 
 .e-nav__support,
-.e-nav__language,
 .e-nav__psych,
 .e-nav__donate {
 	display: inline-flex;
@@ -571,20 +570,6 @@
 .e-nav__support--open {
 	background: var(--brand-blue-light);
 	color: var(--brand-navy);
-}
-
-.e-nav__language {
-	border: 1px solid var(--brand-gray-200);
-	background: var(--esurf);
-	color: var(--brand-gray-600);
-	cursor: pointer;
-}
-
-.e-nav__language:hover,
-.e-nav__language--active {
-	border-color: var(--brand-blue);
-	background: var(--brand-blue-light);
-	color: var(--brand-blue-dark);
 }
 
 .e-nav__donate {
@@ -634,6 +619,44 @@
 .e-nav__psych:hover .e-nav__psych-count {
 	background: #fff;
 	color: var(--brand-blue-dark);
+}
+
+/* Menú "Ayuda": desplegable del header con las dos rutas de apoyo. */
+.e-nav__help {
+	position: relative;
+}
+
+.e-nav__help-menu {
+	position: absolute;
+	top: calc(100% + 6px);
+	right: 0;
+	z-index: 70;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 200px;
+	padding: 4px;
+	border: 1px solid var(--brand-blue-light);
+	border-radius: var(--qi-radius-md);
+	background: #fff;
+	box-shadow: 0 10px 28px rgba(12, 35, 64, 0.16);
+}
+
+.e-nav__help-menu a {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 9px 12px;
+	border-radius: calc(var(--qi-radius-md) - 4px);
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--brand-navy);
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.e-nav__help-menu a:hover {
+	background: var(--brand-blue-light);
 }
 
 @media (max-width: 980px) {
@@ -687,13 +710,6 @@
 @media (max-width: 430px) {
 	.e-nav__inner {
 		gap: 8px;
-	}
-
-	/* El selector global sustituye el selector duplicado del mapa. La ayuda
-	   psicológica sigue disponible en la hoja "Más" del móvil. */
-	.e-nav__language {
-		min-width: 44px;
-		padding-inline: 10px;
 	}
 }
 
