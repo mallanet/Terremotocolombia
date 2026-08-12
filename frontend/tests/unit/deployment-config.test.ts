@@ -1,0 +1,53 @@
+import { describe, expect, it } from "vitest";
+import { validateDeploymentConfig } from "@/lib/deployment-config";
+
+const COMMUNITY_WA =
+  "https://chat.whatsapp.com/DR0kbPPw8TnL2FOJ09pwGH";
+
+function validConfig(overrides: Record<string, unknown> = {}) {
+  return {
+    orgName: "Example Org",
+    productName: "Example Product",
+    disasterName: "Example Disaster",
+    disasterType: "earthquake",
+    regionLabel: "Example Region",
+    mapCenter: [4.5, -74.0] as [number, number],
+    mapZoom: 9,
+    languageTag: "es",
+    contactEmail: "ops@example.org",
+    communityWhatsappUrl: COMMUNITY_WA,
+    domains: {
+      web: "example.org",
+      api: "api.example.org",
+      admin: "admin.example.org",
+    },
+    ...overrides,
+  };
+}
+
+describe("validateDeploymentConfig (CC-1)", () => {
+  it("accepts a complete config with communityWhatsappUrl", () => {
+    const result = validateDeploymentConfig(validConfig());
+    expect(result.communityWhatsappUrl).toBe(COMMUNITY_WA);
+    expect(result.orgName).toBe("Example Org");
+  });
+
+  it("rejects missing communityWhatsappUrl", () => {
+    const { communityWhatsappUrl: _drop, ...without } = validConfig();
+    expect(() => validateDeploymentConfig(without)).toThrow(
+      /communityWhatsappUrl/,
+    );
+  });
+
+  it("rejects empty communityWhatsappUrl", () => {
+    expect(() =>
+      validateDeploymentConfig(validConfig({ communityWhatsappUrl: "" })),
+    ).toThrow(/communityWhatsappUrl/);
+  });
+
+  it("rejects unknown keys (closed schema)", () => {
+    expect(() =>
+      validateDeploymentConfig(validConfig({ inventado: "no" })),
+    ).toThrow(/Unknown key/);
+  });
+});

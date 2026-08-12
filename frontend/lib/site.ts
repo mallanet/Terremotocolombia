@@ -14,8 +14,12 @@ export const SITE_PRODUCT_NAME = deploymentConfig.productName;
 
 export const CONTACT_EMAIL = deploymentConfig.contactEmail;
 
-/** Comunidad Discord de Mallanet (voluntariado / coordinación). */
-export const DISCORD_INVITE_URL = "https://discord.gg/GJCB6xwxj";
+/** Comunidad WhatsApp de Mallanet (voluntariado / coordinación). */
+export const COMMUNITY_WHATSAPP_URL = deploymentConfig.communityWhatsappUrl;
+
+/** Copy del CTA de comunidad en el footer (sin Discord). */
+export const COMMUNITY_CTA_LABEL =
+  "¿Quieres ser voluntario? Únete a nuestra comunidad de WhatsApp";
 
 export function contactMailto(subject?: string): string {
   if (!subject) return `mailto:${CONTACT_EMAIL}`;

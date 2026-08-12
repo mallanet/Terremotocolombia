@@ -155,7 +155,7 @@ test("publica una herramienta map-first integrada y respaldada por fuentes", asy
   }
 
   const approvedExternalHosts = new Set([
-    "discord.gg",
+    "chat.whatsapp.com",
     "docs.google.com",
     "leafletjs.com",
     "mallanet.org",
