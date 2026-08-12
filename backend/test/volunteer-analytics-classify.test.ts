@@ -5,6 +5,8 @@
 import { describe, expect, it } from "vitest";
 import {
   INTENT_TAXONOMY,
+  classifyFormCohort,
+  classifyModality,
   classifyVolunteerIntent,
   type IntentKey,
 } from "@/services/volunteer-analytics/classify-intent";
@@ -105,5 +107,68 @@ describe("classifyVolunteerIntent", () => {
   it("returns taxonomy label with the key", () => {
     const result = classifyVolunteerIntent({ fieldRole: "acopio" });
     expect(result.label).toBe("Acopio / centros");
+  });
+});
+
+describe("classifyModality (mutually exclusive)", () => {
+  it("maps field_role set → campo even with digital skills", () => {
+    expect(
+      classifyModality({
+        fieldRole: "acopio",
+        digitalSkills: ["redes"],
+        offerTypes: ["digital"],
+      }),
+    ).toBe("campo");
+  });
+
+  it("maps !role + skills OR digital offer_types OR digital intent → digital", () => {
+    expect(classifyModality({ digitalSkills: ["redes"] })).toBe("digital");
+    expect(classifyModality({ offerTypes: ["digital"] })).toBe("digital");
+    expect(classifyModality({ offerTypes: ["remoto"] })).toBe("digital");
+    expect(classifyModality({ offer: "trabajo remoto online" })).toBe("digital");
+  });
+
+  it("maps ambiguous / zone-only volunteers → unclear", () => {
+    expect(classifyModality({})).toBe("unclear");
+    expect(classifyModality({ offerTypes: ["transporte"] })).toBe("unclear");
+    expect(classifyModality({ offer: "hola sin señal" })).toBe("unclear");
+  });
+
+  it("assigns exactly one modality per volunteer (campo+digital+unclear cover cohort)", () => {
+    const samples = [
+      { fieldRole: "salud" },
+      { digitalSkills: ["redes"] },
+      { offerTypes: ["donacion"] },
+      {},
+    ];
+    const modalities = samples.map((s) => classifyModality(s));
+    expect(modalities).toEqual(["campo", "digital", "unclear", "unclear"]);
+    expect(new Set(modalities).size).toBe(modalities.filter((m, i) => modalities.indexOf(m) === i).length);
+  });
+});
+
+describe("classifyFormCohort (locked rules)", () => {
+  it("structured = field_role set", () => {
+    expect(classifyFormCohort({ fieldRole: "acopio" })).toBe("structured");
+    expect(
+      classifyFormCohort({
+        fieldRole: "salud",
+        offerTypes: ["transporte"],
+        digitalSkills: ["redes"],
+      }),
+    ).toBe("structured");
+  });
+
+  it("intermediate = !role ∧ (offerTypes ∨ skills)", () => {
+    expect(classifyFormCohort({ offerTypes: ["transporte"] })).toBe("intermediate");
+    expect(classifyFormCohort({ digitalSkills: ["redes"] })).toBe("intermediate");
+    expect(classifyFormCohort({ offerTypes: ["digital"], digitalSkills: ["redes"] })).toBe(
+      "intermediate",
+    );
+  });
+
+  it("basic = else (offer/zone only or empty)", () => {
+    expect(classifyFormCohort({})).toBe("basic");
+    expect(classifyFormCohort({ offer: "manos generales en zona" })).toBe("basic");
   });
 });

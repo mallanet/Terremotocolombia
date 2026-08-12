@@ -35,6 +35,9 @@ export async function loadVolunteerAnalytics(
       availability: schema.volunteers.availability,
       source: schema.volunteers.source,
       createdAt: schema.volunteers.createdAt,
+      ownVehicle: schema.volunteers.ownVehicle,
+      rescueTraining: schema.volunteers.rescueTraining,
+      crisisExperience: schema.volunteers.crisisExperience,
     })
     .from(schema.volunteers)
     .where(sinceFilter);

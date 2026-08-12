@@ -126,6 +126,34 @@ describe("GET /api/public/volunteer-analytics", () => {
     expect(Array.isArray(res.body.callouts)).toBe(true);
     expect(res.body.cohort).toBeUndefined();
 
+    // Parity keys (additive) — aggregates only
+    expect(Array.isArray(res.body.offerTypes)).toBe(true);
+    expect(res.body.modality).toEqual(
+      expect.objectContaining({
+        campo: expect.any(Number),
+        digital: expect.any(Number),
+        unclear: expect.any(Number),
+      }),
+    );
+    expect(Array.isArray(res.body.pipelineByIntent)).toBe(true);
+    expect(res.body.formCohorts).toEqual(
+      expect.objectContaining({
+        structured: expect.objectContaining({ total: expect.any(Number), contacted: expect.any(Number) }),
+        intermediate: expect.objectContaining({ total: expect.any(Number), contacted: expect.any(Number) }),
+        basic: expect.objectContaining({ total: expect.any(Number), contacted: expect.any(Number) }),
+      }),
+    );
+    expect(res.body.fieldCapacity).toEqual(
+      expect.objectContaining({
+        vehicle: expect.any(Number),
+        rescue: expect.any(Number),
+        crisis: expect.any(Number),
+      }),
+    );
+    expect(res.body.actions?.p0?.title).toBe("Contactar escasos");
+    expect(res.body.actions?.p1?.title).toBe("Despachar volumen");
+    expect(res.body.actions?.p2?.title).toBe("Banco remoto");
+
     const walk = (node: unknown): void => {
       if (Array.isArray(node)) {
         node.forEach(walk);

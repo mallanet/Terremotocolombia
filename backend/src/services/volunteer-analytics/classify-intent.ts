@@ -49,6 +49,9 @@ export type ClassifyInput = {
 
 export type ClassifyResult = { key: IntentKey; label: string };
 
+export type ModalityKey = "campo" | "digital" | "unclear";
+export type FormCohortKey = "structured" | "intermediate" | "basic";
+
 function norm(s: string): string {
   return s
     .normalize("NFD")
@@ -156,4 +159,51 @@ export function classifyVolunteerIntent(input: ClassifyInput): ClassifyResult {
   }
 
   return result("other");
+}
+
+function hasNonEmptyRole(fieldRole?: string | null): boolean {
+  return Boolean(fieldRole && fieldRole.trim());
+}
+
+function hasListSignal(value: unknown): boolean {
+  return asStringList(value).length > 0;
+}
+
+function hasDigitalOfferType(offerTypes: unknown): boolean {
+  return asStringList(offerTypes).some((t) => OFFER_TYPE_MAP[t] === "digital_remote");
+}
+
+/**
+ * Mutually exclusive modality: campo = field_role set;
+ * digital = !role ∧ (skills ∨ digital offer_types ∨ intent digital_remote);
+ * unclear = else.
+ */
+export function classifyModality(input: ClassifyInput): ModalityKey {
+  if (hasNonEmptyRole(input.fieldRole)) return "campo";
+
+  const hasSkills = hasListSignal(input.digitalSkills);
+  const digitalOffer = hasDigitalOfferType(input.offerTypes);
+  const intentDigital =
+    classifyVolunteerIntent({
+      fieldRole: null,
+      offerTypes: input.offerTypes,
+      digitalSkills: input.digitalSkills,
+      offer: input.offer,
+    }).key === "digital_remote";
+
+  if (hasSkills || digitalOffer || intentDigital) return "digital";
+  return "unclear";
+}
+
+/**
+ * Form cohort: structured = field_role set;
+ * intermediate = !role ∧ (offerTypes ∨ skills);
+ * basic = else.
+ */
+export function classifyFormCohort(input: ClassifyInput): FormCohortKey {
+  if (hasNonEmptyRole(input.fieldRole)) return "structured";
+  if (hasListSignal(input.offerTypes) || hasListSignal(input.digitalSkills)) {
+    return "intermediate";
+  }
+  return "basic";
 }
