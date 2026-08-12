@@ -9,6 +9,15 @@ describe("qk (queryKeys)", () => {
     expect(qk.reports.all).toEqual(["reports"]);
     expect(qk.missing.stats).toEqual(["missing", "stats"]);
     expect(qk.hospitals.all).toEqual(["hospitals"]);
+    expect(qk.needs.all).toEqual(["needs"]);
+  });
+
+  it("needs.publication separa el seguimiento por job", () => {
+    expect(qk.needs.publication("need-demo-1")).toEqual([
+      "needs",
+      "publication",
+      "need-demo-1",
+    ]);
   });
 
   it("missing.list incrusta los params y es igual para inputs iguales", () => {

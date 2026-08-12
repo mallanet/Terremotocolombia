@@ -10,6 +10,8 @@
  * `src/`, así que entraba en el bundle de Workers aunque allí no pueda correr.
  */
 import { createHash, randomUUID } from "crypto";
+import { and, desc, eq } from "drizzle-orm";
+import { getDb, schema } from "@/db";
 import {
   dispatchJob,
   resolveTransport,
@@ -36,13 +38,15 @@ export const needsPublicationRoute: JobRoute = {
 export interface NeedPublicationJob {
   need: NewNeed;
   location?: ResolvedLocation;
+  /** Correlación pública para el status poll (también viaja en Queues). */
+  jobId?: string;
 }
 
 export interface NeedPublicationState {
   jobId: string;
   state: string;
   progress: unknown;
-  result: unknown;
+  result: { id: string; status: string } | null;
   failedReason: string | null;
 }
 
@@ -51,15 +55,95 @@ function jobId(idempotencyKey?: string): string {
   return `need-${createHash("sha256").update(idempotencyKey).digest("hex")}`;
 }
 
+const STATUS_ACTION = "need.publication.status";
+const STATUS_TARGET = "need_publication";
+
+type PersistedState = "queued" | "completed" | "failed";
+
+function publicResult(result: unknown): { id: string; status: string } | null {
+  if (typeof result !== "object" || result === null) return null;
+  const candidate = result as { id?: unknown; status?: unknown };
+  if (typeof candidate.id !== "string" || typeof candidate.status !== "string") {
+    return null;
+  }
+  return { id: candidate.id, status: candidate.status };
+}
+
+/** Persiste solo estado y referencia pública; nunca el payload ciudadano. */
+export async function recordNeedPublicationState(
+  id: string,
+  state: PersistedState,
+  options: { result?: unknown; failedReason?: string | null } = {},
+): Promise<void> {
+  await getDb()
+    .insert(schema.auditLog)
+    .values({
+      actorUserId: null,
+      action: STATUS_ACTION,
+      targetType: STATUS_TARGET,
+      targetId: id,
+      metadata: {
+        state,
+        result: publicResult(options.result),
+        failedReason: options.failedReason ?? null,
+      },
+      ipHash: null,
+      createdAt: Date.now(),
+    });
+}
+
+async function getPersistedState(id: string): Promise<NeedPublicationState | null> {
+  const rows = await getDb()
+    .select({ metadata: schema.auditLog.metadata })
+    .from(schema.auditLog)
+    .where(
+      and(
+        eq(schema.auditLog.action, STATUS_ACTION),
+        eq(schema.auditLog.targetType, STATUS_TARGET),
+        eq(schema.auditLog.targetId, id),
+      ),
+    )
+    .orderBy(desc(schema.auditLog.id))
+    .limit(1);
+  const metadata = rows[0]?.metadata as
+    | { state?: unknown; result?: unknown; failedReason?: unknown }
+    | undefined;
+  if (!metadata || typeof metadata.state !== "string") return null;
+  return {
+    jobId: id,
+    state: metadata.state,
+    progress: metadata.state === "completed" ? 100 : null,
+    result: publicResult(metadata.result),
+    failedReason:
+      typeof metadata.failedReason === "string" ? metadata.failedReason : null,
+  };
+}
+
 export async function enqueueNeedPublication(
   data: NeedPublicationJob,
   idempotencyKey?: string,
 ): Promise<string> {
-  return dispatchJob(needsPublicationRoute, data, {
-    id: jobId(idempotencyKey),
-    attempts: 3,
-    backoffMs: 10_000,
-  });
+  const id = jobId(idempotencyKey);
+  const transport = resolveTransport(needsPublicationRoute);
+  if (transport === "queues") await recordNeedPublicationState(id, "queued");
+  try {
+    return await dispatchJob(
+      needsPublicationRoute,
+      { ...data, jobId: id },
+      {
+        id,
+        attempts: 3,
+        backoffMs: 10_000,
+      },
+    );
+  } catch (error) {
+    if (transport === "queues") {
+      await recordNeedPublicationState(id, "failed", {
+        failedReason: "No se pudo encolar la publicación.",
+      }).catch(() => undefined);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -68,9 +152,8 @@ export async function enqueueNeedPublication(
  * Tres casos distintos, que a proposito NO se colapsan en uno:
  *
  * - BullMQ: se consulta el registro de jobs y se devuelve el estado real.
- * - Cloudflare Queues: `null`. Queues no lleva un registro consultable, asi que
- *   fingir un estado seria peor que admitir que no hay. La superficie de estado
- *   del consumidor es U2/U3 del plan.
+ * - Cloudflare Queues: estado durable mínimo en `audit_log`, actualizado por el
+ *   consumidor y el DLQ. No se persiste el payload ciudadano.
  * - SIN transporte: lanza 503. Antes de este seam, `queue()` lanzaba al faltar
  *   VALKEY_URL y el controlador lo convertia en 503. Devolver `null` aqui lo
  *   volveria un 404 "no encontrado", indistinguible de un jobId inexistente, y
@@ -85,12 +168,13 @@ export async function getNeedPublicationState(
       "La cola de publicación no está configurada en este despliegue.",
     );
   }
-  if (transport !== "bullmq") return null;
+  if (transport === "queues") return getPersistedState(id);
   // valkeyUrl() y no process.env directo: resolveTransport decide con
   // `process.env.VALKEY_URL || env.VALKEY_URL`, y leer solo la primera aqui
   // podria decir "bullmq" arriba y `null` una linea despues.
   const url = valkeyUrl();
   if (!url) return null;
   const { getBullmqJobState } = await import("@/lib/job-dispatch.bullmq");
-  return getBullmqJobState(needsPublicationRoute, id, url);
+  const state = await getBullmqJobState(needsPublicationRoute, id, url);
+  return state ? { ...state, result: publicResult(state.result) } : null;
 }

@@ -109,7 +109,14 @@ export default function EmergencyApp() {
       qc.setQueryData<ReportsResponse>(qk.reports.list, (prev) =>
         prev
           ? { ...prev, reports: fn(prev.reports) }
-          : { reports: fn([]), persistent: true },
+          : {
+              reports: fn([]),
+              persistent: true,
+              total: 0,
+              page: 1,
+              pageSize: 500,
+              totalPages: 1,
+            },
       );
     },
     [qc],

@@ -28,6 +28,7 @@ import {
   dispatchCron,
 } from "./services/cron-jobs.js";
 import { registerJobBindings } from "./lib/job-dispatch.js";
+import { recordNeedPublicationState } from "./modules/needs/infrastructure/needs-publication-queue.js";
 import {
   isCacheablePhotoPath,
   servePhotoCached,
@@ -250,6 +251,8 @@ export default {
             ? publishNeed.executeAtLocation(job.need, job.location)
             : publishNeed.execute(job.need);
         },
+        markCompleted: (jobId, result) =>
+          recordNeedPublicationState(jobId, "completed", { result }),
       });
       return;
     }
@@ -278,6 +281,10 @@ export default {
     }
     if (kind === "needs-dlq" || kind === "imports-dlq" || kind === "matcher-dlq") {
       await consumeDlqBatch(batch, persistDeadLetter, {
+        onNeedDeadLetter: (job) =>
+          recordNeedPublicationState(job.jobId!, "failed", {
+            failedReason: "No se pudo publicar después de varios intentos.",
+          }),
         onImportDeadLetter: async (job) => {
           const { markImportFailed } = await import("./services/patient-imports/index.js");
           await markImportFailed(

@@ -62,6 +62,8 @@ export function classifyQueue(name: string): QueueKind {
 export interface NeedsConsumerDeps {
   /** Publica una necesidad (inyectable para tests; en prod, publishNeed). */
   publish(job: NeedPublicationJob): Promise<unknown>;
+  /** Confirma el resultado durable para el status público de Queues. */
+  markCompleted?(jobId: string, result: unknown): Promise<void>;
 }
 
 /** Procesa un batch de publicaciones. Ack por mensaje; fallo → retry(). */
@@ -70,16 +72,31 @@ export async function consumeNeedsBatch(
   deps: NeedsConsumerDeps,
 ): Promise<void> {
   for (const message of batch.messages) {
+    const job = message.body as NeedPublicationJob;
+    let result: unknown;
     try {
-      await deps.publish(message.body as NeedPublicationJob);
-      message.ack();
+      result = await deps.publish(job);
     } catch (err) {
       console.error(
         `[queue:needs] mensaje ${message.id} falló (intento ${message.attempts ?? "?"}):`,
         err instanceof Error ? err.message : String(err),
       );
       message.retry();
+      continue;
     }
+    if (job.jobId && deps.markCompleted) {
+      try {
+        await deps.markCompleted(job.jobId, result);
+      } catch (err) {
+        // La publicación externa ya ocurrió: reintentar el mensaje podría
+        // duplicarla. Dejamos el fallo observable sin repetir el side effect.
+        console.error(
+          `[queue:needs] se publicó ${job.jobId}, pero no se pudo guardar su estado:`,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+    message.ack();
   }
 }
 
@@ -227,6 +244,8 @@ export async function persistDeadLetter(entry: DeadLetterEntry): Promise<void> {
 }
 
 export interface DlqHooks {
+  /** Marca terminalmente fallida una publicación de necesidades. */
+  onNeedDeadLetter?(job: NeedPublicationJob): Promise<void>;
   /**
    * Carta muerta de un job de importación: espejo del "último intento" del
    * processor BullMQ — marca el lote como fallido para que el panel lo
@@ -263,6 +282,17 @@ export async function consumeDlqBatch(
       } catch (err) {
         console.error(
           `[queue:dlq] no se pudo marcar fallido el lote ${(message.body as ImportJobBody).importId}:`,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+    const needJob = message.body as NeedPublicationJob | null;
+    if (hooks.onNeedDeadLetter && needJob?.jobId && needJob.need) {
+      try {
+        await hooks.onNeedDeadLetter(needJob);
+      } catch (err) {
+        console.error(
+          `[queue:dlq] no se pudo marcar fallida la publicación ${needJob.jobId}:`,
           err instanceof Error ? err.message : String(err),
         );
       }
