@@ -3,7 +3,6 @@ import { HardHat, Laptop } from "lucide-react";
 import { pageMetadata } from "@/lib/metadata";
 import SubPageShell from "@/components/layout/SubPageShell";
 import VolunteerForm from "@/components/features/volunteers/VolunteerForm";
-import { VolunteerPostSubmitBanner } from "@/components/features/volunteers/VolunteerPostSubmitBanner";
 
 export const metadata: Metadata = pageMetadata({
   title: "Súmate como voluntario",
@@ -59,18 +58,7 @@ export default function VoluntarioPage() {
         </div>
 
         <div className="e-card rounded-[24px] bg-white p-6 sm:p-10">
-          <h2 className="mb-2 text-lg font-bold text-slate-900">
-            Formulario de registro
-          </h2>
-          <p className="mb-8 text-sm text-slate-600 sm:text-[15px]">
-            Completar el registro no implica una asignación inmediata: nos
-            permite ubicarte cuando tu perfil encaje con una necesidad.
-          </p>
-
           <VolunteerForm />
-          <div className="mt-8">
-            <VolunteerPostSubmitBanner />
-          </div>
         </div>
       </section>
     </SubPageShell>

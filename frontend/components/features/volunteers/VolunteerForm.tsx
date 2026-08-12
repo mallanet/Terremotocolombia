@@ -175,6 +175,15 @@ export default function VolunteerForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <h2 className="mb-2 text-lg font-bold text-slate-900">
+          Formulario de registro
+        </h2>
+        <p className="mb-8 text-sm text-slate-600 sm:text-[15px]">
+          Completar el registro no implica una asignación inmediata: nos
+          permite ubicarte cuando tu perfil encaje con una necesidad.
+        </p>
+      </div>
       <OfferTypePicker
         value={branch.offerTypes}
         onToggle={(t) =>

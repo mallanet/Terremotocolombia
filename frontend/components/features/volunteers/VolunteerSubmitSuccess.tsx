@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
+import { VolunteerPostSubmitBanner } from "./VolunteerPostSubmitBanner";
 
 const WHATSAPP_GROUP_URL = process.env.NEXT_PUBLIC_WHATSAPP_GROUP_URL ?? "";
 
@@ -17,8 +19,14 @@ export function VolunteerSubmitSuccess({
   codeCopied,
   onCopyCode,
 }: VolunteerSubmitSuccessProps) {
+  const topRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   return (
-    <div className="flex flex-col gap-4">
+    <div ref={topRef} className="flex flex-col gap-4">
+      <VolunteerPostSubmitBanner />
       <div className="e-m-alert-success text-center" role="status">
         <span className="block text-lg font-bold">
           Muchas gracias por ser parte de esto
