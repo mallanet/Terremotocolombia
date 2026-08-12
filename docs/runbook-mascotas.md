@@ -87,8 +87,8 @@ ahí. Se prueban en local con el stack de compose.
 
 ## 2. Deploy del backend
 
-Automático desde 2026-08-11: mergear a `main` un cambio que toque `backend/**`
-lo despliega solo (`deploy-backend.yml`). Redeploy a mano:
+**Manual.** Mergear a `main` un cambio de `backend/**` NO lo despliega:
+`deploy-backend.yml` solo corre por `workflow_dispatch`. Hay que lanzarlo:
 
 ```bash
 gh workflow run deploy-backend.yml --ref main

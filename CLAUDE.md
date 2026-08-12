@@ -28,8 +28,8 @@ cerrado). Staging sí sigue desplegando solo (`deploy-staging.yml`).
 **Nunca por iniciativa propia** (requieren un humano):
 
 - correr migraciones (`backend/worker/migrate.ts`) — no las corre CI ni ningún
-  deploy, y apuntan a Neon **directo**, no al endpoint `-pooler`. Un push a
-  `main` despliega CÓDIGO; el esquema es siempre un paso aparte.
+  deploy, y apuntan a Neon **directo**, no al endpoint `-pooler`. Un deploy
+  saca CÓDIGO; el esquema es siempre un paso aparte y anterior.
 - tocar secretos en Doppler o tokens de Cloudflare
 - cambiar registros DNS, DNSSEC o reglas de WAF de la zona
 

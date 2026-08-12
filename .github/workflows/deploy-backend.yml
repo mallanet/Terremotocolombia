@@ -12,7 +12,14 @@ name: Deploy backend
 #
 # Como desplegar:
 #   Actions -> "Deploy backend" -> Run workflow (rama main)
-#   o: gh workflow run deploy-backend.yml
+#   o: gh workflow run deploy-backend.yml --ref main
+#
+# OJO CON EL REF: se despliega el codigo del ref que elijas, no el de `main`.
+# Mergea a main ANTES de lanzarlo. Si lo lanzas sobre una rama y despues
+# alguien lo lanza sobre main, el segundo pisa al primero en silencio y
+# produccion se queda con el backend de main. Paso el 2026-08-10 (/api/pets
+# volvio a dar 404 tras un despliegue aparentemente correcto). El estado sano
+# es `main` == lo que corre en produccion.
 #
 # El gate de deriva de esquema corre igualmente en cada dispatch y falla
 # cerrado: si el codigo espera columnas que produccion no tiene, no hay
@@ -81,9 +88,9 @@ jobs:
       # migraciones (ver worker/check-schema-drift.ts). No escribe nada y NO
       # aplica migraciones: el gate humano de CLAUDE.md sigue intacto.
       #
-      # Salida de emergencia: Actions -> Run workflow -> omitir_drift. Solo por
-      # dispatch manual (un push nunca puede saltarselo) y queda con nombre y
-      # hora en el historial.
+      # Salida de emergencia: Actions -> Run workflow -> omitir_drift. Hay que
+      # marcarla a mano en el formulario y queda con nombre y hora en el
+      # historial: nadie se la salta sin dejar rastro.
       - name: Gate de deriva de esquema
         if: ${{ inputs.omitir_drift != true }}
         working-directory: backend

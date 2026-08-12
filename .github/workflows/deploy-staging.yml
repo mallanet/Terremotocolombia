@@ -8,7 +8,8 @@ name: Deploy staging
 # A DIFERENCIA DE PRODUCCION, AQUI EL BACKEND TAMBIEN SE DESPLIEGA SOLO.
 # Es justo el motivo de existir de staging: si probar un cambio de API exigiera
 # un paso manual, nadie lo probaria y volveriamos a estrenar en produccion.
-# En `main` el backend sigue siendo manual y con confirmacion.
+# En `main` el backend es MANUAL: solo sale por workflow_dispatch
+# (`deploy-backend.yml`), nunca con el merge.
 #
 # Se despliegan SIEMPRE los dos tiers, sin filtro de rutas, para que staging no
 # quede con un frontend nuevo hablandole a una API vieja.
