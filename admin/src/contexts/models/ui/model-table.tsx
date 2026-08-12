@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { Fragment, useMemo, useState, type FormEvent } from "react";
 import { Button, Input } from "@/src/ui";
 import { useModelList, useModelMutation } from "./use-model-list";
 import type { ModelConfig, ModelField } from "../model-registry";
@@ -30,6 +30,15 @@ const STATUS_BADGES: Record<string, { label: string; classes: string }> = {
   assigned: { label: "Asignada", classes: "bg-blue-100 text-blue-800" },
   done: { label: "Terminada", classes: "bg-green-100 text-green-800" },
   cancelled: { label: "Cancelada", classes: "bg-gray-200 text-gray-600" },
+  resolved: { label: "Resuelta", classes: "bg-green-100 text-green-800" },
+  rejected: { label: "Rechazada", classes: "bg-red-100 text-red-700" },
+};
+
+/** Opciones del dropdown de estado por modelo (solo los que editan status). */
+const STATUS_OPTIONS: Record<string, readonly string[]> = {
+  volunteers: ["pending", "contacted", "active", "declined"],
+  "volunteer-tasks": ["open", "assigned", "done", "cancelled"],
+  "deletion-requests": ["pending", "resolved", "rejected"],
 };
 
 function statusBadge(value: unknown): { label: string; classes: string } | null {
@@ -44,6 +53,46 @@ function StatusBadge({ value }: { value: unknown }) {
     <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge.classes}`}>
       {badge.label}
     </span>
+  );
+}
+
+/**
+ * Celda de estado: badge read-only, o <select> con pinta de badge cuando el
+ * modelo edita status y el usuario puede editar — cambiar el estado es un
+ * clic, sin abrir el formulario completo.
+ */
+function StatusCell({
+  path,
+  value,
+  editable,
+  pending,
+  onChange,
+}: {
+  path: string;
+  value: unknown;
+  editable: boolean;
+  pending: boolean;
+  onChange: (status: string) => void;
+}) {
+  const options = STATUS_OPTIONS[path];
+  const badge = statusBadge(value);
+  if (!editable || !options) return <StatusBadge value={value} />;
+  return (
+    <select
+      aria-label="Cambiar estado"
+      className={`cursor-pointer rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+        badge?.classes ?? "bg-gray-100 text-gray-700"
+      }`}
+      value={typeof value === "string" ? value : ""}
+      disabled={pending}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {STATUS_BADGES[option]?.label ?? option}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -84,6 +133,10 @@ export function ModelTable({ model }: { model: ModelConfig }) {
   // Acción de dominio única de volunteer-tasks: asignar a un voluntario.
   const canAssign = model.path === "volunteer-tasks" && canEdit;
   const hasActions = canEdit || canDelete || canMessage || canAssign;
+  const canEditStatus =
+    canEdit &&
+    Boolean(model.editFields?.some((field) => field.key === "status")) &&
+    Boolean(STATUS_OPTIONS[model.path]);
 
   const rows = useMemo(
     () => (data ?? []).filter((r) => matchesQuery(r, query)),
@@ -146,10 +199,27 @@ export function ModelTable({ model }: { model: ModelConfig }) {
               </tr>
             ) : (
               rows.map((row, i) => (
-                <tr key={renderCell(row.id) + String(i)} className="border-b border-border-soft last:border-0">
+                <Fragment key={renderCell(row.id) + String(i)}>
+                  <tr className="border-b border-border-soft last:border-0">
                   {model.columns.map((c) => (
                     <td key={c.key} className="px-3 py-2 align-top">
-                      {c.key === "status" ? <StatusBadge value={row[c.key]} /> : renderCell(row[c.key])}
+                      {c.key === "status" ? (
+                        <StatusCell
+                          path={model.path}
+                          value={row[c.key]}
+                          editable={canEditStatus}
+                          pending={mutation.isPending}
+                          onChange={(status) =>
+                            mutation.mutate({
+                              method: "PATCH",
+                              id: renderCell(row.id),
+                              input: { status },
+                            })
+                          }
+                        />
+                      ) : (
+                        renderCell(row[c.key])
+                      )}
                     </td>
                   ))}
                   {hasActions && (
@@ -182,27 +252,35 @@ export function ModelTable({ model }: { model: ModelConfig }) {
                       )}
                     </td>
                   )}
-                </tr>
+                  </tr>
+                  {editing === row && model.editFields && (
+                    <tr className="border-b border-border-soft bg-surface-muted last:border-0">
+                      <td
+                        colSpan={model.columns.length + (hasActions ? 1 : 0)}
+                        className="px-3 py-3"
+                      >
+                        <ModelForm
+                          fields={model.editFields}
+                          initial={editing}
+                          submitLabel="Guardar"
+                          pending={mutation.isPending}
+                          onCancel={() => setEditing(null)}
+                          onSubmit={(input) =>
+                            mutation.mutate(
+                              { method: "PATCH", id: renderCell(editing.id), input },
+                              { onSuccess: () => setEditing(null) },
+                            )
+                          }
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))
             )}
           </tbody>
         </table>
       </div>
-      {editing && model.editFields && (
-        <ModelForm
-          fields={model.editFields}
-          initial={editing}
-          submitLabel="Guardar"
-          pending={mutation.isPending}
-          onCancel={() => setEditing(null)}
-          onSubmit={(input) =>
-            mutation.mutate(
-              { method: "PATCH", id: renderCell(editing.id), input },
-              { onSuccess: () => setEditing(null) },
-            )
-          }
-        />
-      )}
       {messaging && (
         <VolunteerMessageForm
           id={renderCell(messaging.id)}
