@@ -51,8 +51,12 @@ test("publica una herramienta map-first integrada y respaldada por fuentes", asy
   );
 
   await expect(
-    page.getByRole("link", { name: "Mapa de rescate", exact: true }).first(),
-  ).toHaveAttribute("href", route);
+    page.locator('.e-nav__links a[href="/mapa-de-rescate"]'),
+  ).toHaveCount(0);
+  await expect(page.locator(".e-rescue-language")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Cambiar idioma de la página" }),
+  ).toBeVisible();
   await expect(page.getByRole("contentinfo")).toContainText(
     "Terremoto Colombia",
   );
@@ -82,6 +86,10 @@ test("publica una herramienta map-first integrada y respaldada por fuentes", asy
   await expect(
     page.getByRole("button", { name: "Después", exact: true }),
   ).toBeDisabled();
+  await expect(
+    page.getByText("Imágenes pendientes", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("SCHEDULED", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Mapa", exact: true }).click();
   await expect(map).toHaveAttribute("data-mode", "map");
   await page.getByRole("button", { name: "Referencia", exact: true }).click();
@@ -176,7 +184,7 @@ test("publica una herramienta map-first integrada y respaldada por fuentes", asy
   expect(canvasBox?.height).toBeGreaterThan(100);
 });
 
-test("permite teclado, skip link, cambio ES/EN y pasa WCAG AA automatizado", async ({
+test("permite teclado, usa el idioma global y pasa WCAG AA automatizado", async ({
   page,
 }) => {
   await page.goto(route);
@@ -196,20 +204,23 @@ test("permite teclado, skip link, cambio ES/EN y pasa WCAG AA automatizado", asy
     "emsr916-aoi02",
   );
 
-  await page.getByRole("button", { name: "EN", exact: true }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Rescue map");
-  await expect(
-    page.getByRole("button", { name: "Before", exact: true }),
-  ).toBeDisabled();
-  await expect(
-    page.getByText("Copernicus areas", { exact: true }),
-  ).toBeVisible();
-  await expect(page.getByText("4 AOI", { exact: true })).toBeVisible();
-
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
   expect(results.violations).toEqual([]);
+
+  const globalLanguage = page.getByRole("button", {
+    name: "Cambiar idioma de la página",
+  });
+  await globalLanguage.click();
+  await page.getByRole("button", { name: "English", exact: true }).click();
+  await expect(globalLanguage).toHaveAttribute("title", "Idioma: English", {
+    timeout: 15_000,
+  });
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Rescue map",
+    { timeout: 15_000 },
+  );
 });
 
 test("mantiene mapa, panel, controles y footer utilizables en todos los breakpoints", async ({
@@ -234,7 +245,7 @@ test("mantiene mapa, panel, controles y footer utilizables en todos los breakpoi
       };
       const principalControls = Array.from(
         document.querySelectorAll(
-          ".e-rescue-language button, .e-rescue-mode-control button, .e-rescue-aoi, .e-rescue-overview",
+          ".e-rescue-mode-control button, .e-rescue-aoi, .e-rescue-overview",
         ),
         (element) => rect(element),
       ).filter((value): value is NonNullable<typeof value> => value !== null);
@@ -259,7 +270,7 @@ test("mantiene mapa, panel, controles y footer utilizables en todos los breakpoi
     expect(layout.footerOffsetTop).toBeGreaterThanOrEqual(
       layout.mainOffsetBottom - 1,
     );
-    expect(layout.principalControls.length).toBeGreaterThanOrEqual(11);
+    expect(layout.principalControls.length).toBeGreaterThanOrEqual(9);
     for (const control of layout.principalControls) {
       expect(control.height).toBeGreaterThanOrEqual(44);
       expect(control.width).toBeGreaterThanOrEqual(44);

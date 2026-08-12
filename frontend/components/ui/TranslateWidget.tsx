@@ -129,13 +129,21 @@ export default function TranslateWidget({
   variant?: "default" | "header";
 }) {
   const [open, setOpen] = useState(false);
-  const [activeLang, setActiveLang] = useState<TranslateLangCode>(() =>
-    typeof document === "undefined" ? TRANSLATE_SOURCE_LANG : getCookieLang(),
-  );
+  // Servidor y primer render cliente deben usar el mismo idioma para evitar
+  // una hidratación distinta cuando ya existe la cookie `googtrans`.
+  const [activeLang, setActiveLang] =
+    useState<TranslateLangCode>(TRANSLATE_SOURCE_LANG);
   const ref = useRef<HTMLDivElement>(null);
 
   const handleLangApplied = useCallback((lang: TranslateLangCode) => {
     setActiveLang(lang);
+  }, []);
+
+  useEffect(() => {
+    const syncFrame = window.requestAnimationFrame(() => {
+      setActiveLang(getCookieLang());
+    });
+    return () => window.cancelAnimationFrame(syncFrame);
   }, []);
 
   useEffect(() => {

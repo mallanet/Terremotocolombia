@@ -111,15 +111,17 @@ un backend obligatorio.
   recuperadas sin red llevan una marca interna de antigüedad para que la UI
   muestre “Sin conexión” y la última actualización; nunca se presentan como
   actuales.
-- IndexedDB conserva la última instantánea válida, la selección del usuario y
-  paquetes offline explícitos por AOI. El presupuesto inicial es de 8 MB. Un
+- IndexedDB conserva la última instantánea válida y paquetes offline
+  explícitos por AOI; `localStorage` conserva el modo y el AOI seleccionado.
+  El idioma lo gestiona el selector global del header, sin un segundo estado
+  dentro del mapa. El presupuesto inicial es de 8 MB. Un
   paquete contiene solo geometrías y metadatos operativos propios; no contiene
   tiles, imágenes Copernicus, BLP, PII ni ubicaciones personales exactas.
   Las escrituras fallidas o sin cuota no dejan paquetes parciales.
 - Sin tiles, el canvas mantiene el epicentro, los AOI y una base vectorial
   local ligera. Cuando una capa requiere red, la UI lo dice explícitamente.
-  Al recuperar conexión se actualizan los JSON en segundo plano y se conserva
-  el idioma, modo y AOI seleccionado.
+  Al recuperar conexión se actualizan los JSON en segundo plano y se conservan
+  el modo y el AOI seleccionado.
 
 Los contratos públicos para futuras capas de necesidades verificadas y
 disponibilidad agregada de recursos/voluntarios viven en

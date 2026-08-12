@@ -230,36 +230,6 @@
 	box-shadow: 0 0 0 4px rgba(206, 17, 38, 0.14);
 }
 
-.e-rescue-language {
-	display: grid;
-	grid-template-columns: repeat(2, 44px);
-	overflow: hidden;
-	border: 1px solid var(--eborder);
-	border-radius: var(--qi-radius-sm);
-	background: var(--einput);
-}
-
-.e-rescue-language button {
-	min-width: 44px;
-	min-height: 44px;
-	border: 0;
-	border-left: 1px solid var(--eborder);
-	background: transparent;
-	color: var(--etext2);
-	font-size: 0.72rem;
-	font-weight: 850;
-	letter-spacing: 0.06em;
-}
-
-.e-rescue-language button:first-child {
-	border-left: 0;
-}
-
-.e-rescue-language button[aria-pressed="true"] {
-	background: var(--brand-navy);
-	color: #fff;
-}
-
 .e-rescue-facts {
 	display: grid;
 	grid-template-columns: 0.7fr 0.78fr 1.52fr;

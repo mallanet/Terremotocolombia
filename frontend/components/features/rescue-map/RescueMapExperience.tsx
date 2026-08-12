@@ -73,6 +73,10 @@ const copy = {
     imageryOfflineDetail:
       "El epicentro, las AOI y los metadatos descargados siguen disponibles sin red.",
     scheduled: "Adquisición programada",
+    comparisonScheduled: "Imágenes pendientes",
+    comparisonPartial: "Cobertura parcial",
+    comparisonReady: "Comparación disponible",
+    comparisonUnknown: "Estado por verificar",
     waitingSummary:
       "Antes y Después se activarán solo cuando exista cobertura fechada, licenciada y verificable.",
     areas: "Áreas oficiales de cartografía",
@@ -136,6 +140,10 @@ const copy = {
     imageryOfflineDetail:
       "The epicenter, AOIs, and downloaded metadata remain available offline.",
     scheduled: "Acquisition scheduled",
+    comparisonScheduled: "Imagery pending",
+    comparisonPartial: "Partial coverage",
+    comparisonReady: "Comparison available",
+    comparisonUnknown: "Status to verify",
     waitingSummary:
       "Before and After will activate only when dated, licensed, verifiable coverage is available.",
     areas: "Official mapping areas",
@@ -202,6 +210,23 @@ function selectedProduct(aoi: RescueMapMappingAoi | null) {
   return aoi ? firstProduct(aoi) : null;
 }
 
+function comparisonStateLabel(
+  state: RescueMapMappingSnapshot["imagery"]["comparisonState"],
+  language: RescueMapLanguage,
+): string {
+  const text = copy[language];
+  switch (state) {
+    case "scheduled":
+      return text.comparisonScheduled;
+    case "partial":
+      return text.comparisonPartial;
+    case "ready":
+      return text.comparisonReady;
+    default:
+      return text.comparisonUnknown;
+  }
+}
+
 function subscribeToConnectivity(onStoreChange: () => void) {
   window.addEventListener("online", onStoreChange);
   window.addEventListener("offline", onStoreChange);
@@ -218,7 +243,9 @@ export default function RescueMapExperience({
   initialIncident: RescueMapIncident;
   initialMapping: RescueMapMappingSnapshot;
 }) {
-  const [language, setLanguage] = useState<RescueMapLanguage>("es");
+  // El selector global del header traduce la página completa. Mantener una
+  // segunda preferencia local produciría combinaciones inconsistentes.
+  const language = "es" satisfies RescueMapLanguage;
   const [mode, setMode] = useState<RescueMapMode>("reference");
   const [incident, setIncident] = useState(initialIncident);
   const [mapping, setMapping] = useState(initialMapping);
@@ -256,13 +283,9 @@ export default function RescueMapExperience({
         const raw = window.localStorage.getItem(VIEW_STATE_KEY);
         if (raw) {
           const saved = JSON.parse(raw) as {
-            language?: unknown;
             mode?: unknown;
             selectedAoiId?: unknown;
           };
-          if (saved.language === "es" || saved.language === "en") {
-            setLanguage(saved.language);
-          }
           if (
             saved.mode === "map" ||
             saved.mode === "reference" ||
@@ -293,12 +316,12 @@ export default function RescueMapExperience({
     try {
       window.localStorage.setItem(
         VIEW_STATE_KEY,
-        JSON.stringify({ language, mode, selectedAoiId }),
+        JSON.stringify({ mode, selectedAoiId }),
       );
     } catch {
       // El mapa sigue funcional si el navegador bloquea localStorage.
     }
-  }, [language, mode, selectedAoiId, viewStateLoaded]);
+  }, [mode, selectedAoiId, viewStateLoaded]);
 
   const refreshStaticData = useCallback(async (announce: boolean) => {
     try {
@@ -560,22 +583,6 @@ export default function RescueMapExperience({
                 {mapping.activationCode}
               </span>
             </div>
-            <div className="e-rescue-language" aria-label="Idioma / Language">
-              <button
-                type="button"
-                aria-pressed={language === "es"}
-                onClick={() => setLanguage("es")}
-              >
-                ES
-              </button>
-              <button
-                type="button"
-                aria-pressed={language === "en"}
-                onClick={() => setLanguage("en")}
-              >
-                EN
-              </button>
-            </div>
           </div>
           <h1>{text.title}</h1>
           <p className="e-rescue-event-title">
@@ -633,7 +640,10 @@ export default function RescueMapExperience({
           <div className="e-rescue-section-heading">
             <h2 id="rescue-map-modes">{text.mapModes}</h2>
             <span className="e-rescue-section-status">
-              {mapping.imagery.comparisonState.toUpperCase()}
+              {comparisonStateLabel(
+                mapping.imagery.comparisonState,
+                language,
+              )}
             </span>
           </div>
           <div

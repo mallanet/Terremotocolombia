@@ -222,7 +222,13 @@ export function HeroDesktopNav() {
         />
         <nav aria-label="Secciones principales" className="e-nav__menu">
           <div className="e-nav__links">
-            {DESKTOP_HEADER_LINKS.map((link) => {
+            {DESKTOP_HEADER_LINKS.filter(
+              (link) =>
+                !(
+                  pathname === "/mapa-de-rescate" &&
+                  link.href === pathname
+                ),
+            ).map((link) => {
               const anchor = isAnchor(link.href);
               const href = anchor && !onHome ? `/${link.href}` : link.href;
               return (

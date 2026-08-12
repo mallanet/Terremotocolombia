@@ -650,7 +650,7 @@
 
 	.e-nav__links,
 	.e-nav__support,
-	.e-nav__language {
+	.e-nav__psych-wrap {
 		display: none;
 	}
 
@@ -681,16 +681,11 @@
 		gap: 8px;
 	}
 
-	/* Conserva marca y acciones sin solaparlas en Android compactos. */
-	.e-nav__psych {
-		width: 44px;
-		padding-inline: 0;
-		gap: 0;
-		font-size: 0;
-	}
-
-	.e-nav__psych-caption {
-		display: none;
+	/* El selector global sustituye el selector duplicado del mapa. La ayuda
+	   psicológica sigue disponible en la hoja "Más" del móvil. */
+	.e-nav__language {
+		min-width: 44px;
+		padding-inline: 10px;
 	}
 }
 
