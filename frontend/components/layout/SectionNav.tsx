@@ -10,6 +10,7 @@ import { toggleTheme } from "./ThemeProvider";
 import { useMissingStats } from "@/hooks/missing";
 import { usePsychHelpClickCount, trackPsychosocialClick } from "@/hooks/psychology-help";
 import { trackPsychHelpClicked } from "@/lib/analytics";
+import { PSYCH_HELP_FORM_URL } from "@/lib/psych-help-form";
 import { SITE_PRODUCT_NAME } from "@/lib/site";
 import {
   MOBILE_BAR_LINKS,
@@ -120,9 +121,9 @@ function NavHeaderActions() {
 // Botón "Ayuda" del header: menú con las dos rutas de apoyo — ayuda
 // psicosocial (grupo de WhatsApp; Doppler NEXT_PUBLIC_WHATSAPP_GROUP_URL,
 // nunca commiteado: el content audit veta el dominio de invitaciones) y ayuda
-// psicológica (directorio /apoyo-disponible). Sin la variable solo se ofrece
-// el directorio. El portal /psicologia (login) sigue existiendo como endpoint
-// propio.
+// psicológica (formulario Google PSYCH_HELP_FORM_URL). Sin la variable solo
+// se ofrece el formulario. El portal /psicologia (login) y /apoyo-disponible
+// siguen existiendo como rutas propias.
 const PSYCHOSOCIAL_WHATSAPP_URL =
   process.env.NEXT_PUBLIC_WHATSAPP_GROUP_URL ?? "";
 
@@ -184,15 +185,17 @@ function HelpNavLink({
             ) : null}
           </a>
         ) : null}
-        <Link
-          href="/apoyo-disponible"
+        <a
+          href={PSYCH_HELP_FORM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
           onClick={onNavigate}
           className={sheetClass}
-          aria-label="Ayuda psicológica: directorio de apoyo psicológico"
+          aria-label="Ayuda psicológica: abrir formulario de apoyo (se abre en pestaña nueva)"
         >
           <Brain aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
           Ayuda psicológica
-        </Link>
+        </a>
       </span>
     );
   }
@@ -237,15 +240,17 @@ function HelpNavLink({
               Ayuda psicosocial
             </a>
           ) : null}
-          <Link
+          <a
             role="menuitem"
-            href="/apoyo-disponible"
-            aria-label="Ayuda psicológica: directorio de apoyo psicológico"
+            href={PSYCH_HELP_FORM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Ayuda psicológica: abrir formulario de apoyo (se abre en pestaña nueva)"
             onClick={() => setOpen(false)}
           >
             <Brain aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
             Ayuda psicológica
-          </Link>
+          </a>
         </span>
       ) : null}
     </span>
