@@ -1,96 +1,132 @@
-# Runbook — Fase 0 (habilitación técnica)
+# Runbook — Phase 0 (technical readiness)
 
-Prerrequisitos antes de dirigir tráfico institucional al despliegue. Ver
-`docs/propuesta-erp-gobierno.md` → Fase 0.
+This runbook lists prerequisites. The deployment must meet them before it
+carries institutional traffic. See `docs/propuesta-erp-gobierno.md`,
+Phase 0.
 
-| # | Ítem | Estado | Bloqueado por |
+| # | Item | Status | Blocked by |
 | --- | --- | --- | --- |
-| 1 | Protección anti-bot (Turnstile) | apagada en ambos lados | Doppler (humano) |
-| 2 | Worker de colas desplegado | **port a Cloudflare en curso** (ver abajo) | cutover a prod = gate humano (G4) |
-| 3 | Panel de autoridad desplegado | **desplegado** (admin.terremotocolombia.co, tras Cloudflare Access) | — (ver `docs/runbook-admin.md`) |
-| 4 | Canal de supresión (Ley 1581) | **operativo en staging**; producción espera el seed (1 comando humano) | seed de capacidades en prod |
-| 5 | Revisión de seguridad independiente | no iniciada | pendiente |
+| 1 | Anti-bot protection (Turnstile) | **active in both environments**, verified 2026-08-11 | done |
+| 2 | Queue worker deployed | **Cloudflare port in progress** (see below) | production cutover = human gate (G4) |
+| 3 | Admin panel deployed | **deployed** (admin.terremotocolombia.co, behind Cloudflare Access) | — (see `docs/runbook-admin.md`) |
+| 4 | Suppression channel (Law 1581) | **live in staging**; production waits for the seed (one human command) | capability seed in production |
+| 5 | Independent security review | not started | pending |
 
 ---
 
-## 1. Turnstile
+## 1. Turnstile — DONE
 
-**No hay nada que programar.** El camino de código está completo: siete
-formularios usan `useTurnstile` (`frontend/hooks/useTurnstile.tsx`) y diez
-routers del backend usan `requireHuman`. Lo único que falta es configuración,
-y el **orden importa**: invertirlo es lo que tumbó los reportes de personas
-desaparecidas la vez anterior.
+**This step is complete, in both environments, verified 2026-08-11.**
+`TURNSTILE_SECRET_KEY` is set on both API Workers (`wrangler secret list`),
+and a `POST /api/missing` request with no token gets a real `403`. Seven
+forms use `useTurnstile` (`frontend/hooks/useTurnstile.tsx`). Ten backend
+routers use `requireHuman`.
 
-`scripts/verify-turnstile.sh [staging|production]` comprueba cada paso sin
-escribir nada (sonda con cuerpo vacío: la rechaza el middleware o el validador,
-nunca llega a insertar).
+`scripts/verify-turnstile.sh [staging|production]` checks each step. It
+writes nothing to the database. The script sends a probe with an empty body.
+The middleware or the validator rejects this probe. The probe never reaches
+an insert. Run it any time you need to re-confirm the live state.
 
-### Estado verificado (10 ago 2026)
+### History: the 2026-08-10 to 2026-08-11 outage
+
+Turnstile was OFF in production between about 2026-08-10 and 2026-08-11:
 
 ```
-production  →  site key en bundle: NO   ·  backend exige token: NO   →  coherente (apagado)
+production (2026-08-10)  →  site key in bundle: NO   ·  backend requires token: NO   →  consistent (off)
 ```
 
-### Secuencia (staging primero, luego producción)
+The frontend bundle did not carry the public site key, so the widget never
+mounted, no token reached the backend, and `requireHuman` rejected every
+report with a `403`. See `SECURITY.md` for the full timeline and the
+consequence for new code.
 
-1. **[HUMANO]** Poner `NEXT_PUBLIC_TURNSTILE_SITE_KEY` en Doppler, config `stg`.
-   La site key pública sale del dashboard de Cloudflare Turnstile.
-2. Redesplegar el frontend de staging (push que toque `frontend/**`).
-3. `scripts/verify-turnstile.sh staging` → **el Paso 1 debe pasar.**
-   Si no aparece la site key, **detente**. El build no la recogió.
-4. **[HUMANO]** Reponer `TURNSTILE_SECRET_KEY` en el Worker de la API de staging.
-5. `scripts/verify-turnstile.sh staging` → debe decir `COHERENTE ... activo`.
-6. Prueba manual en staging: enviar un reporte de persona desaparecida real
-   desde el navegador y confirmar que **no** devuelve 403.
-7. Repetir 1-6 con `prd` / producción.
+### Sequence used to restore it (kept here for reference)
 
-> El paso 6 no es opcional. Los pasos 3 y 5 prueban configuración; solo el 6
-> prueba que una persona puede efectivamente reportar.
+**The order of steps matters.** The wrong order is what broke missing-person
+reports in the first place.
+
+1. **[HUMAN]** Set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` in Doppler, config `stg`.
+   Get the public site key from the Cloudflare Turnstile dashboard.
+2. Redeploy the staging frontend. Push a change that touches `frontend/**`.
+3. Run `scripts/verify-turnstile.sh staging`. **Step 1 must pass.** If the
+   site key does not appear, **stop**. The build did not pick it up.
+4. **[HUMAN]** Restore `TURNSTILE_SECRET_KEY` in the staging API Worker.
+5. Run `scripts/verify-turnstile.sh staging`. It must report
+   `COHERENTE ... activo`.
+6. Test staging manually. Send a real missing-person report from the
+   browser. Confirm the response is **not** a 403.
+7. Repeat steps 1 through 6 for `prd` / production.
+
+> Step 6 is not optional. Steps 3 and 5 test configuration only. Step 6
+> alone proves that a person can actually send a report.
+>
+> **If you ever have to redo this cycle** (for example, after a bundle
+> regression breaks the site key again): fix the frontend bundle first,
+> confirm the site key reaches it, and only then restore
+> `TURNSTILE_SECRET_KEY` on the Worker. Restoring the secret first, before
+> the bundle carries the site key, reproduces the exact outage described
+> above.
 
 ---
 
-## 2. Worker de colas — no es una tarea de código
+## 2. Queue worker — not a code task
 
-`backend/worker/index.ts` es un **proceso Node de larga vida** con BullMQ que
-requiere Valkey/Redis. En `docker-compose.prod.yml` es un servicio propio
-(`command: ["npx", "tsx", "worker/index.ts"]`) con `depends_on: valkey`.
+`backend/worker/index.ts` is a **long-running Node process** that uses
+BullMQ. It needs Valkey/Redis. In `docker-compose.prod.yml`, it runs as its
+own service (`command: ["npx", "tsx", "worker/index.ts"]`), with
+`depends_on: valkey`.
 
-**Producción hoy corre solo en Cloudflare Workers.** No hay host de contenedores
-ni instancia de Valkey. Un Worker de Cloudflare no puede alojar este proceso:
-no hay proceso persistente, y BullMQ necesita conexión sostenida a Redis.
+**Production runs only on Cloudflare Workers today.** No container host and
+no Valkey instance exist. A Cloudflare Worker cannot host this process.
+Cloudflare Workers have no persistent process, and BullMQ needs a sustained
+connection to Redis.
 
-Es decir: *desplegar el worker* no es escribir código, es **levantar
-infraestructura que hoy no existe**, con costo recurrente.
+In short: *deploying the queue worker* is not a code task. It means
+**standing up infrastructure that does not exist today**, at a recurring
+cost.
 
-### Qué queda inerte sin él
+### What this would leave inert, with no port to Cloudflare
 
-- sincronización de sismos (`earthquakes.queue`)
-- publicación de necesidades (`needsPublication.queue`) — módulo M3 de la propuesta
-- importación de pacientes, manual **y** OCR (ambas pasan por `enqueuePatientImport`)
-- federación de hub (`hub/`)
-- mantenimiento programado (`maintenance.queue`)
+- hub federation (`hub/`) — its flag is off, and nothing consumes its queue
+- external-source sync — no `ENABLE_*` source is on today, so this stays
+  pending regardless (unit U5, see below)
+- scheduled maintenance (`maintenance.queue`)
 
-### Decisión tomada: camino B (Cloudflare Queues + Cron Triggers)
+Three other jobs — earthquake sync, needs publication, and patient import —
+looked inert under this same logic at first. The "Decision made" section
+below explains why they are not: the maintainer ported each one to
+Cloudflare Queues or Cron Triggers instead of standing up the original
+worker, and all three run in production today.
 
-El mantenedor eligió portar los jobs a Cloudflare (KTD1 del plan
-`docs/plans/2026-08-10-002-refactor-queue-worker-cloudflare-port-plan.md`) en
-vez de levantar contenedores + Valkey con costo recurrente. Estado por unidad:
+### Decision made: path B (Cloudflare Queues + Cron Triggers)
 
-| Unidad | Qué | Estado |
+The maintainer chose to port the jobs to Cloudflare (KTD1 of the plan
+`docs/plans/2026-08-10-002-refactor-queue-worker-cloudflare-port-plan.md`),
+instead of standing up containers plus Valkey at a recurring cost. Status by
+unit:
+
+| Unit | What | Status |
 | --- | --- | --- |
-| U1 seam de despacho (`lib/job-dispatch.ts`) | binding de Queues gana; BullMQ con `VALKEY_URL`; sin ambos, error claro | **en producción** |
-| U4 geocode por Cron Trigger | `2-59/5 * * * *` | **en producción** |
-| — sismos por Cron Trigger | `*/5 * * * *` (pre-plan) | **en producción** |
-| U2 publicación de necesidades por Queue | colas `terremotocolombia-needs[-staging]`, consumidor `queue` en `worker.ts` | **en producción** (G4: fallo forzado → DLQ → audit_log, verificado en ambos entornos) |
-| U3 visibilidad de cartas muertas | DLQ → `audit_log` (`queue.dead_letter`), visible en Auditoría del panel | **en producción** |
-| — importación de pacientes por Queue | fuera del plan original, pedida por el mantenedor: colas `terremotocolombia-imports[-staging]`; transacciones interactivas reescritas como máquina de estados idempotente/reanudable (apply con claim + id determinista); roles.ts también reescrito (create/edit de roles estaba roto en Workers) | **hecha** — suite completa verde (375 tests) + E2E en staging |
-| U5 sync de fuentes por Cron | + semántica de `/api/sync/status` sin BullMQ | pendiente (sin fuentes externas habilitadas hoy: `ENABLE_*` en false — no hay nada que sincronizar hasta que se habilite una) |
-| U6 retirar Valkey del bundle de Workers | + documentar rate-limit permanente | parcial: rate-limit documentado; `lib/queues.ts` (BullMQ) sigue en el bundle, INERTE sin `VALKEY_URL` — sacarlo del todo toca los routers de sync (U5) |
-| U7 `scripts/verify-jobs.sh` | verificación por frescura derivada | **hecho** |
+| U1 dispatch seam (`lib/job-dispatch.ts`) | The Queues binding wins when the deploy has one. Otherwise the code uses BullMQ with `VALKEY_URL`. With neither, it throws a clear error. | **in production** |
+| U4 geocoding by Cron Trigger | `2-59/5 * * * *` | **in production** |
+| — earthquakes by Cron Trigger | `*/5 * * * *` (pre-plan) | **in production** |
+| U2 needs publication by Queue | queues `terremotocolombia-needs[-staging]`, `queue` consumer in `worker.ts` | **in production** (G4: forced failure → DLQ → `audit_log`, verified in both environments) |
+| U3 dead-letter visibility | DLQ → `audit_log` (`queue.dead_letter`), visible on the panel's Audit screen | **in production** |
+| — patient import by Queue | outside the original plan, added at the maintainer's request: queues `terremotocolombia-imports[-staging]`. The team rewrote interactive transactions as an idempotent, resumable state machine (the apply step uses a conditional claim plus a deterministic ID). The team also rewrote `roles.ts`, because role create/edit was broken in Workers. | **done** — full test suite green (375 tests), plus E2E tests in staging |
+| U5 source sync by Cron | plus `/api/sync/status` semantics with no BullMQ | pending (no external source is on today: every `ENABLE_*` flag is `false`. Nothing needs sync until a maintainer turns one on.) |
+| U6 remove Valkey from the Workers bundle | plus document the permanent rate limit | partial: the team documented the rate limit. `lib/queues.ts` (BullMQ) still ships in the bundle, INERT with no `VALKEY_URL`. Removing it fully needs changes to the sync routers (U5). |
+| U7 `scripts/verify-jobs.sh` | verification by derived freshness | **done** |
 
-**Cutover a producción (G4) = gate humano**: deploy manual del backend con
-confirmación. Igual que siempre.
+**Production cutover (G4) = a human gate.** A human confirms the cutover by
+checking `scripts/verify-jobs.sh production` after the deploy. **The backend
+deploy itself is also a human gate**, separate from G4: a human must run
+`deploy-backend.yml` by hand (`workflow_dispatch`), after a schema-drift
+check that fails closed. This was briefly automatic for part of
+2026-08-11, until a schema-drift outage (commit `a81e17c`, about 6 hours of
+`503` errors) made the maintainer revert it back to manual, the same day.
+The frontend and the admin panel still deploy automatically, on push to
+`main`. See `CLAUDE.md` → "Where this actually runs" for the current rule.
 
-**Fuera de alcance a propósito**: importación de pacientes (manual y OCR) —
-usa transacciones interactivas que fallan en Workers; le toca su propio plan.
-El camino compose (`docker-compose.prod.yml`) queda intacto (R5).
+**Out of scope on purpose**: patient import (manual and OCR). It uses
+interactive transactions that fail in Workers. It needs its own separate
+plan. The compose path (`docker-compose.prod.yml`) stays intact (R5).

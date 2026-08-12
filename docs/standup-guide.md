@@ -1,149 +1,184 @@
-# Guía de standup
+# Standup guide
 
-> **En este repo el standup YA OCURRIÓ.** terremotocolombia.co está en
-> producción. Esta guía se conserva como referencia —y para el próximo
-> despliegue de Mallanet—, pero **no la ejecutes sobre este repo**: reconfigurar
-> la identidad o regenerar secretos aquí rompe el sitio que está sirviendo.
+> **The standup already happened in this repository.** terremotocolombia.co
+> runs in production now. This guide stays as a reference, for the next
+> Mallanet deployment. **Do not run this guide against this repository.**
+> Reconfiguring the identity or regenerating secrets here breaks the site
+> that serves live traffic.
 >
-> Ojo además: el paso de despliegue de esta guía asume un VPS con docker
-> compose. terremotocolombia.co corre en **Cloudflare Workers**. Ver
-> [`../CLAUDE.md`](../CLAUDE.md) → "Dónde corre esto de verdad".
+> Also note: this guide's deploy step assumes a VPS with Docker Compose.
+> terremotocolombia.co runs on **Cloudflare Workers**. See
+> [`../CLAUDE.md`](../CLAUDE.md) → "Where this actually runs".
 >
-> Estado por skill: [`../CLAUDE.md`](../CLAUDE.md) → "Estado del standup".
+> Status per skill: [`../CLAUDE.md`](../CLAUDE.md) → "Launch checklist
+> status".
 
-Cómo pasar de "hice fork de este template" a "tengo un sitio de respuesta a
-desastres real corriendo en mi propio dominio", paso a paso. Si estás usando
-un agente de código (Claude Code u otro compatible con `.claude/skills/`),
-puedes pedirle directamente que corra cada skill mencionado abajo — cada uno
-tiene su propio `SKILL.md` con el detalle técnico completo. Esta guía es la
-versión para humanos, con el porqué y el orden.
+This guide takes you, step by step, from "I forked this template" to "I run
+a real disaster-response site on my own domain." If you use a code agent
+(Claude Code or another agent compatible with `.claude/skills/`), ask it
+directly to run each skill named below. Each skill has its own `SKILL.md`
+file with full technical detail. This guide gives the human-readable
+version: the reasons and the order.
 
-## Quickstart (30 minutos, si ya tienes todo a mano)
+## Quickstart (30 minutes, if you already have everything ready)
 
-Necesitas de antemano: nombre de tu organización, nombre del evento/desastre,
-centro del mapa (lat/lng) y zoom, un email de contacto, tres dominios/subdominios
-(sitio, api, admin) con acceso a su DNS, los números reales de emergencia de
-tu región, y un VPS Ubuntu recién provisto con acceso SSH.
+Before you start, gather these items:
 
-1. **Configura la identidad** (~5 min): edita
-   `config/deployment.config.json` con tus datos. Pide a tu agente que corra
-   el skill `disaster-configure`, o sigue el paso 1 de la sección larga
-   abajo a mano.
-2. **Aplica tu marca** (~5 min): colores y logo, vía `disaster-brand` (paso
-   2 abajo).
-3. **Genera secretos** (~2 min): `disaster-secrets-bootstrap` genera
-   contraseñas/claves fuertes y arma tu `.env` de producción.
-   *(En este repo: hecho, y vive en Doppler, no en `.env`. Regenerarlos ahora
-   invalidaría sesiones y desalinearía hashes ya escritos.)*
-4. **Despliega al VPS** (~15 min, incluye propagación DNS): `disaster-deploy-vps`
-   provisiona el servidor, levanta Docker Compose + Caddy con TLS y corre
-   smoke checks.
-5. **Audita antes de publicar** (~3 min de escaneo + revisión humana
-   obligatoria, sin límite de tiempo fijo): `disaster-content-audit` **antes**
-   de hacer público tu fork o compartir el link del repo con nadie fuera de
-   tu equipo de confianza.
+- your organization's name
+- the event or disaster name
+- the map center (latitude/longitude) and zoom level
+- a contact email address
+- three domains or subdomains (site, API, admin), with DNS access
+- the real emergency numbers for your region
+- a freshly provisioned Ubuntu VPS, with SSH access
 
-Si te falta algo de la lista de arriba (sobre todo los números de emergencia
-reales o el acceso DNS), resuélvelo antes de empezar — varios pasos
-dependen de tenerlo.
+1. **Set the identity** (about 5 minutes): edit
+   `config/deployment.config.json` with your data. Ask your agent to run
+   the skill `disaster-configure`, or follow step 1 in the full guide
+   below, by hand.
+2. **Apply your brand** (about 5 minutes): colors and logo, with the skill
+   `disaster-brand` (step 2 below).
+3. **Generate secrets** (about 2 minutes): the skill
+   `disaster-secrets-bootstrap` generates strong passwords and keys, and
+   builds your production `.env` file.
+   *(In this repository: done. The secrets live in Doppler, not in `.env`.
+   Regenerating them now would invalidate sessions and break hashes
+   already written.)*
+4. **Deploy to the VPS** (about 15 minutes, including DNS propagation): the
+   skill `disaster-deploy-vps` provisions the server, starts Docker
+   Compose plus Caddy with TLS, and runs smoke checks.
+5. **Audit before you publish** (about 3 minutes of scanning, plus a
+   mandatory human review with no fixed time limit): run the skill
+   `disaster-content-audit` **before** you make your fork public or share
+   the repository link with anyone outside your trusted team.
 
-## Guía paso a paso
+If you are missing anything from the list above, especially the real
+emergency numbers or DNS access, resolve it before you start. Several
+steps depend on having it ready.
 
-### 0. Antes de tocar nada
+## Step-by-step guide
 
-> **Este paso NO está pendiente en `mallanet/Terremotocolombia`.** El repo ya es
-> público a propósito y sirve un sitio en vivo. **No cambies su visibilidad por
-> tu cuenta**: hacerlo privado rompería los enlaces públicos y no arregla nada.
-> Lo de abajo aplica a un despliegue nuevo, no a este.
+### 0. Before you touch anything
 
-Haz fork de este repo a tu propia cuenta/organización de GitHub, **en
-privado** — no lo publiques todavía. Todo lo que sigue pasa en ese fork
-privado; solo al final, después de `disaster-content-audit`, decides
-hacerlo público.
+> **This step does NOT apply to `mallanet/Terremotocolombia`.** That
+> repository is public on purpose, and it serves a live site. **Do not
+> change its visibility on your own.** Making it private would break
+> public links, and it would fix nothing. The steps below apply to a new
+> deployment, not to this one.
 
-### 1. `disaster-configure` — identidad del despliegue
+Fork this repository to your own GitHub account or organization, **as
+private** — do not publish it yet. Everything that follows happens in that
+private fork. Only at the end, after `disaster-content-audit`, do you
+decide to make it public.
 
-Rellena `config/deployment.config.json`: nombre de tu organización, nombre
-del producto/sitio, nombre del desastre/evento, tipo de desastre, etiqueta de
-región, centro del mapa y zoom inicial, idioma, email de contacto, y los tres
-dominios. Este archivo es la fuente de verdad que lee el resto del sitio en
-tiempo de ejecución.
+### 1. `disaster-configure` — deployment identity
 
-Además, a mano (el loader de config no puede alcanzarlos):
-- `frontend/public/manifest.webmanifest` — nombre/descripción de la PWA.
-- `frontend/lib/event-data.ts` — metadata del evento real y las localidades
-  en riesgo (reemplaza los datos de ejemplo).
-- `frontend/lib/emergency-contacts.ts` — **los números reales de emergencia
-  de tu región** (bomberos, ambulancias, protección civil). Esto es lo único
-  que ningún skill puede adivinar por ti — tenlos a mano antes de empezar.
+Fill in `config/deployment.config.json` with:
 
-Verifica: `cd frontend && npm run build` pasa, y el mapa (revisa
-`config/deployment.config.json` → `mapCenter`) apunta a tu región.
+- your organization's name
+- the product or site name
+- the disaster or event name
+- the disaster type
+- a region label
+- the map center and initial zoom level
+- the language
+- a contact email address
+- the three domains
 
-### 2. `disaster-brand` — tu marca visual
+This file is the source of truth. The rest of the site reads it at
+runtime.
 
-Con la identidad ya puesta, aplica tu paleta de colores y logo:
-`docs/DESIGN.md` (tokens), `frontend/app/globals.css` (variables CSS),
-`manifest.webmanifest` (theme_color), los SVG de icono/hero, y las imágenes
-de vista previa social (Open Graph/Twitter). Si no tienes un logo propio, el
-motivo de "pin de mapa" por defecto se queda, solo con tus colores.
+Also, by hand (the config loader cannot reach these files):
 
-Este skill se niega a correr si el paso 1 no terminó (detecta valores de
-`example.org` restantes) — así evitas rebrandear un sitio que todavía dice
-"Organización Ejemplo".
+- `frontend/public/manifest.webmanifest` — the PWA name and description.
+- `frontend/lib/event-data.ts` — the real event metadata and the
+  localities at risk. Replace the example data.
+- `frontend/lib/emergency-contacts.ts` — **the real emergency numbers for
+  your region** (fire department, ambulance, civil protection). No skill
+  can guess these for you. Have them ready before you start.
 
-### 3. `disaster-secrets-bootstrap` — secretos de producción
+Verify: `cd frontend && npm run build` passes, and the map points to your
+region. Check `config/deployment.config.json` → `mapCenter`.
 
-Genera cada secreto requerido (`JWT_SECRET`, `IP_SALT`,
-`PATIENT_DOCUMENT_HASH_SECRET`, contraseñas de Postgres/Valkey/superadmin,
-etc.) con `openssl rand`, y arma tu `.env`/`.prod.env` real combinando esos
-secretos con los dominios/contacto que ya pusiste en el paso 1.
+### 2. `disaster-brand` — your visual brand
 
-`.env` **nunca se commitea** — el `.gitignore` de este repo ya lo excluye.
-Este skill no termina — ni te dice que sigas al paso 4 — mientras quede
-algún `CHANGE_ME` o valor de ejemplo en una variable requerida.
+With the identity in place, apply your color palette and logo across:
 
-### 4. `disaster-deploy-vps` — el servidor
+- `docs/DESIGN.md` (design tokens)
+- `frontend/app/globals.css` (CSS variables)
+- `manifest.webmanifest` (`theme_color`)
+- the icon and hero SVG files
+- the social preview images (Open Graph and Twitter)
 
-Con un VPS Ubuntu limpio y acceso SSH:
-1. Usuario de deploy + hardening SSH (sin root, sin password) + firewall
-   (UFW: solo 22/80/443) + fail2ban.
-2. Instala Docker.
-3. Clona tu fork, copia tu `.env`/`.prod.env` al servidor por un canal
-   seguro (nunca por git).
-4. Crea los registros DNS A de tus tres dominios apuntando a la IP del VPS y
-   espera a que propaguen.
-5. `docker compose -f docker-compose.prod.yml --env-file .prod.env up -d
-   --build` — levanta Postgres, Valkey, migraciones, backend, worker,
-   frontend, admin y Caddy (que emite TLS automático vía Let's Encrypt).
-6. Smoke checks: todos los servicios `healthy`/`running`, los tres dominios
-   responden por HTTPS, el mapa carga centrado en tu región, un reporte de
-   prueba (con datos ficticios) se envía y aparece, el panel admin
-   autentica con tu superadmin.
+If you do not have your own logo, the default "map pin" motif stays, with
+only your colors applied.
 
-### 5. `disaster-content-audit` — antes de publicar, siempre
+This skill refuses to run if step 1 is not finished. It detects remaining
+`example.org` values. This check stops you from rebranding a site that
+still says "Organización Ejemplo" — the template's actual placeholder
+name, unchanged by the documentation-language switch.
 
-**Este paso es un gate, no un formalismo.** Antes de que tu fork se haga
-público, o de compartir el link con alguien fuera de tu equipo:
+### 3. `disaster-secrets-bootstrap` — production secrets
 
-1. Corre `scripts/content-audit/run.sh`.
-2. Revisa cada hit a mano — un escaneo automatizado no distingue un
-   placeholder documentado de un dato real.
-3. Confirma que el historial de git de tu fork no arrastra commits/objetos
-   de un repo anterior con datos reales.
-4. Confirma que ningún binario (fotos, capturas) lleva metadata EXIF/GPS.
+Generate each required secret (`JWT_SECRET`, `IP_SALT`,
+`PATIENT_DOCUMENT_HASH_SECRET`, and Postgres, Valkey, and superadmin
+passwords) with `openssl rand`. Build your real `.env` or `.prod.env`
+file. Combine these secrets with the domains and contact email you set in
+step 1.
 
-El veredicto de este paso **nunca** es "está limpio" o "es seguro publicar"
-— es, como máximo, *"sin hallazgos de patrón conocido; no se puede confirmar
-que esté limpio"*. Un escaneo automatizado busca patrones conocidos; no
-puede probar la ausencia de algo que no calce con esos patrones. Por eso el
-paso final siempre es: **un humano de tu equipo revisa el diff o el árbol
-completo antes del push a público**, sin excepción, cada vez que el repo
-esté a punto de cambiar de visibilidad — no solo la primera vez.
+You never commit `.env`. This repository's `.gitignore` already excludes
+it. This skill does not finish while any required variable still holds a
+`CHANGE_ME` value or an example value. It also does not tell you to move
+to step 4.
 
-## Origen
+### 4. `disaster-deploy-vps` — the server
 
-Esta plantilla nació de la respuesta ciudadana al terremoto de Venezuela de
-2026 — generalizada para que cualquier comunidad pueda levantar su propia
-instancia ante el próximo desastre, sin arrastrar la identidad ni los datos
-del despliegue original.
+With a clean Ubuntu VPS and SSH access:
+
+1. Create a deploy user. Harden SSH (no root login, no password login).
+   Set up a firewall (UFW: only ports 22, 80, and 443 open). Install
+   fail2ban.
+2. Install Docker.
+3. Clone your fork. Copy your `.env` or `.prod.env` file to the server
+   through a secure channel — never through git.
+4. Create the DNS A records for your three domains, pointing to the VPS
+   IP address. Wait for them to propagate.
+5. Run `docker compose -f docker-compose.prod.yml --env-file .prod.env up
+   -d --build`. This starts Postgres, Valkey, migrations, the backend,
+   the worker, the frontend, the admin panel, and Caddy. Caddy issues
+   automatic TLS through Let's Encrypt.
+6. Run smoke checks:
+   - all services show `healthy` or `running`
+   - all three domains respond over HTTPS
+   - the map loads, centered on your region
+   - a test report, with fictitious data, sends and appears
+   - the admin panel authenticates with your superadmin account
+
+### 5. `disaster-content-audit` — always before you publish
+
+**This step is a gate, not a formality.** Complete it before your fork
+goes public, and before you share the link with anyone outside your team:
+
+1. Run `scripts/content-audit/run.sh`.
+2. Review each hit by hand. An automated scan cannot tell a documented
+   placeholder from real data.
+3. Confirm that your fork's git history carries no commits or objects
+   from an earlier repository with real data.
+4. Confirm that no binary file (photos, screenshots) carries EXIF or GPS
+   metadata.
+
+This step's verdict is **never** "it is clean" or "it is safe to
+publish." At most, it says: *"no known-pattern findings; this does not
+confirm the repository is clean."* An automated scan searches for known
+patterns. It cannot prove the absence of something that does not match
+those patterns. This is why the final step is always the same. **A team
+member reviews the full diff or file tree by hand, before the push to
+public.** This step has no exception. It applies every time the
+repository is about to change visibility, not only the first time.
+
+## Origin
+
+This template began from the citizen response to the 2026 Venezuela
+earthquake. The project team generalized it so any community can stand up
+its own instance for the next disaster, with no identity or data carried
+over from the original deployment.

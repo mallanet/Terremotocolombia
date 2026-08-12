@@ -1,244 +1,274 @@
-# CLAUDE.md — entrypoint para agentes
+# CLAUDE.md — entry point for agents
 
-Este repo **ya no es la plantilla genérica**: es el **despliegue en producción**
-de **terremotocolombia.co** (Terremoto Colombia 2026, Mallanet.org), sirviendo
-tráfico real ahora mismo.
+This repository is no longer the generic template. It is the **production
+deployment** of **terremotocolombia.co** (Terremoto Colombia 2026,
+Mallanet.org). It serves real traffic right now.
 
-Nació como fork de una plantilla pública de respuesta a desastres, y buena parte
-del código sigue siendo genérico. La diferencia importante para ti: la identidad
-ya está definida, el standup ya ocurrió, y **lo que empujes a `main` sale a
-producción**. Si buscas las convenciones de código (endpoints, DDD de
-integraciones, Drizzle, reglas ESLint), lee **`AGENTS.md`**.
+The repository began as a fork of a public disaster-response template. Most
+of the code is still generic. One fact matters most for you: the deployment
+identity is already set, the launch already happened, and **anything you
+push to `main` goes live**. For code conventions (endpoints, integration
+modules, Drizzle, ESLint rules), read [`AGENTS.md`](AGENTS.md).
 
-## Lo primero: empujar a `main` DESPLIEGA (frontend y admin; backend ya no)
+## First fact: a push to `main` deploys the frontend and the admin panel — not the backend
 
-**Frontend y admin** se despliegan solos en push a `main`, cada uno con su
-filtro de rutas: `deploy-frontend.yml` (`frontend/**` +
-`config/deployment.config.json`) y `deploy-admin.yml` (`admin/**`). No hay
-paso de aprobación para esos dos: un commit es un despliegue a un sitio que
-usa gente buscando a familiares.
+**Frontend and admin** deploy on their own on every push to `main`, each
+with its own path filter: `deploy-frontend.yml` (`frontend/**` and
+`config/deployment.config.json`) and `deploy-admin.yml` (`admin/**`). No
+approval step exists for those two. Every commit is a deploy to a site
+that people use to search for missing family members.
 
-**El backend de producción es MANUAL** (`deploy-backend.yml`, solo
-`workflow_dispatch`) desde la tarde del 2026-08-11, decisión del mantenedor
-tras el incidente de 6h de 503 por deriva de esquema: mergear a main deja el
-código listo, pero el Worker de la API solo se despliega cuando un humano
-lanza el workflow (que además corre un gate de deriva de esquema que falla
-cerrado). Staging sí sigue desplegando solo (`deploy-staging.yml`).
+**The production backend deploy is MANUAL** (`deploy-backend.yml`,
+`workflow_dispatch` only). The maintainer set this up on the afternoon of
+2026-08-11, after a 6-hour `503` incident caused by schema drift. Merging
+to `main` leaves the code ready, but the API Worker only deploys when a
+human runs the workflow — which also runs a schema-drift gate that fails
+closed. Staging still deploys on its own (`deploy-staging.yml`).
 
-**Nunca por iniciativa propia** (requieren un humano):
+```mermaid
+flowchart LR
+    push(["git push to main"]) --> gh["GitHub Actions\n(path-filtered per workflow)"]
+    gh -->|"frontend/**"| wf["deploy-frontend.yml\n(automatic)"]
+    gh -->|"admin/**"| wa["deploy-admin.yml\n(automatic)"]
+    gh -.->|"backend/**, infra/db/**\n(code ready, not deployed)"| wbReady["deploy-backend.yml\nwaits for a human"]
+    human(["a human runs\nworkflow_dispatch"]) --> wb["deploy-backend.yml\nschema-drift gate, fails closed"]
+    wf --> workerF["Worker\nterremotocolombia-web"]
+    wa --> workerA["Worker\nterremotocolombia-admin"]
+    wb --> workerB["Worker\nterremotocolombia-api"]
+    workerB -. "schema change: separate,\nmanual, earlier step" .-> migrate["backend/worker/migrate.ts\nagainst Neon direct endpoint"]
+```
 
-- correr migraciones (`backend/worker/migrate.ts`) — no las corre CI ni ningún
-  deploy, y apuntan a Neon **directo**, no al endpoint `-pooler`. Un deploy
-  saca CÓDIGO; el esquema es siempre un paso aparte y anterior.
-- tocar secretos en Doppler o tokens de Cloudflare
-- cambiar registros DNS, DNSSEC o reglas de WAF de la zona
+**Never do these tasks on your own initiative.** Each one needs a human:
 
-## Dónde corre esto de verdad
+- Run migrations (`backend/worker/migrate.ts`). No deploy runs migrations,
+  and CI does not run them either. Migrations target Neon's **direct**
+  endpoint, never the `-pooler` endpoint. A deploy ships **code**. The
+  schema is always a separate, earlier step.
+- Change secrets in Doppler or tokens in Cloudflare.
+- Change DNS records, DNSSEC, or WAF rules for the zone.
 
-**Dos entornos.** Lo que pruebes va a staging primero.
+## Where this actually runs
 
-| | Producción (`main`) | Staging (`staging`) |
+**Two environments exist.** Test a change in staging first.
+
+| | Production (`main`) | Staging (`staging`) |
 | --- | --- | --- |
 | Web | terremotocolombia.co | staging.terremotocolombia.co |
 | API | api.terremotocolombia.co | api-staging.terremotocolombia.co |
 | Admin | admin.terremotocolombia.co | admin-staging.terremotocolombia.co |
-| Worker web | `terremotocolombia-web` | `terremotocolombia-web-staging` |
-| Worker API | `terremotocolombia-api` | `terremotocolombia-api-staging` |
-| Worker admin | `terremotocolombia-admin` | `terremotocolombia-admin-staging` |
-| Base de datos | rama Neon `production` | rama Neon `staging` |
-| Secretos | Doppler config `prd` | Doppler config `stg` |
-| Despliegue frontend | automático al pushear | automático al pushear |
-| Despliegue backend | **manual** (`deploy-backend.yml`, solo dispatch + gate de deriva) | automático |
-| Despliegue admin | automático al pushear (`deploy-admin.yml`, filtro `admin/**`) | automático |
+| Web Worker | `terremotocolombia-web` | `terremotocolombia-web-staging` |
+| API Worker | `terremotocolombia-api` | `terremotocolombia-api-staging` |
+| Admin Worker | `terremotocolombia-admin` | `terremotocolombia-admin-staging` |
+| Database | Neon branch `production` | Neon branch `staging` |
+| Secrets | Doppler config `prd` | Doppler config `stg` |
+| Frontend deploy | automatic on push | automatic on push |
+| Backend deploy | **manual** (`deploy-backend.yml`, dispatch + drift gate) | automatic on push |
+| Admin deploy | automatic on push (`deploy-admin.yml`, filter `admin/**`) | automatic on push |
 
-Ambos entornos comparten `wrangler.jsonc` (bloque `env.staging`) a propósito: si
-se configuran en sitios distintos dejan de parecerse, y un staging que no se
-parece a producción no prueba nada. El panel admin sigue el mismo patrón
-(`admin/wrangler.jsonc`); su Worker no lleva secretos de runtime — el BFF solo
-conoce `EMERGENCY_API_URL` y la sesión es el JWT del backend en cookie httpOnly.
+Both environments share one `wrangler.jsonc` file per service — staging
+lives in that file's `env.staging` block. This is deliberate. Two separate
+config files would drift apart over time. A staging environment that does
+not match production proves nothing. The admin panel follows the same
+pattern (`admin/wrangler.jsonc`). Its Worker carries no runtime secrets: the
+BFF only needs to know `EMERGENCY_API_URL`, and the session is the backend's
+JWT, stored in an httpOnly cookie.
 
-El panel de **producción** está además detrás de **Cloudflare Access** (org
-`terremotocolombia.cloudflareaccess.com`, OTP por email contra una allowlist
-de correos del equipo): nadie llega ni al login del panel sin pasar el borde.
-Hay una app de **bypass solo para `/api/health`**, para que el smoke check de
-`deploy-admin.yml` siga viendo 200 — no la quites. Access se gestiona por su
-API con un token dedicado (`CLOUDFLARE_ACCESS_API_TOKEN` en Doppler `prd`),
-FUERA del módulo OpenTofu. Alta de un teammate = añadir su email a la política
-de la app + invitarlo desde /users del panel. `admin-staging` NO lleva Access
-(lo protege solo el login propio del panel, y su base es la rama staging).
+The **production** admin panel sits behind **Cloudflare Access**
+(organization `terremotocolombia.cloudflareaccess.com`, one-time passcode by
+email against a team allowlist). Nobody reaches even the panel's login page
+without passing that check first. One Access application bypasses this
+check, and only for `/api/health` — this keeps the smoke check in
+`deploy-admin.yml` able to see a `200` response. Do not remove that bypass.
+Access is managed through its own API, with a dedicated token
+(`CLOUDFLARE_ACCESS_API_TOKEN` in Doppler `prd`), separate from the
+OpenTofu module. To add a team member: add their email to the application's
+Access policy, then invite them from the panel's `/users` screen.
+`admin-staging` carries **no** Access layer — only the panel's own login
+protects it, and it reads from the staging database branch.
 
-| Pieza | Estado |
+| Part | Status |
 | --- | --- |
-| Admin | **desplegado** en ambos entornos (desde 2026-08-10) |
-| Worker de colas (BullMQ/Valkey) | **sin desplegar** en ningún entorno |
+| Admin panel | **deployed** in both environments (since 2026-08-10) |
+| Queue worker (BullMQ/Valkey) | **not deployed** in either environment |
 
-`backend/src/worker.ts` envuelve la app de Express con `httpServerHandler` de
-`cloudflare:node`; la app **no se reescribió**. Ver `backend/wrangler.jsonc` y
-`frontend/wrangler.jsonc`.
+`backend/src/worker.ts` wraps the Express app with `httpServerHandler` from
+`cloudflare:node`. The app itself **was not rewritten**. See
+`backend/wrangler.jsonc` and `frontend/wrangler.jsonc`.
 
-> **`docker-compose.prod.yml` y `docs/deploy-vps.md` NO describen lo que está en
-> producción hoy.** Siguen siendo un camino alternativo válido (VPS + Caddy +
-> Postgres/Valkey propios), y de hecho el único donde funciona todo el sistema
-> —incluidas colas y transacciones—, pero hoy no es lo que sirve el sitio.
+> **`docker-compose.prod.yml` and `docs/deploy-vps.md` do not describe
+> today's production.** That path stays valid as an alternative (a VPS with
+> Caddy and its own Postgres/Valkey) — and it is the only path where the
+> full system works, queues and interactive transactions included — but it
+> is not what serves the site today.
 
-La zona de Cloudflare (DNS, anti-suplantación, TLS, WAF, cache, rate limit) se
-gestiona con un módulo de OpenTofu que vive **fuera de este repo**, en
-`~/Colombia/infra/cloudflare`.
+The Cloudflare zone (DNS, anti-spoofing records, TLS, WAF, cache, rate
+limit) is managed by an OpenTofu module that lives **outside this
+repository**, at `~/Colombia/infra/cloudflare`.
 
-## Secretos: Doppler, no `.env`
+## Secrets: Doppler, not `.env`
 
-Fuente única de verdad: **Doppler**, proyecto `terremotocolombia-web`, config
-`prd`. En producción no se usan ficheros `.env`.
+The single source of truth is **Doppler**, project `terremotocolombia-web`,
+config `prd`. Production uses no `.env` files.
 
 ```bash
-doppler run --project terremotocolombia-web --config prd -- <comando>
+doppler run --project terremotocolombia-web --config prd -- <command>
 ```
 
-Dos tokens de Cloudflare, con permisos **complementarios** — ninguno basta solo:
+Two Cloudflare tokens exist, with **complementary** permissions — neither
+one alone is enough:
 
-| Secreto | Sirve para |
+| Secret | Covers |
 | --- | --- |
-| `CLOUDFLARE_API_TOKEN_COLOMBIA_SCOPED` | zona: DNS, settings, rulesets, DNSSEC |
-| `CLOUDFLARE_ACCOUNT_API_TOKEN` | cuenta: Workers, Pages, R2, Turnstile |
+| `CLOUDFLARE_API_TOKEN_COLOMBIA_SCOPED` | zone: DNS, settings, rulesets, DNSSEC |
+| `CLOUDFLARE_ACCOUNT_API_TOKEN` | account: Workers, Pages, R2, Turnstile |
 
-GitHub Actions solo conoce `DOPPLER_TOKEN`; el resto lo inyecta `doppler run` en
-el runner.
+GitHub Actions only knows `DOPPLER_TOKEN`. `doppler run` injects every other
+secret into the runner.
 
-## Limitaciones conocidas (no son bugs a "arreglar" sin pensar)
+## Known limitations (do not "fix" these without thinking first)
 
-- **Sin transacciones interactivas en Workers.** El driver ahí es el HTTP de Neon.
-  Los 8 `db.transaction(...)` de `services/roles.ts` y
-  `services/patient-imports/*` **fallan en Workers**; funcionan bajo Node/compose.
-  Motivo: en Workers un socket TCP pertenece a la petición que lo abrió, así que
-  un pool con estado no sirve.
-- **Turnstile está ACTIVO en ambos entornos** (verificado 2026-08-11 con
-  `wrangler secret list` y con un envío real de navegador en staging y en
-  producción). `TURNSTILE_SECRET_KEY` está en el Worker de la API y la site key
-  pública sí llega al bundle del frontend.
-  **Consecuencia para código nuevo:** todo formulario público que escriba DEBE
-  mandar `turnstileToken` (patrón canónico: `useTurnstile()` + `getToken()` por
-  submit, ver `components/features/contacts/ContactForm.tsx`). Un `POST` sin
-  token responde **403** — que es exactamente como se rompieron en su día todos
-  los reportes de personas desaparecidas: el secreto puesto en el Worker sin que
-  la site key llegara al bundle. Si alguna vez hay que rehacer ese ciclo: primero
-  confirmar la site key en el bundle, **después** reponer el secreto.
-- **Bot Fight Mode está apagado** en la zona: inyectaba su script y chocaba con la
-  CSP del frontend.
-- **`wrangler.jsonc` no debe declarar `routes`.** Los dominios propios se adjuntan
-  por la API de cuenta. Al declarar `routes`, wrangler llama además a
-  `/zones/{id}/workers/routes`, para lo que el token de cuenta no tiene permiso, y
-  el fallo aborta el deploy **después** de subir el código y **antes** de promover
-  la versión: el Worker se queda sirviendo la build anterior y el comando parece
-  casi correcto.
-- **Jobs de fondo: portados a Cloudflare casi por completo** (plan en
-  `docs/plans/2026-08-10-002-…`, estado por unidad en `docs/runbook-fase0.md`).
-  Corren en Workers: sync de sismos y geocode (Cron Triggers), publicación de
-  necesidades (Queues + DLQ persistido en `audit_log`) y la **importación de
-  pacientes en lote** (cola `terremotocolombia-imports`; sus transacciones
-  interactivas se reescribieron como máquina de estados idempotente — el apply
-  usa claims condicionales + id de paciente determinista por fila y es
-  reanudable tras un corte sin duplicar pacientes). `services/roles.ts` se
-  reescribió igual (create/edit de roles fallaba en Workers). Sigue inerte el
-  sync de fuentes externas (U5) — sin fuentes `ENABLE_*` habilitadas no hay
-  nada que sincronizar. El worker BullMQ de compose queda intacto (R5);
-  `scripts/verify-jobs.sh [staging|production]` verifica frescura sin
-  escribir nada.
-- **Hay bindings de Hyperdrive y una base D1 creados pero SIN USAR.**
-  `backend/wrangler.jsonc` declara un binding de Hyperdrive que hoy no se lee.
-  Se intentó y fue contraproducente: el driver de Workers es el HTTP de Neon,
-  que necesita una URL de Neon de verdad, y al inyectar la cadena local de
-  Hyperdrive **fallaban casi todas las consultas**. La D1 se creó al evaluar
-  "todo en Cloudflare" y no tiene ni una línea de código detrás.
-  **No los actives suponiendo que están a medio cablear** — están apagados a
-  propósito. Quitarlos o hacerlos funcionar es decisión del mantenedor.
-- **El rate limit corre degradado.** Sin `VALKEY_URL`, el limitador del backend
-  cae a memoria por isolate en vez de compartido. En Workers, con muchos
-  isolates, eso es bastante más permisivo de lo que sugiere el número. El rate
-  limit del borde (Cloudflare) sí es real.
+- **No interactive transactions in Workers.** The driver there is Neon's
+  HTTP driver. The 8 `db.transaction(...)` calls in `services/roles.ts` and
+  `services/patient-imports/*` **fail in Workers**. They work under
+  Node/compose. Reason: in Workers, one TCP socket belongs to the single
+  request that opened it, so a stateful connection pool cannot work.
+- **Turnstile is ACTIVE in both environments** (verified 2026-08-11 with
+  `wrangler secret list`, and with a real browser submission in staging and
+  in production). `TURNSTILE_SECRET_KEY` is set on the API Worker, and the
+  public site key reaches the frontend bundle.
+  **Consequence for new code:** every public form that writes MUST send
+  `turnstileToken` (canonical pattern: `useTurnstile()` plus `getToken()`
+  per submit — see `components/features/contacts/ContactForm.tsx`). A
+  `POST` with no token gets a **403** response. That 403 is exactly how
+  every missing-person report broke once already: someone set the secret
+  on the Worker without the site key reaching the bundle first. If this
+  ever needs to be redone: confirm the site key in the bundle first, then
+  restore the secret.
+- **Bot Fight Mode is off** for the zone. It injected a script that
+  conflicted with the frontend's CSP.
+- **`wrangler.jsonc` must never declare `routes`.** Custom domains attach
+  through the account API instead. Declaring `routes` makes wrangler also
+  call `/zones/{id}/workers/routes`, a call the account token cannot make.
+  That failure aborts the deploy **after** the code upload and **before**
+  the new version goes live — the Worker keeps serving the previous build,
+  and the command looks like it almost worked.
+- **Background jobs: nearly all ported to Cloudflare** (plan in
+  `docs/plans/2026-08-10-002-…`, per-unit status in
+  `docs/runbook-fase0.md`). These run in Workers: earthquake sync and
+  geocoding (Cron Triggers), need publication (Queues with a DLQ persisted
+  to `audit_log`), and **bulk patient import** (queue
+  `terremotocolombia-imports`; its interactive transactions were rewritten
+  as an idempotent state machine — the apply step uses conditional claims
+  plus a per-row deterministic patient ID, and resumes after a failure
+  without duplicating patients). `services/roles.ts` was rewritten the same
+  way (role create/edit failed in Workers). External-source sync (unit U5)
+  still sits idle — with no `ENABLE_*` source flags on, there is nothing to
+  sync. Compose's BullMQ worker (unit R5) stays intact.
+  `scripts/verify-jobs.sh [staging|production]` checks freshness without
+  writing anything.
+- **A Hyperdrive binding and a D1 database exist but see no use.**
+  `backend/wrangler.jsonc` declares a Hyperdrive binding that no code reads
+  today. A past attempt to wire it in made things worse: the Workers driver
+  is Neon's HTTP driver, which needs a real Neon URL, and injecting
+  Hyperdrive's local connection string broke almost every query. The team
+  created the D1 database while evaluating a full move to Cloudflare, and no
+  code uses it. **Do not turn these on assuming they are half-wired** — they
+  are off on purpose. Removing them, or finishing the wiring, is the
+  maintainer's call.
+- **Rate limiting runs in a degraded mode.** Without `VALKEY_URL`, the
+  backend's limiter falls back to per-isolate memory instead of a shared
+  store. Workers run many isolates, so this is far more permissive than the
+  configured number suggests. The edge rate limit (Cloudflare's own) is
+  real and shared.
 
-## Reglas de seguridad (sin excepción)
+## Security rules (no exceptions)
 
-- **Nunca commitees `.env`** ni ningún `.env.*` real. `.env.example` es el único
-  que se commitea, y solo con placeholders obviamente falsos.
-- **Nunca commitees datos reales de una crisis.** Ni en código, ni en fixtures, ni
-  en tests, ni en docs, ni en un issue o PR. Nombres de personas, cédulas,
-  teléfonos, direcciones privadas, notas médicas o fotos reales de afectados no
-  van a este repo bajo ninguna circunstancia. Ver `AGENTS.md` → "Seguridad y
-  privacidad".
-- **Nada de datos de prueba en producción.** La base de Neon es real. Si necesitas
-  verificar un endpoint de escritura, bórralo inmediatamente después y déjalo
-  dicho. `missing_persons` no es un sitio donde dejar filas `test`.
-- **Política de no-datos-reales en seeds/fixtures.** `backend/src/seed/` genera
-  datos SINTÉTICOS con prefijo `DEMO-`, aborta si `NODE_ENV=production` o si
-  `DATABASE_URL` no apunta a un host local, y aborta si ya hay filas no-demo.
-  Cualquier fixture nuevo sigue el mismo patrón.
-- **No inventes identidad.** Dominios, emails, teléfonos, nombre de organización o
-  coordenadas fuera de `config/deployment.config.json`/Doppler son un bug.
-  Ojo: **no controlamos** `terremotocolombia.app`, `.com` ni `.org` — los
-  registraron terceros el mismo día. El dominio bueno es **`.co`**.
+- **Never commit `.env`** or any real `.env.*` file. `.env.example` is the
+  only one committed, and it carries only placeholders that are obviously
+  fake.
+- **Never commit real data from this crisis.** Not in code, not in
+  fixtures, not in tests, not in docs, not in an issue or a PR. No real
+  names, ID numbers, phone numbers, private addresses, medical notes, or
+  real photos of affected people enter this repository, under any
+  circumstance. See `AGENTS.md` → "Security and privacy".
+- **No test data in production.** The Neon database is real. If you must
+  verify a write endpoint, delete the test row immediately after and say so.
+  `missing_persons` is not a place to leave `test` rows.
+- **No-real-data policy in seeds and fixtures.** `backend/src/seed/`
+  generates **synthetic** data with a `DEMO-` prefix. It refuses to run when
+  `NODE_ENV=production`, when `DATABASE_URL` does not point at a local host,
+  or when non-demo rows already exist. Any new fixture follows the same
+  pattern.
+- **Never invent an identity.** A domain, email, phone number,
+  organization name, or coordinate that is not in
+  `config/deployment.config.json` or Doppler is a bug. Note: **we do not
+  control** `terremotocolombia.app`, `.com`, or `.org` — third parties
+  registered those the same day. The real domain is **`.co`**.
 
-## Estado del standup
+## Launch checklist status
 
-Los cinco `.claude/skills/disaster-*` describen el standup inicial de un fork.
-**Aquí ya ocurrió**; no los vuelvas a correr sobre este repo salvo que sepas
-exactamente por qué.
+The five `.claude/skills/disaster-*` skills describe a fork's initial
+launch. **That already happened here.** Do not re-run them against this
+repository unless you know exactly why.
 
-| Skill | Estado |
+| Skill | Status |
 | --- | --- |
-| `disaster-configure` | hecho (`config/deployment.config.json` con valores reales) |
-| `disaster-brand` | hecho (identidad Mallanet, favicon, OG) |
-| `disaster-secrets-bootstrap` | sustituido por Doppler |
-| `disaster-deploy-vps` | **no usado** — se desplegó en Cloudflare Workers |
-| `disaster-content-audit` | ver abajo |
+| `disaster-configure` | done (`config/deployment.config.json` carries real values) |
+| `disaster-brand` | done (Mallanet identity, favicon, Open Graph) |
+| `disaster-secrets-bootstrap` | replaced by Doppler |
+| `disaster-deploy-vps` | **not used** — the deploy target is Cloudflare Workers |
+| `disaster-content-audit` | see below |
 
-**Resuelto (2026-08-11):** el job `content audit` de CI está en verde. Las dos
-causas del rojo histórico se cerraron con decisión del mantenedor: los assets de
-marca de Mallanet ya estaban allowlisteados, y el chequeo de historial git
-(>50 commits, pensado para un fork recién plantillado) se retiró tras verificar
-a mano que el historial es todo propio — ahora está gateado por un marcador
-(`scripts/content-audit/.content-audit-fresh`) que este repo no tiene, así que
-se salta solo. Las reglas de PII/secretos/crisis previa siguen activas y un
-hallazgo nuevo del audit sigue siendo bloqueante: investígalo, no lo
-allowlistees sin el mantenedor.
+**Resolved (2026-08-11):** CI's `content audit` job is green. The two
+historical causes of failure are closed, by the maintainer's decision:
+Mallanet's brand assets were already allowlisted, and the git-history check
+(over 50 commits, built for a freshly-templated fork) was retired after a
+manual check confirmed the history is all original. That check now gates on
+a marker file (`scripts/content-audit/.content-audit-fresh`) that this
+repository does not have, so it skips itself. The PII, secrets, and
+prior-crisis-data rules still run, and any new finding still blocks the
+build — investigate it, and do not allowlist it without the maintainer.
 
-## GEO / SEO (buscadores de IA)
+## GEO / SEO (AI search engines)
 
-Skill vendored en `.claude/skills/geo/` (upstream:
-https://github.com/zubair-trabzada/geo-seo-claude). Guía: `docs/geo/README.md`.
+Skill vendored at `.claude/skills/geo/` (upstream:
+https://github.com/zubair-trabzada/geo-seo-claude). Guide:
+`docs/geo/README.md`.
 
-- Comandos: `/geo audit <url>`, `/geo quick`, `/geo schema`, `/geo llmstxt`, …
+- Commands: `/geo audit <url>`, `/geo quick`, `/geo schema`, `/geo llmstxt`,
+  and more.
 - Target: `https://terremotocolombia.co`.
-- Política robots: bloquear bots de *entrenamiento* de IA está bien; no
-  "arreglarlo" abriendo GPTBot/ClaudeBot. Ver `frontend/app/robots.ts`.
-- Entregable de audit: `docs/geo/audit-YYYY-MM-DD.md`.
+- Robots policy: blocking AI *training* bots is fine. Do not "fix" this by
+  opening access to GPTBot or ClaudeBot. See `frontend/app/robots.ts`.
+- Audit output goes to `docs/geo/audit-YYYY-MM-DD.md`.
 
-## Dónde mirar
+## Where to look
 
 ```text
-config/deployment.config.json   Identidad del despliegue (fuente de verdad)
-.neon                            Contexto de Neon (org + proyecto, sin secretos)
+config/deployment.config.json   Deployment identity (source of truth)
+.neon                            Neon context (org + project, no secrets)
 
-frontend/wrangler.jsonc          Config del Worker del frontend
-frontend/open-next.config.ts     Adaptador Next -> Workers
-frontend/scripts/                codegen (copia deployment.config.json, logo)
-backend/wrangler.jsonc           Config del Worker de la API (alias, nodejs_compat)
-backend/src/worker.ts            Envoltura de Express para Workers
-backend/src/db/index.ts          Driver según runtime (Neon HTTP vs node-postgres)
-backend/src/shims/               Sustitutos de módulos que no corren en Workers
-admin/wrangler.jsonc             Config del Worker del panel admin (sin secretos)
-admin/open-next.config.ts        Adaptador Next -> Workers del panel
+frontend/wrangler.jsonc          Frontend Worker config
+frontend/open-next.config.ts     Next -> Workers adapter
+frontend/scripts/                Codegen (copies deployment.config.json, logo)
+backend/wrangler.jsonc           API Worker config (aliases, nodejs_compat)
+backend/src/worker.ts            Express wrapper for Workers
+backend/src/db/index.ts          Driver selection by runtime (Neon HTTP vs node-postgres)
+backend/src/shims/               Stand-ins for modules that do not run in Workers
+admin/wrangler.jsonc             Admin panel Worker config (no secrets)
+admin/open-next.config.ts        Next -> Workers adapter for the panel
 
-.github/workflows/deploy-frontend.yml   Automático en push a main (con filtro de rutas)
-.github/workflows/deploy-backend.yml    MANUAL (dispatch + gate de deriva de esquema)
-.github/workflows/deploy-admin.yml      Automático en push a main (filtro admin/**)
+.github/workflows/deploy-frontend.yml   Automatic on push to main (path-filtered)
+.github/workflows/deploy-backend.yml    MANUAL (dispatch + schema-drift gate)
+.github/workflows/deploy-admin.yml      Automatic on push to main (filter admin/**)
 .github/workflows/ci.yml                typecheck + build + content audit
 
-docker-compose.prod.yml          Camino ALTERNATIVO (VPS). No es producción hoy.
-docs/deploy-vps.md               Runbook de ese camino alternativo
-docs/architecture.md             Arquitectura (actualízalo si cambias algo real)
-docs/DESIGN.md                   Sistema de diseño / tokens de marca
-AGENTS.md                        Convenciones de código
+docker-compose.prod.yml          ALTERNATIVE path (VPS). Not production today.
+docs/deploy-vps.md               Runbook for that alternative path
+docs/architecture.md             Architecture (update it when something real changes)
+docs/DESIGN.md                   Design system / brand tokens
+AGENTS.md                        Code conventions
 ```
 
-Si algo aquí choca con `AGENTS.md` en una tarea de código, gana `AGENTS.md`. Este
-fichero manda en cómo se despliega y qué no se toca sin un humano.
+If this file conflicts with `AGENTS.md` on a coding task, `AGENTS.md` wins.
+This file governs how the system deploys and what a human must always do.

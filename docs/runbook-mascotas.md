@@ -1,56 +1,58 @@
-# Runbook — habilitar mascotas desaparecidas
+# Runbook — Enable the Missing Pets Feature
 
-Pasos para poner la feature de mascotas en producción. Los dos primeros los
-**tiene que correr una persona**: `CLAUDE.md` y `docs/architecture.md` reservan
-las migraciones y el despliegue del backend de producción a un humano, y esto no
-es una excepción.
+This runbook lists the steps to put the pets feature into production. A
+human must run the first two steps. `CLAUDE.md` and `docs/architecture.md`
+reserve production migrations and the production backend deploy for a
+human. This runbook follows the same rule.
 
-## Qué se despliega
+## What This Deploys
 
-| Pieza | Estado |
+| Part | Status |
 | --- | --- |
-| Tabla `missing_pets` | migración `0001_premium_calypso.sql`, **aditiva** |
-| API `/api/pets/*` | rutas nuevas, no tocan ninguna existente |
-| `api/public/pets` | CRUD para integraciones (capacidades `pet:*`) |
-| Pestaña "Mascotas" del directorio | frontend |
-| Ruta propia `/mascotas` | frontend |
-| Capa 🐾 del mapa | frontend |
-| Pestaña "Mascotas" del panel admin | frontend |
+| Table `missing_pets` | migration `0001_premium_calypso.sql`, **additive** |
+| API `/api/pets/*` | new routes. They do not change any existing route |
+| `api/public/pets` | CRUD for integrations (capabilities `pet:*`) |
+| "Mascotas" tab in the directory | frontend |
+| Dedicated route `/mascotas` | frontend |
+| 🐾 layer on the map | frontend |
+| "Mascotas" tab in the admin panel | frontend |
 
-## Por qué el orden importa (y por qué es tolerante)
+## Why the Order Matters (and Why It Is Fault-Tolerant)
 
-La migración es `CREATE TABLE IF NOT EXISTS` más dos índices. **No altera
-ninguna tabla que produccion esté leyendo ahora mismo**, así que:
+The migration runs `CREATE TABLE IF NOT EXISTS` and adds two indexes. **It
+does not change any table that production reads right now.** As a result:
 
-- Correr la migración ANTES del deploy: la tabla queda vacía e inerte. El
-  backend viejo ni la mira. Coste: cero.
-- Desplegar el backend ANTES de la migración: `/api/pets/*` devuelve 500 y la
-  pestaña de mascotas muestra "No pudimos cargar las mascotas". **El directorio
-  de personas no se entera** — se comprobó en staging el 2026-08-10:
-  `/api/missing/stats` y `/api/missing` seguían en 200 con el backend nuevo y el
-  esquema viejo.
+- Run the migration BEFORE the deploy: the table stays empty and inactive.
+  The old backend does not read it. Cost: zero.
+- Deploy the backend BEFORE the migration: `/api/pets/*` returns a 500
+  error. The pets tab shows "No pudimos cargar las mascotas" (We could not
+  load the pets). **The people directory does not detect the problem.**
+  The team confirmed this in staging on 2026-08-10: `/api/missing/stats`
+  and `/api/missing` stayed at 200 with the new backend and the old schema.
 
-Es decir: no hay un orden que rompa a las personas. El recomendado es
-migración → backend → frontend porque minimiza la ventana en la que la pestaña
-nueva está visible y rota.
+In short: no order breaks the people directory. The recommended order is
+migration → backend → frontend. This order minimizes the time the new tab
+is visible but broken.
 
-## 1. Migración (HUMANO)
+## 1. Migration (HUMAN)
 
-Tiene que apuntar a Neon **directo**, no al endpoint `-pooler`. Con el pooler
-falla: `migrate.ts` pasa `lock_timeout`/`statement_timeout` como parámetros de
-arranque y PgBouncer en modo transacción los rechaza.
+The migration must target the Neon **direct** endpoint, not the `-pooler`
+endpoint. The migration fails on the pooler. `migrate.ts` passes
+`lock_timeout` and `statement_timeout` as startup parameters. PgBouncer, in
+transaction mode, rejects these parameters.
 
-**Las dos configs NO son simétricas** (comprobado el 2026-08-10):
+**The two configs are NOT symmetric** (confirmed on 2026-08-10):
 
-| Config | Variable | ¿Directa? |
+| Config | Variable | Direct? |
 | --- | --- | --- |
-| `prd` | `NEON_CONNECTION_STRING` | **sí** — es la que se usa |
-| `prd` | `DATABASE_URL` | no, es el `-pooler` |
-| `stg` | `DATABASE_URL` | no, es el `-pooler` — **no hay variable directa** |
+| `prd` | `NEON_CONNECTION_STRING` | **yes** — this is the variable to use |
+| `prd` | `DATABASE_URL` | no, this is the `-pooler` endpoint |
+| `stg` | `DATABASE_URL` | no, this is the `-pooler` endpoint — **no direct variable exists** |
 
-En staging hay que derivar la URL directa quitándole el `-pooler` al host.
-`scripts/migrate-direct.sh` hace eso, **aborta si el host resultante sigue
-siendo el pooler**, y nunca imprime la URL (solo el host):
+In staging, you must derive the direct URL yourself. Remove `-pooler` from
+the host name to derive it. `scripts/migrate-direct.sh` does this step for
+you. **The script aborts if the resulting host is still the pooler.** The
+script never prints the full URL — it prints only the host:
 
 ```bash
 doppler run --project terremotocolombia-web --config stg --command 'bash scripts/migrate-direct.sh DATABASE_URL'
@@ -60,69 +62,80 @@ doppler run --project terremotocolombia-web --config stg --command 'bash scripts
 doppler run --project terremotocolombia-web --config prd --command 'bash scripts/migrate-direct.sh NEON_CONNECTION_STRING'
 ```
 
-`MIGRATIONS_DIR` es necesario porque el valor por defecto es relativo al CWD; el
-script ya lo pone.
+`MIGRATIONS_DIR` is required. The default value is relative to the current
+working directory. The script already sets this variable.
 
-Es idempotente (se registra en `__drizzle_migrations`) y re-ejecutable. Al
-terminar corre además `seedAuth`, que siembra las cuatro capacidades nuevas
-(`pet:read`, `pet:create`, `pet:edit`, `pet:delete`). Sin ese seed, la superficie
-`api/public/pets` responde 403 a todo — deny-by-default, que es el fallo seguro.
+The migration is idempotent. It records each run in
+`__drizzle_migrations`. You can run the migration again safely. After the
+migration, the script also runs `seedAuth`. `seedAuth` seeds four new
+capabilities: `pet:read`, `pet:create`, `pet:edit`, and `pet:delete`.
+Without this seed, the `api/public/pets` surface returns 403 for every
+request. This deny-by-default behavior is the safe failure mode.
 
-Verifica:
+Verify the result:
 
 ```bash
 curl -s https://api.terremotocolombia.co/api/pets/stats
 ```
 
-Debe devolver `{"stats":{"total":0,"active":0,"found":0,"onMap":0}}`, no un 500.
+The command must return `{"stats":{"total":0,"active":0,"found":0,"onMap":0}}`.
+It must not return a 500 error.
 
-**Verifica SIEMPRE con un cache-buster** (`?cb=$RANDOM`). Sin él te responde el
-borde con una copia vieja y sacas la conclusión contraria: durante este
-despliegue un `status=all` cacheado hizo parecer que el conteo de personas no
-cuadraba (3 vs 14) cuando los datos estaban perfectos.
+**Always verify with a cache-buster** (`?cb=$RANDOM`). Without a
+cache-buster, the edge returns a cached copy. You may then reach the wrong
+conclusion. During this deploy, a cached `status=all` response made the
+people count look wrong (3 vs. 14). The data was correct the whole time.
 
-Nota: en `stg` **no existe `ADMIN_PASSWORD`**, así que `requireAdmin` rechaza
-todo y los endpoints de moderación (DELETE, restore) no se pueden ejercitar
-ahí. Se prueban en local con el stack de compose.
+Note: `stg` **has no `ADMIN_PASSWORD`**. Because of this, `requireAdmin`
+rejects every request. You cannot test the moderation endpoints (DELETE,
+restore) in `stg`. Test these endpoints locally, with the compose stack,
+instead.
 
-## 2. Deploy del backend
+## 2. Backend Deploy
 
-**Manual.** Mergear a `main` un cambio de `backend/**` NO lo despliega:
-`deploy-backend.yml` solo corre por `workflow_dispatch`. Hay que lanzarlo:
+**This deploy is manual.** A merge to `main` that changes `backend/**`
+does NOT deploy the backend. `deploy-backend.yml` runs only on
+`workflow_dispatch`. You must start the workflow yourself:
 
 ```bash
 gh workflow run deploy-backend.yml --ref main
 ```
 
-**Mergea a `main` ANTES de un dispatch manual.** El workflow despliega el ref
-sobre el que se lanza, y por defecto es `main`. Si lo lanzas sobre una rama y después
-alguien lo lanza sobre `main`, el segundo pisa al primero y producción se queda
-con el backend de `main` — que si aún no tiene el merge, es el viejo. Pasó
-exactamente eso el 2026-08-10: `/api/pets` volvió a dar 404 tras un despliegue
-aparentemente correcto. El estado sano es **`main` == lo que corre en
-producción** en los dos tiers.
+**Merge to `main` BEFORE you dispatch the workflow manually.** The
+workflow deploys the ref you dispatch it on. The default ref is `main`. If
+you dispatch on a feature ref, and someone else later dispatches on
+`main`, the second dispatch overwrites the first. Production then runs
+the backend from `main`. If `main` does not yet have your merge,
+production runs the old backend. This exact failure happened on
+2026-08-10: `/api/pets` returned 404 again, after a deploy that looked
+correct. The healthy state is: **`main` matches what runs in
+production**, in both tiers.
 
 ## 3. Frontend
 
-Se despliega solo al mergear a `main` (`deploy-frontend.yml` se dispara con
-`frontend/**`). No hace falta hacer nada más.
+The frontend deploys automatically on merge to `main`. `deploy-frontend.yml`
+triggers on changes under `frontend/**`. No manual step is needed.
 
-Entre el merge (frontend) y el botón del backend hay una ventana en la que la
-pestaña "Mascotas" existe y `/api/pets` todavía no. No rompe nada: se ve "No
-pudimos cargar las mascotas", que es honesto. Para que dure segundos, lanza el
-deploy del backend justo después del merge, sin esperar al del frontend.
+Between the frontend merge and the manual backend dispatch, a window
+exists. In this window, the "Mascotas" tab exists, but `/api/pets` does
+not yet exist. Nothing breaks: the tab shows "No pudimos cargar las
+mascotas" (We could not load the pets), an honest message. To keep this
+window short, start the backend deploy right after the merge. Do not wait
+for the frontend deploy to finish.
 
 ## Rollback
 
-- **Frontend**: revertir el merge y pushear; el deploy es automático.
-- **Backend**: re-desplegar el commit anterior con el mismo workflow manual.
-- **Tabla**: no hace falta tirarla. Sin código que la lea es inerte y no cuesta
-  nada. `DROP TABLE missing_pets` solo si alguien decide abandonar la feature —
-  y entonces se pierden los reportes que haya, así que es decisión del
-  mantenedor, no un paso de rollback rutinario.
+- **Frontend**: Revert the merge and push. The deploy runs automatically.
+- **Backend**: Deploy the previous commit again, with the same manual
+  workflow.
+- **Table**: You do not need to drop the table. With no code to read it,
+  the table stays inactive and costs nothing. Run `DROP TABLE
+  missing_pets` only if someone decides to abandon the feature. This
+  action deletes any existing reports. For this reason, this action is
+  the maintainer's decision, not a routine rollback step.
 
-La garantía de que esto no puede ensuciar el conteo de personas es
-**estructural**: son tablas distintas, así que ninguna consulta de personas
-puede devolver una mascota. Hay tests que lo fijan en
-`backend/test/api/pets.test.ts` → "aislamiento respecto al directorio de
-PERSONAS".
+The guarantee that this feature cannot corrupt the people count is
+**structural**: the pets table and the people table are separate tables.
+Because of this, no people query can return a pet record. Tests enforce
+this guarantee in `backend/test/api/pets.test.ts`, under "aislamiento
+respecto al directorio de PERSONAS" (isolation from the PEOPLE directory).
