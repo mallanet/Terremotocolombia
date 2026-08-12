@@ -16,13 +16,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import type { ReactNode } from "react";
 import { CHART_COLORS, SERIES_PALETTE, type VolunteerAnalyticsResponse } from "./types";
 
 type ChartsProps = {
   data: VolunteerAnalyticsResponse;
 };
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function ChartCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="rounded-lg border border-border-soft bg-white p-4">
       <h3 className="mb-3 text-sm font-semibold text-ink">{title}</h3>
