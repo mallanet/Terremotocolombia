@@ -39,7 +39,10 @@ const LIST_CACHE = {
  *         description: Máximo de sismos a devolver (default 100, más recientes primero).
  *     responses:
  *       200:
- *         description: Lista de sismos (más reciente primero).
+ *         description: |
+ *           Envelope `{ earthquakes, sync }`. `sync.fetchedAt` is epoch-ms of the
+ *           last successful USGS sync signal (MAX(fetched_at)), or null if the
+ *           catalog was never synced / is empty. Event list is newest-first.
  */
 earthquakesRouter.get(
   "/",
@@ -50,12 +53,9 @@ earthquakesRouter.get(
     const effLimit = Number.isFinite(limit) ? (limit as number) : 100;
     const key = `earthquakes:${effLimit}`;
 
-    // 30s: el worker upserta a lo sumo cada minuto; no tiene sentido pegar a la
-    // DB en cada poll.
-    const earthquakes = await cached(key, 30_000, () =>
-      service.listEarthquakes(effLimit),
-    );
+    // 30s: the worker upserts at most every ~5 min in prod; avoid DB per poll.
+    const body = await cached(key, 30_000, () => service.listEarthquakes(effLimit));
 
-    jsonWithEtag(req, res, { earthquakes }, LIST_CACHE);
+    jsonWithEtag(req, res, body, LIST_CACHE);
   }),
 );

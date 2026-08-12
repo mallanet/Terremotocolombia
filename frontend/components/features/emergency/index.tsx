@@ -77,7 +77,8 @@ export default function EmergencyApp() {
   const missingMapQuery = useMissingMap(debouncedBounds);
   // Mismo queryKey que EarthquakesPanel: TanStack deduplica por clave,
   // asi que tener dos consumidores no dispara una segunda peticion.
-  const { data: earthquakes } = useEarthquakes(60_000);
+  const { data: earthquakesEnvelope } = useEarthquakes(60_000);
+  const earthquakes = earthquakesEnvelope?.earthquakes;
   const missingMapMarkers = useMemo(
     () => missingMapQuery.data ?? [],
     [missingMapQuery.data],

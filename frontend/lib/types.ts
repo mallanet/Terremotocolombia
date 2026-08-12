@@ -42,6 +42,17 @@ export interface Earthquake {
   occurredAt: number;
 }
 
+/** Sync metadata on GET /api/earthquakes — catalog-level last success. */
+export interface EarthquakeSync {
+  /** Epoch-ms of last successful USGS sync signal; null if never synced. */
+  fetchedAt: number | null;
+}
+
+export interface EarthquakesListResponse {
+  earthquakes: Earthquake[];
+  sync: EarthquakeSync;
+}
+
 export type NewReport = Omit<
   EmergencyReport,
   "id" | "createdAt" | "photoUrl" | "confirmations"

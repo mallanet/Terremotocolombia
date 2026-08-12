@@ -16,7 +16,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend } from "@/lib/api";
 import { qk } from "@/lib/query-keys";
-import type { EmergencyReport, Earthquake } from "@/lib/types";
+import type { EmergencyReport, EarthquakesListResponse } from "@/lib/types";
 import type { MissingMapMarker } from "@/hooks/missing";
 import type { MapBounds } from "@/components/features/map";
 
@@ -35,19 +35,15 @@ export function useReports(pollMs: number) {
   });
 }
 
-export interface EarthquakesResponse {
-  earthquakes: Earthquake[];
-}
+export type EarthquakesResponse = EarthquakesListResponse;
 
-/** Sismos recientes en la región (catálogo USGS, polleado). El backend ya
- * devuelve más-reciente-primero y cachea con ETag; aquí solo polleamos. */
+/** Sismos recientes (catálogo USGS + sync). Returns the full envelope so the
+ * panel can distinguish quiet catalog from dead sync / transport errors. */
 export function useEarthquakes(pollMs: number) {
   return useQuery({
     queryKey: qk.earthquakes.list,
     queryFn: ({ signal }) =>
-      apiGet<EarthquakesResponse>("/api/earthquakes", signal).then(
-        (r) => r.earthquakes ?? [],
-      ),
+      apiGet<EarthquakesResponse>("/api/earthquakes", signal),
     refetchInterval: pollMs,
     placeholderData: (prev) => prev,
   });

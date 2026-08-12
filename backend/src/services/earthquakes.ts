@@ -17,6 +17,19 @@
  */
 import { desc, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
+import {
+  buildEarthquakeListResponse,
+  shouldBumpFetchedAtAfterSync,
+  type EarthquakeListResponse,
+} from "@/services/earthquakes-list";
+import type { EarthquakeDTO } from "@/services/earthquakes-types";
+
+export type { EarthquakeDTO, EarthquakeListResponse };
+export {
+  buildEarthquakeListResponse,
+  maxFetchedAt,
+  shouldBumpFetchedAtAfterSync,
+} from "@/services/earthquakes-list";
 
 const { earthquakes } = schema;
 
@@ -201,6 +214,9 @@ export async function syncFromFeed(now: number): Promise<SyncResult> {
     .map((f) => toRow(f, now))
     .filter((r): r is EarthquakeRow => r !== null);
   const upserted = await upsertRows(rows);
+  if (shouldBumpFetchedAtAfterSync(upserted)) {
+    await bumpNewestFetchedAt(now);
+  }
   return { source: "feed", fetched: features.length, matched: rows.length, upserted };
 }
 
@@ -229,6 +245,9 @@ export async function backfill(now: number, days?: number): Promise<SyncResult> 
     .map((f) => toRow(f, now))
     .filter((r): r is EarthquakeRow => r !== null);
   const upserted = await upsertRows(rows);
+  if (shouldBumpFetchedAtAfterSync(upserted)) {
+    await bumpNewestFetchedAt(now);
+  }
   return { source: "backfill", fetched: features.length, matched: rows.length, upserted };
 }
 
@@ -241,40 +260,41 @@ export async function isEmpty(): Promise<boolean> {
 }
 
 // --------------------------------------------------------------------------
-// Lectura (DTO público — allowlist, nunca fila cruda)
+// Lectura (DTO público — allowlist, nunca fila cruda) + sync envelope
 // --------------------------------------------------------------------------
 
-export interface EarthquakeDTO {
-  id: string;
-  magnitude: number | null;
-  place: string;
-  lat: number;
-  lng: number;
-  depthKm: number | null;
-  alert: string | null;
-  tsunami: boolean;
-  sig: number | null;
-  occurredAt: number; // epoch-ms
+/**
+ * Workers-safe freshness bump: one UPDATE on the newest-by-occurredAt row.
+ * Used when a successful feed/backfill matched zero upserts so MAX(fetched_at)
+ * does not freeze after events leave the USGS window.
+ */
+async function bumpNewestFetchedAt(now: number): Promise<void> {
+  await getDb().execute(sql`
+    UPDATE earthquakes
+    SET fetched_at = ${now}
+    WHERE id = (
+      SELECT id FROM earthquakes
+      ORDER BY occurred_at DESC
+      LIMIT 1
+    )
+  `);
 }
 
-/** Lista los sismos más recientes (orden: más nuevo primero). */
-export async function listEarthquakes(limit = 100): Promise<EarthquakeDTO[]> {
-  const rows = await getDb()
+/** Lista los sismos más recientes + sync.fetchedAt = MAX(fetched_at). */
+export async function listEarthquakes(limit = 100): Promise<EarthquakeListResponse> {
+  const db = getDb();
+  const rows = await db
     .select()
     .from(earthquakes)
     .orderBy(desc(earthquakes.occurredAt))
     .limit(limit);
 
-  return rows.map((r) => ({
-    id: r.id,
-    magnitude: r.magnitude,
-    place: r.place,
-    lat: r.lat,
-    lng: r.lng,
-    depthKm: r.depthKm,
-    alert: r.alert,
-    tsunami: r.tsunami,
-    sig: r.sig,
-    occurredAt: r.occurredAt,
-  }));
+  const maxRows = await db
+    .select({ max: sql<number | null>`max(${earthquakes.fetchedAt})` })
+    .from(earthquakes);
+  const rawMax = maxRows[0]?.max;
+  const syncFetchedAt =
+    rawMax === null || rawMax === undefined ? null : Number(rawMax);
+
+  return buildEarthquakeListResponse(rows, Number.isFinite(syncFetchedAt) ? syncFetchedAt : null);
 }
