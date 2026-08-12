@@ -51,7 +51,7 @@ export default function MapTutorialButton() {
       className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
     >
       <span aria-hidden>?</span>
-      <span>Cómo usar</span>
+      <span className="hidden sm:inline">Cómo usar</span>
     </button>
   );
 }

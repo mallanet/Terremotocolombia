@@ -3,8 +3,10 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { deploymentConfig } from "@/lib/deployment-config";
 import { MapLoading } from "@/components/ui/SectionLoading";
+import { mapViewZoom } from "@/lib/map-view-zoom";
 import MapOverlays from "./MapOverlays";
 import type { MapPanelProps } from "./MapPanel.types";
 
@@ -18,6 +20,8 @@ const MapView = dynamic(() => import("@/components/features/map"), {
 export default function MapPanel(props: MapPanelProps) {
   const [showRain, setShowRain] = useState(false);
   const [showClouds, setShowClouds] = useState(false);
+  const isMobile = useMediaQuery("(max-width: 759px)");
+  const zoom = mapViewZoom(deploymentConfig.mapZoom, isMobile);
   const {
     mapReports,
     missingMapMarkers,
@@ -42,11 +46,11 @@ export default function MapPanel(props: MapPanelProps) {
 
   return (
     <div
-      className={`map-shell e-leaflet-wrap flex h-full min-h-[360px] w-full flex-col overflow-hidden md:min-h-[560px] ${
+      className={`map-shell e-leaflet-wrap flex h-full w-full flex-col overflow-hidden ${
         placing ? "is-placing" : ""
       }`}
     >
-      <div className="relative min-h-[360px] flex-1 overflow-hidden">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         <ErrorBoundary
           fallback={
             <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-100 p-6 text-center text-sm text-slate-600">
@@ -62,8 +66,8 @@ export default function MapPanel(props: MapPanelProps) {
             acopioCenters={acopioCenters}
             earthquakes={earthquakes}
             showMissingOnMap={showMissingOnMap}
-            showPetsOnMap={showPetsOnMap}
-            showAcopioOnMap={showAcopioOnMap}
+            showPetsOnMap={isMobile ? false : showPetsOnMap}
+            showAcopioOnMap={isMobile ? false : showAcopioOnMap}
             onBoundsChange={onBoundsChange}
             draft={draft}
             onPick={onPick}
@@ -73,7 +77,7 @@ export default function MapPanel(props: MapPanelProps) {
             isAdmin={isAdmin}
             focus={focus}
             center={center}
-            zoom={deploymentConfig.mapZoom}
+            zoom={zoom}
             fitRequest={fitRequest}
             showRain={showRain}
             showClouds={showClouds}
