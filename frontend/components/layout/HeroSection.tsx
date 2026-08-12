@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
   HeartHandshake,
   LifeBuoy,
   Megaphone,
+  Moon,
+  Sun,
   UserSearch,
   type LucideIcon,
 } from "lucide-react";
@@ -160,14 +162,34 @@ export function SiteBrand({ onClick }: { onClick?: () => void }) {
 
 /** Botón para alternar tema claro/oscuro en la nav. */
 export function ThemeToggleButton() {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setIsDark(document.documentElement.dataset.dark === "true");
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-dark"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <button
       type="button"
-      onClick={toggleTheme}
-      aria-label="Cambiar tema claro/oscuro"
+      onClick={() => {
+        toggleTheme();
+        setIsDark((value) => !value);
+      }}
+      aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
       className="e-hero__theme-btn"
     >
-      🌓
+      {isDark ? (
+        <Sun aria-hidden className="size-4" strokeWidth={2.2} />
+      ) : (
+        <Moon aria-hidden className="size-4" strokeWidth={2.2} />
+      )}
     </button>
   );
 }

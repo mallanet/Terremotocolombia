@@ -4,7 +4,6 @@ import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import TranslateWidget from "@/components/ui/TranslateWidget";
 import { trackPsychosocialClick } from "@/hooks/psychology-help";
 import { trackPsychHelpClicked } from "@/lib/analytics";
-import "../../styles/landing-mobile.css";
 
 const WHATSAPP_URL = process.env.NEXT_PUBLIC_WHATSAPP_GROUP_URL ?? "";
 
