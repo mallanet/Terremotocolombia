@@ -99,7 +99,9 @@ export async function getContactStats(): Promise<ContactStats> {
 export async function markContactMessageRead(id: string): Promise<boolean> {
   const db = await getDb();
   const result = await db.execute(
-    sql`UPDATE ${contactMessages} SET ${contactMessages.read} = true WHERE ${contactMessages.id} = ${id} RETURNING ${contactMessages.id}`,
+    // Identificadores literales: un objeto columna de Drizzle se renderiza
+    // calificado ("t"."col") y Postgres rechaza esa forma en el LHS del SET.
+    sql`UPDATE ${contactMessages} SET read = true WHERE ${contactMessages.id} = ${id} RETURNING ${contactMessages.id}`,
   );
   const rows = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as unknown[];
   return rows.length > 0;

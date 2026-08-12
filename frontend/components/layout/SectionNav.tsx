@@ -8,7 +8,7 @@ import TranslateWidget from "@/components/ui/TranslateWidget";
 import { SiteBrand } from "./HeroSection";
 import { toggleTheme } from "./ThemeProvider";
 import { useMissingStats } from "@/hooks/missing";
-import { usePsychHelpClickCount } from "@/hooks/psychology-help";
+import { usePsychHelpClickCount, trackPsychosocialClick } from "@/hooks/psychology-help";
 import { trackPsychHelpClicked } from "@/lib/analytics";
 import { SITE_PRODUCT_NAME } from "@/lib/site";
 import {
@@ -118,11 +118,12 @@ function NavHeaderActions() {
   );
 }
 
-// Botón de ayuda psicológica → formulario de registro de la red de salud
-// mental (Google Forms, dato entregado por el mantenedor). Externo: pestaña
-// nueva. El portal /psicologia (login) sigue existiendo como endpoint propio.
-const PSYCH_HELP_FORM_URL =
-  "https://docs.google.com/forms/d/e/1FAIpQLSf7_hS5l381uI7ziedi0uMbpOuFmA6xZBMIztEvdCMl2LW7jA/viewform";
+// Botón de ayuda psicosocial → grupo de WhatsApp de apoyo (Doppler
+// NEXT_PUBLIC_WHATSAPP_GROUP_URL, nunca commiteado: el content audit veta el
+// dominio de invitaciones). Sin la variable, el botón no se pinta. El portal
+// /psicologia (login) sigue existiendo como endpoint propio.
+const PSYCHOSOCIAL_WHATSAPP_URL =
+  process.env.NEXT_PUBLIC_WHATSAPP_GROUP_URL ?? "";
 
 function PsychNavLink({
   variant,
@@ -131,28 +132,31 @@ function PsychNavLink({
   variant: "desktop" | "sheet";
   onNavigate?: () => void;
 }) {
-  // El contador cuenta ENVÍOS del formulario (callback del Apps Script con
-  // secreto), no clics — el clic solo se registra en OpenPanel.
+  // El contador cuenta CLICS únicos por IP (dedup server-side): el destino es
+  // WhatsApp y no hay "envío" observable — el clic es la señal real.
   const { data: count } = usePsychHelpClickCount();
   const className =
     variant === "desktop"
       ? "e-nav__psych"
       : "flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-950 transition hover:bg-blue-100";
 
+  if (!PSYCHOSOCIAL_WHATSAPP_URL) return null;
+
   const button = (
     <a
-      href={PSYCH_HELP_FORM_URL}
+      href={PSYCHOSOCIAL_WHATSAPP_URL}
       target="_blank"
       rel="noopener noreferrer"
       onClick={() => {
+        trackPsychosocialClick();
         trackPsychHelpClicked(variant === "desktop" ? "header" : "mobile_sheet");
         onNavigate?.();
       }}
       className={className}
-      aria-label="Ayuda psicológica: formulario de la red de salud mental (se abre en pestaña nueva)"
+      aria-label="Ayuda psicosocial: únete al grupo de WhatsApp (se abre en pestaña nueva)"
     >
       <HeartHandshake aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
-      Ayuda psicológica
+      Ayuda psicosocial
     </a>
   );
 
@@ -164,7 +168,7 @@ function PsychNavLink({
           : "mt-2 block text-center text-xs text-slate-500"
       }
     >
-      Ayuda ofrecida ·{" "}
+      Se han sumado ·{" "}
       <strong>{count !== undefined ? count.toLocaleString("es") : "…"}</strong>
     </span>
   );
