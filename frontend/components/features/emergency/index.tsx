@@ -9,6 +9,7 @@ import {
   type ReportType,
 } from "@/lib/types";
 import { distanceMeters } from "@/lib/format";
+import { chipFitPoints } from "./chip-fit";
 import { deploymentConfig } from "@/lib/deployment-config";
 import { qk } from "@/lib/query-keys";
 import {
@@ -349,25 +350,19 @@ export default function EmergencyApp() {
     setPlacing(false);
   }, []);
 
-  // Al tocar un chip: alterna ese tipo en la selección y RECALCULA el encuadre
-  // a la unión de pines seleccionados, tanto al agregar como al quitar (los
-  // "missing" del cluster dependen del viewport; sumamos los cargados). Si no
-  // queda nada seleccionado, no movemos el mapa.
+  // Al PRENDER un chip volamos solo a SUS pines ("muéstrame dónde está X").
+  // Al apagarlo el mapa no se mueve: re-encuadrar a la unión de lo seleccionado
+  // sacaba al usuario de su ciudad ante cualquier toque (los tipos tienen
+  // pines en todo el país). Sin pines del tipo, no movemos el mapa.
   const handleChipClick = useCallback(
     (type: ReportType) => {
       const next = new Set(selectedTypes);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
+      const activating = !next.has(type);
+      if (activating) next.add(type);
+      else next.delete(type);
       setSelectedTypes(next);
-      const points = reports
-        .filter((r) => next.has(r.type))
-        .map((r) => ({ lat: r.lat, lng: r.lng }));
-      if (next.has("missing")) {
-        for (const m of missingMapMarkers) {
-          points.push({ lat: m.lat, lng: m.lng });
-        }
-      }
-      if (points.length > 0) setFitRequest({ points, ts: Date.now() });
+      const points = chipFitPoints(type, activating, reports, missingMapMarkers);
+      if (points) setFitRequest({ points, ts: Date.now() });
     },
     [selectedTypes, reports, missingMapMarkers],
   );
