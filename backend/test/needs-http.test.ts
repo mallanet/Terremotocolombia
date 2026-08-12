@@ -51,7 +51,13 @@ describe("needs publication HTTP", () => {
   it("expone el estado observable sin cache compartida", async () => {
     const response = await request(app).get("/api/needs/status/need-job-1");
     expect(response.status).toBe(200);
-    expect(response.body.state).toBe("completed");
+    expect(response.body).toEqual({
+      jobId: "need-job-1",
+      state: "completed",
+      progress: 100,
+      result: { id: "external-1", status: "pending" },
+      failedReason: null,
+    });
     expect(response.headers["cache-control"]).toBe("no-store");
   });
 });

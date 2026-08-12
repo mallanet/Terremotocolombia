@@ -51,8 +51,34 @@ describe("classifyQueue", () => {
 describe("consumeNeedsBatch", () => {
   it("un batch de uno publica y hace ack", async () => {
     const publish = vi.fn().mockResolvedValue({ ok: true });
-    const message = fakeMessage("m1", { need: { title: "Demo" } });
-    await consumeNeedsBatch({ queue: "terremotocolombia-needs", messages: [message] }, { publish });
+    const markCompleted = vi.fn().mockResolvedValue(undefined);
+    const message = fakeMessage("m1", {
+      jobId: "need-demo-1",
+      need: { title: "Demo" },
+    });
+    await consumeNeedsBatch(
+      { queue: "terremotocolombia-needs", messages: [message] },
+      { publish, markCompleted },
+    );
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(markCompleted).toHaveBeenCalledWith("need-demo-1", { ok: true });
+    expect(message.acked).toBe(true);
+    expect(message.retried).toBe(false);
+  });
+
+  it("no repite una publicación completada si solo falla guardar su estado", async () => {
+    const publish = vi.fn().mockResolvedValue({ id: "external-1", status: "pending" });
+    const markCompleted = vi.fn().mockRejectedValue(new Error("db caída"));
+    const message = fakeMessage("m-status", {
+      jobId: "need-demo-status",
+      need: { title: "Demo" },
+    });
+
+    await consumeNeedsBatch(
+      { queue: "terremotocolombia-needs", messages: [message] },
+      { publish, markCompleted },
+    );
+
     expect(publish).toHaveBeenCalledTimes(1);
     expect(message.acked).toBe(true);
     expect(message.retried).toBe(false);
@@ -113,6 +139,22 @@ describe("consumeDlqBatch", () => {
     );
     expect(message.acked).toBe(true);
     expect(message.retried).toBe(false);
+  });
+
+  it("marca como fallido el job de necesidad cuando agota reintentos", async () => {
+    const persist = vi.fn().mockResolvedValue(undefined);
+    const onNeedDeadLetter = vi.fn().mockResolvedValue(undefined);
+    const body = { jobId: "need-dead-1", need: { title: "Demo" } };
+    const message = fakeMessage("dead-need", body, 6);
+
+    await consumeDlqBatch(
+      { queue: "terremotocolombia-needs-dlq", messages: [message] },
+      persist,
+      { onNeedDeadLetter },
+    );
+
+    expect(onNeedDeadLetter).toHaveBeenCalledWith(body);
+    expect(message.acked).toBe(true);
   });
 });
 
