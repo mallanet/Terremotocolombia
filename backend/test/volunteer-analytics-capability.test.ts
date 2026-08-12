@@ -23,9 +23,15 @@ describe("volunteer:read capability catalog (unit)", () => {
     );
   });
 
-  it("is not a CRUD model capability (MODELS stays free of volunteer)", async () => {
-    const { MODELS } = await import("@/auth/capabilities");
-    expect(MODELS.some((m) => m.key === "volunteer")).toBe(false);
+  it("is CROSS_CUTTING analytics, not a model CRUD verb on volunteer", async () => {
+    const { MODELS, CAPABILITIES } = await import("@/auth/capabilities");
+    // Staging already has a `volunteer` CRUD model; analytics must not invent
+    // volunteer:create/edit/delete — only volunteer:read as cross-cutting.
+    expect(MODELS.some((m) => m.key === "volunteer")).toBe(true);
+    expect(CAPABILITIES.some((c) => c.key === "volunteer:create")).toBe(false);
+    expect(CAPABILITIES.some((c) => c.key === "volunteer:edit")).toBe(false);
+    expect(CAPABILITIES.some((c) => c.key === "volunteer:delete")).toBe(false);
+    expect(CAPABILITIES.some((c) => c.key === "volunteer:read")).toBe(true);
   });
 });
 
