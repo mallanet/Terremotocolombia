@@ -1,83 +1,101 @@
-# Runbook — Panel de administración
+# Runbook — Admin Panel
 
-Operación del panel admin (`admin/`): dónde vive, quién entra, cómo se dan de
-alta usuarios y cómo se cargan datos hospitalarios. Para arquitectura ver
-`docs/architecture.md`; para reglas de despliegue, `CLAUDE.md`.
+This runbook describes operation of the admin panel (`admin/`). It covers
+where the panel runs, who can access it, how a new user gets an account,
+and how hospital data is loaded. For architecture, see
+`docs/architecture.md`. For deployment rules, see `CLAUDE.md`.
 
-## Dónde vive
+## Where the panel runs
 
-| Entorno | URL | Worker | API que consume |
+| Environment | URL | Worker | API it uses |
 | --- | --- | --- | --- |
-| Producción | admin.terremotocolombia.co | `terremotocolombia-admin` | api.terremotocolombia.co |
+| Production | admin.terremotocolombia.co | `terremotocolombia-admin` | api.terremotocolombia.co |
 | Staging | admin-staging.terremotocolombia.co | `terremotocolombia-admin-staging` | api-staging.terremotocolombia.co |
 
-Producción está detrás de **Cloudflare Access**: antes de ver siquiera el
-login del panel, la persona pasa un código OTP enviado a su email, que debe
-estar en la allowlist de la app de Access (org
-`terremotocolombia.cloudflareaccess.com`). Staging no lleva Access.
+Production sits behind **Cloudflare Access**. Before a user sees the panel
+login page, the user must enter a one-time passcode (OTP). Cloudflare
+Access sends the OTP by email. The user's email must be on the allowlist
+of the Access application (organization
+`terremotocolombia.cloudflareaccess.com`). Staging has no Access layer.
 
-## Dos capas de identidad (a propósito)
+## Two identity layers (by design)
 
-1. **Cloudflare Access (borde).** Decide quién puede *llegar* al panel.
-   Allowlist de emails; OTP; sin contraseñas.
-2. **Cuenta del panel (aplicación).** Decide qué puede *hacer* cada quien:
-   RBAC por capacidades (`recurso:verbo`), sesión JWT en cookie httpOnly.
-   La autorización real vive en el backend (`requireCapability`), deny-by-default.
+1. **Cloudflare Access (edge).** This layer decides who can *reach* the
+   panel. It uses an email allowlist and an OTP. It does not use
+   passwords.
+2. **Panel account (application).** This layer decides what each user can
+   *do*. It uses role-based access control (RBAC) with capabilities in the
+   form `resource:verb`. The session token is a JWT stored in an httpOnly
+   cookie. The real authorization check runs in the backend
+   (`requireCapability`). The default is deny.
 
-Un email en Access sin cuenta del panel ve el login y no pasa de ahí; una
-cuenta del panel sin email en Access no llega ni al login. **Alta completa =
-las dos cosas.**
+An email on the Access allowlist without a panel account can reach the
+login page, but cannot pass it. A panel account without an email on the
+Access allowlist cannot reach the login page. **A complete user setup
+needs both.**
 
-## Alta de un usuario nuevo
+## How to add a new user
 
-1. **Access**: añadir su email a la política "equipo interno" de la app
-   `admin.terremotocolombia.co` (Zero Trust dashboard → Access → Applications,
-   o vía API con `CLOUDFLARE_ACCESS_API_TOKEN` de Doppler `prd`).
-2. **Panel**: entrar como admin → **Usuarios** → invitar con su email y rol.
-   Producción **sí tiene SMTP** (Resend; los cinco secretos `SMTP_*` están en el
-   Worker de la API — verificado 2026-08-11 con `wrangler secret list`), así que
-   la invitación se envía por correo sola y la respuesta trae `emailSent:true`
-   sin `inviteUrl`. Caduca en 72 h. Si `emailSent` viniera `false`, la respuesta
-   incluye el **link de activación** para pasarlo por un canal directo.
-   Ojo: los secretos de un Worker NO aparecen en `wrangler.jsonc` — mirar la
-   config para saber si hay SMTP da un falso negativo; usa `wrangler secret list`.
-3. La persona abre el link, fija SU contraseña y queda activa con el rol
-   asignado.
+1. **Access**: Add the user's email to the "internal team" policy of the
+   `admin.terremotocolombia.co` application. Use the Zero Trust dashboard
+   (Access → Applications), or use the API with the
+   `CLOUDFLARE_ACCESS_API_TOKEN` secret from Doppler `prd`.
+2. **Panel**: Log in as an admin. Go to **Users**. Invite the new user
+   with an email address and a role.
+   Production **has SMTP** (Resend). The Worker for the API holds the
+   five `SMTP_*` secrets. The team verified this on 2026-08-11 with
+   `wrangler secret list`.
+   The panel sends the invitation by email automatically. The response
+   returns `emailSent:true` and no `inviteUrl`.
+   The invitation expires after 72 hours.
+   If `emailSent` returns `false`, the response includes an **activation
+   link**. Send this link to the user through a direct channel.
+   Note: Worker secrets do NOT appear in `wrangler.jsonc`. A check of the
+   config file alone gives a false negative for SMTP status. Use
+   `wrangler secret list` instead.
+3. The user opens the link, sets a password, and the account becomes
+   active with the assigned role.
 
 ### Roles
 
-- `admin` — rol semilla del sistema, todas las capacidades. Inmutable.
-- `operaciones-hospitales` — carga y gestión de datos hospitalarios:
-  hospitales, pacientes, insumos e importación (más `apikey:manage`, como
-  todos los roles). Para personal de captura de datos.
-- Roles nuevos: **Roles** → crear, marcando capacidades. Menos es más:
-  se puede ampliar después con la misma pantalla o con un grant puntual.
+- `admin` — This is the system seed role. It has all capabilities. It is
+  immutable.
+- `operaciones-hospitales` — This role loads and manages hospital data:
+  hospitals, patients, supplies, and imports. It also has
+  `apikey:manage`, like every role. This role is for data-entry staff.
+- To create a new role, go to **Roles** and select capabilities. Grant
+  fewer capabilities at first. An admin can add more later on the same
+  screen, or grant a single capability directly.
 
-El flag `is_super_admin` (tier por ENCIMA de admin) gobierna solo la réplica
-pública SQL (`mirror:manage`) y se asigna a mano en base de datos — no desde
-el panel. Hoy lo tiene únicamente el mantenedor.
+The `is_super_admin` flag is a tier ABOVE `admin`. It controls only the
+public SQL replica (`mirror:manage`). An operator must set this flag by
+hand, directly in the database. The panel cannot set this flag. Today,
+only the maintainer has this flag.
 
-## Carga de datos hospitalarios
+## How to load hospital data
 
-Orden natural en el panel:
+Load data in the panel in this order:
 
-1. **Hospitales** → crear el centro (nombre y departamento como mínimo;
-   `facilityType: refugio` para albergues/centros de acopio).
-2. **Pacientes** → personas localizadas en ese centro
-   (`status: hospitalized` o `sheltered` para refugios).
-3. **Insumos hospitalarios** → semáforos por categoría (verde/amarillo/rojo),
-   necesidades activas, solicitudes de ayuda y bitácora, por hospital.
-   Las notas "internas" solo las ve quien tiene capacidad sobre hospitales;
-   las públicas salen al sitio.
+1. **Hospitals**: Create the facility. Enter, at minimum, a name and a
+   department. Use `facilityType: refugio` for shelters and collection
+   centers.
+2. **Patients**: Add people located at that facility. Use
+   `status: hospitalized`, or `status: sheltered` for shelters.
+3. **Hospital supplies**: For each hospital, set a status light per
+   category (green, yellow, or red). Record active needs, help requests,
+   and log entries. Only a user with capability over hospitals can see
+   "internal" notes. "Public" notes appear on the public site.
 
-> **Importación en lote ("Importar pacientes"): FUNCIONA en Workers** (desde
-> 2026-08-10). El lote se encola en Cloudflare Queues
-> (`terremotocolombia-imports`), el consumidor del propio Worker lo procesa
-> (validación + dedupe) y el apply es una máquina de estados idempotente y
-> reanudable — un corte a medias nunca duplica pacientes. Un lote que agota
-> reintentos queda `failed` con causa y su carta muerta aparece en Auditoría
-> (`queue.dead_letter`). Archivos CSV/XLSX: el productor materializa las filas
-> antes de encolar (límite de 128 KB por mensaje de Queues).
+> **Batch import ("Importar pacientes") WORKS on Workers** (since
+> 2026-08-10). The panel places the batch on a Cloudflare Queue
+> (`terremotocolombia-imports`). The Worker's own consumer processes the
+> batch: it validates the data and removes duplicates. The apply step is
+> an idempotent, resumable state machine. A partial failure never creates
+> duplicate patients. A batch that uses all its retries becomes `failed`,
+> with a cause. Its dead letter appears in the Audit log
+> (`queue.dead_letter`). For CSV and XLSX files, the producer builds the
+> rows before it places the batch on the queue. Each Queue message has a
+> 128 KB limit.
 
 ## Analítica de voluntarios
 
@@ -108,37 +126,45 @@ PII, gated por `volunteer:read` (nav oculta sin la capacidad). El sistema
 4. Solo entonces merge a `main` (auto-deploy admin+backend). Board de
    producción necesita además migración Neon **production** (paso humano).
 
-## Despliegues del panel
+## Panel deployments
 
-- **Staging**: automático en cada push a `staging` (job `admin` de
-  `deploy-staging.yml`).
-- **Producción**: automático en cada push a `main` que toque `admin/**`
-  (`deploy-admin.yml`; era manual hasta 2026-08-11). Redeploy a mano:
+- **Staging**: Deployment is automatic on every push to the `staging`
+  branch. This runs as the `admin` job in `deploy-staging.yml`.
+- **Production**: Deployment is automatic on every push to `main` that
+  changes a file under `admin/**`. This runs in `deploy-admin.yml`.
+  Before 2026-08-11, this deploy was manual. To redeploy by hand, run
   `gh workflow run deploy-admin.yml`.
-- El smoke check de producción pega a `/api/health`, que tiene un **bypass**
-  de Access a propósito. No quitar ese bypass.
+- The production smoke check sends a request to `/api/health`. This
+  endpoint has a deliberate **bypass** of Access. Do not remove this
+  bypass.
 
-## Problemas conocidos
+## Known issues
 
-- **"Cargando…" varios segundos al entrar**: arranque en frío de Neon
-  (la base escala a cero). Se resuelve solo; mantener Neon caliente es una
-  decisión de facturación del mantenedor.
-- **El dominio "no existe" justo tras un cambio de DNS**: caché negativa del
-  resolver local. Esperar unos minutos o vaciar la caché DNS.
-- **Login local (desarrollo)**: `COOKIE_SECURE=false` o la cookie de sesión
-  no se fija sobre http://localhost.
+- **"Loading…" for several seconds at login**: This happens because
+  Neon starts cold. The database scales to zero when idle. The delay
+  resolves on its own. Keeping Neon warm is a billing decision for the
+  maintainer.
+- **The domain shows as "not found" right after a DNS change**: This
+  happens because of negative caching in the local resolver. Wait a few
+  minutes, or clear the local DNS cache.
+- **Local login (development)**: The session cookie does not set over
+  http://localhost unless `COOKIE_SECURE=false`.
 
-## Supresión de datos (Ley 1581)
+## Data suppression (Law 1581)
 
-La ciudadanía solicita eliminación en `/solicitar-borrado` del sitio público;
-las solicitudes llegan a la pantalla **Supresión de datos** del panel
-(capacidades `deletion:read` para verlas — llevan PII del solicitante — y
-`deletion:edit` para resolverlas: `pending → resolved | rejected`). Cada
-decisión queda en la Auditoría (`deletion-request.edit`).
+A citizen can request deletion at `/solicitar-borrado` on the public
+site. Each request arrives on the **Supresión de datos** (Data
+suppression) screen in the panel. A user needs the `deletion:read`
+capability to view requests, because requests carry the requester's PII.
+A user needs the `deletion:edit` capability to resolve a request:
+`pending` changes to `resolved` or `rejected`. The Audit log records
+every decision (`deletion-request.edit`).
 
-> Resolver la solicitud en el panel NO borra los datos por sí solo: el
-> operador localiza y elimina los registros del solicitante (Desaparecidos,
-> Pacientes, etc.) y DESPUÉS marca la solicitud como `resolved`.
+> Resolving the request in the panel does NOT delete the data by itself.
+> The operator must find and delete the requester's records (Missing
+> Persons, Patients, and so on). AFTER that, the operator marks the
+> request as `resolved`.
 
-Alta en un entorno nuevo: las dos capacidades entran con el seed
-(`backend/worker/migrate.ts`), que es un paso humano contra Neon directo.
+Setup in a new environment: Both capabilities come from the seed script
+(`backend/worker/migrate.ts`). A human must run this script directly
+against Neon.

@@ -467,6 +467,69 @@ patientImportsRouter.get(
 
 /**
  * @swagger
+ * /api/public/patient-imports/{id}/retry:
+ *   post:
+ *     summary: Reintentar el procesamiento de un lote fallido (patient:import)
+ *     tags: [Public:PatientImports]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { name: id, in: path, required: true, schema: { type: string } }
+ *     responses:
+ *       202: { description: Procesamiento encolado }
+ *       400: { description: El lote no es reanudable }
+ *       404: { description: No encontrado }
+ *       503: { description: No se pudo encolar }
+ */
+patientImportsRouter.post(
+	"/:id/retry",
+	rateLimit({ scope: "public:patient-import:retry", limit: 30 }),
+	requireCapability("patient:import"),
+	validate({ params: idParams }),
+	asyncHandler(async (req, res) => {
+		const id = (req.params as { id: string }).id;
+		const summary = await service.getImport(id);
+		if (!summary) throw notFound("Lote de importación no encontrado.");
+		if (summary.status !== "failed" || summary.failedStage !== "process") {
+			throw badRequest(
+				`El lote está en estado "${summary.status}"; solo se puede reintentar un fallo de procesamiento.`,
+			);
+		}
+		if (summary.counts.total === 0) {
+			throw badRequest(
+				"El lote no conserva filas de staging; vuelve a crearlo desde el archivo o imagen original.",
+			);
+		}
+		if (!(await service.claimImportRetry(id))) {
+			throw badRequest("El lote ya fue reintentado por otro operador.");
+		}
+
+		let jobId: string;
+		try {
+			jobId = await enqueuePatientImport({ importId: id, mode: "process" });
+		} catch (err) {
+			logUpstreamFailure("patient-imports.enqueue-retry", err);
+			await service.markImportFailed(
+				id,
+				summary.errorSummary ?? "No se pudo encolar el reintento.",
+				"process",
+			);
+			throw serviceUnavailable(
+				"No se pudo encolar el reintento. Inténtalo de nuevo.",
+			);
+		}
+		await service.setImportJob(id, jobId);
+		await writeAudit(req, {
+			action: "patient-import.retry",
+			targetType: "patient-import",
+			targetId: id,
+			metadata: { failedStage: summary.failedStage, rows: summary.counts.total },
+		});
+		res.status(202).json({ jobId });
+	}),
+);
+
+/**
+ * @swagger
  * /api/public/patient-imports/{id}/apply:
  *   post:
  *     summary: Aplicar filas válidas del lote (patient:import)

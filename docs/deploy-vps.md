@@ -1,101 +1,102 @@
-# Desplegar en un VPS
+# Deploy on a VPS
 
-> **Este NO es el despliegue que sirve terremotocolombia.co hoy.** El sitio
-> corre en **Cloudflare Workers** (frontend `terremotocolombia-web` + API
-> `terremotocolombia-api`) contra **Neon Postgres**, desplegado por
-> `.github/workflows/deploy-frontend.yml` y `deploy-backend.yml`.
+> **This is NOT the deployment that serves terremotocolombia.co today.** The site
+> runs on **Cloudflare Workers** (the frontend Worker `terremotocolombia-web` and
+> the API Worker `terremotocolombia-api`) against **Neon Postgres**.
+> `.github/workflows/deploy-frontend.yml` and `deploy-backend.yml` deploy it.
 >
-> Este runbook sigue siendo válido y vale la pena mantenerlo: es la topología
-> **más completa** de las dos —la única donde funcionan las colas
-> BullMQ/Valkey, las transacciones interactivas de Postgres y el panel
-> `admin/`— y es la salida natural si Workers se queda corto.
+> This runbook stays valid, and it is worth keeping. It describes the **more
+> complete** topology of the two paths. It is the only path where BullMQ/Valkey
+> queues, interactive Postgres transactions, and the `admin/` panel all work. It
+> is the natural fallback if Workers falls short.
 >
-> Ver [`../CLAUDE.md`](../CLAUDE.md) → "Dónde corre esto de verdad" y
-> [`architecture.md`](architecture.md) → "Despliegue".
+> See [`../CLAUDE.md`](../CLAUDE.md) → "Where this actually runs" and
+> [`architecture.md`](architecture.md) → "Deployment".
 
-Runbook humano para el mismo camino que automatiza la skill
-`.claude/skills/disaster-deploy-vps/SKILL.md`. Si tienes un agente
-disponible, pídele que corra esa skill directamente — este documento es para
-cuando quieres hacerlo a mano, revisar cada paso antes de que un agente lo
-ejecute, o depurar un despliegue que ya existe.
+This is a human runbook for the same path that the skill
+`.claude/skills/disaster-deploy-vps/SKILL.md` automates. If you have an agent
+available, ask it to run that skill directly. Use this document instead when
+you want to do the work by hand, review each step before an agent runs it, or
+debug a deployment that already exists.
 
-Este runbook es **genérico para cualquier proveedor de VPS** (Hetzner,
-DigitalOcean, Linode, OVH, Vultr, un servidor físico propio, lo que sea) —
-todo lo que sigue asume solo acceso SSH root/sudo a una máquina Ubuntu
-22.04/24.04 recién provista, nada específico de un proveedor.
+This runbook is **generic for any VPS provider** (Hetzner, DigitalOcean,
+Linode, OVH, Vultr, your own physical server, or any other). Everything below
+assumes only SSH root/sudo access to a freshly provisioned Ubuntu 22.04/24.04
+machine. It assumes nothing specific to one provider.
 
-## Prerequisitos (verifica antes de tocar el VPS)
+## Prerequisites (check these before you touch the VPS)
 
-Estos tres pasos deben haber corrido ya, en este orden, sobre tu propio fork
-(no sobre esta plantilla genérica):
+Complete these three steps first, in this order, on your own fork. Do not run
+them on this generic template:
 
-1. **`disaster-configure`** — `config/deployment.config.json` ya no tiene
-   valores de `"Ejemplo"`/`example.org`.
+1. **`disaster-configure`** — `config/deployment.config.json` no longer holds
+   `"Example"`/`example.org` values.
    ```bash
    grep -in "ejemplo\|example.org" config/deployment.config.json
    ```
-   Debe devolver vacío.
-2. **`disaster-brand`** — `docs/DESIGN.md` y `frontend/app/globals.css` ya
-   tienen tu paleta real, no la de ejemplo.
-3. **Secretos** — en este repo **ya están, y no en un fichero**. La fuente de
-   verdad es **Doppler** (proyecto `terremotocolombia-web`, config `prd`):
+   This command must return empty.
+2. **`disaster-brand`** — `docs/DESIGN.md` and `frontend/app/globals.css`
+   already hold your real palette, not the example one.
+3. **Secrets** — in this repository, secrets already exist, and not in a
+   file. The source of truth is **Doppler** (project `terremotocolombia-web`,
+   config `prd`):
 
    ```bash
    doppler secrets --only-names --project terremotocolombia-web --config prd
    ```
 
-   **No existe `.prod.env` en producción, y su ausencia no significa que falte
-   un paso.** No vuelvas a correr `disaster-secrets-bootstrap` sobre este repo:
-   regenerar `JWT_SECRET` invalida todas las sesiones abiertas, y regenerar
-   `PATIENT_DOCUMENT_HASH_SECRET` o `IP_SALT` desalinea hashes ya escritos en la
-   base real — no se pueden recalcular.
+   **`.prod.env` does not exist in production, and its absence does not mean
+   a step is missing.** Do not run `disaster-secrets-bootstrap` again on this
+   repository. Regenerating `JWT_SECRET` invalidates every open session.
+   Regenerating `PATIENT_DOCUMENT_HASH_SECRET` or `IP_SALT` misaligns hashes
+   already written to the real database — you cannot recalculate them.
 
-Si alguno de los tres falla, resuélvelo antes de seguir.
+If any of the three steps fails, fix it before you continue.
 
-## Qué necesitas
+## What you need
 
-- Acceso SSH root (o sudo) a un VPS Ubuntu 22.04/24.04 recién provisto, de
-  cualquier proveedor.
-- Los tres dominios ya elegidos en `deployment.config.json`
-  (`domains.web`, `domains.api`, `domains.admin`) y acceso al panel DNS de
-  quien los administre, para crear los registros A.
-- El repositorio a clonar es **tu fork** (con tu identidad y tus secretos),
-  no este template genérico.
+- SSH root access (or sudo) to a freshly provisioned Ubuntu 22.04/24.04 VPS,
+  from any provider.
+- The three domains already chosen in `deployment.config.json`
+  (`domains.web`, `domains.api`, `domains.admin`), and access to the DNS
+  panel of whoever manages them, to create the A records.
+- The repository to clone is **your fork** (with your identity and your
+  secrets), not this generic template.
 
-## 1. Provisión y hardening del VPS
+## 1. Provision and harden the VPS
 
 ```bash
-# Como root, en el VPS recién provisto:
+# As root, on the freshly provisioned VPS:
 adduser deploy
 usermod -aG sudo,docker deploy
-# Copia tu clave SSH pública a /home/deploy/.ssh/authorized_keys ANTES de
-# deshabilitar el login de root/password — si te equivocas de orden te
-# quedas fuera del servidor.
+# Copy your public SSH key to /home/deploy/.ssh/authorized_keys BEFORE you
+# disable root/password login. Getting the order wrong locks you out of the
+# server.
 
-# Hardening de SSH (/etc/ssh/sshd_config):
+# SSH hardening (/etc/ssh/sshd_config):
 #   PermitRootLogin no
 #   PasswordAuthentication no
 systemctl reload sshd
 
-# Firewall: solo SSH, HTTP, HTTPS.
+# Firewall: only SSH, HTTP, HTTPS.
 ufw allow 22/tcp
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw enable
 
-# fail2ban contra fuerza bruta SSH.
+# fail2ban against SSH brute force.
 apt-get update && apt-get install -y fail2ban
 systemctl enable --now fail2ban
 ```
 
-## 2. Instalar Docker
+## 2. Install Docker
 
 ```bash
 curl -fsSL https://get.docker.com | sh
 usermod -aG docker deploy
 ```
 
-## 3. Clonar tu fork
+## 3. Clone your fork
 
 ```bash
 su - deploy
@@ -103,30 +104,31 @@ git clone <url-de-tu-fork> app
 cd app
 ```
 
-Copia tu `.prod.env` (generado por `disaster-secrets-bootstrap`) al VPS por
-un canal seguro — nunca lo subas a git para llegar aquí, y nunca lo pegues en
-un chat:
+Copy your `.prod.env` (generated by `disaster-secrets-bootstrap`) to the VPS
+through a secure channel. Never push it to git to get it there, and never
+paste it in a chat:
 
 ```bash
 scp .prod.env deploy@<ip-del-vps>:~/app/.prod.env
 ```
 
-## 4. DNS — antes de levantar Caddy
+## 4. DNS — before you start Caddy
 
-> **PARA (NO) para terremotocolombia.co.** Los dominios reales
-> (`terremotocolombia.co`, `api.`, `admin.`) ya apuntan a los Workers de
-> Cloudflare, y sus registros los gestiona un módulo de OpenTofu **fuera de
-> este repo** (`~/Colombia/infra/cloudflare`). Crear a mano los registros A de
-> abajo **desviaría el tráfico del sitio en vivo** a un VPS a medio levantar, y
-> además el siguiente `tofu apply` revertiría el cambio sin avisar.
+> **STOP. Do NOT create these records for terremotocolombia.co.** The real
+> domains (`terremotocolombia.co`, `api.`, `admin.`) already point to the
+> Cloudflare Workers. An OpenTofu module outside this repository
+> (`~/Colombia/infra/cloudflare`) manages their DNS records. Creating the A
+> records below by hand would redirect the live site's traffic to a
+> half-provisioned VPS. The next `tofu apply` would also revert the change
+> with no warning.
 >
-> Si estás probando esta ruta, usa dominios distintos a los de producción. Si
-> la migración es de verdad, coordínala con quien administra la zona antes de
-> tocar nada.
+> If you are testing this path, use domains different from the production
+> ones. If the migration is real, coordinate with whoever manages the zone
+> before you touch anything.
 
-En el proveedor DNS que gestione tus dominios (puede ser un proveedor
-distinto al del VPS), crea un registro A por dominio, apuntando a la IP
-pública del VPS:
+At the DNS provider that manages your domains (it can differ from the VPS
+provider), create one A record per domain. Point each record at the VPS's
+public IP:
 
 ```text
 <domains.web>    A    <ip-del-vps>
@@ -134,92 +136,94 @@ pública del VPS:
 <domains.admin>  A    <ip-del-vps>
 ```
 
-Espera propagación antes de continuar:
+Wait for propagation before you continue:
 
 ```bash
 dig +short <domains.web>
 ```
 
-Debe devolver la IP del VPS. Caddy pide certificados Let's Encrypt vía
-HTTP-01/ALPN en el siguiente paso, y falla si el dominio todavía no resuelve
-hacia el VPS.
+This command must return the VPS's IP. In the next step, Caddy requests
+Let's Encrypt certificates through HTTP-01/ALPN. Caddy fails if the domain
+does not yet resolve to the VPS.
 
-## 5. Levantar el stack
+## 5. Start the stack
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .prod.env up -d --build
 docker compose -f docker-compose.prod.yml --env-file .prod.env logs -f
 ```
 
-El servicio `caddy` publica `80:80`/`443:443` directo en el host (perfil "un
-solo box": sin ningún proxy/edge externo delante) — el `ufw allow 80/tcp` /
-`443/tcp` del paso 1 es lo único que necesita el tráfico público para llegar
-hasta él.
+The `caddy` service publishes `80:80`/`443:443` directly on the host. This is
+a "single box" setup, with no external proxy or edge in front. Public
+traffic needs only the `ufw allow 80/tcp` / `443/tcp` rules from step 1 to
+reach it.
 
-El servicio `migrate` corre las migraciones de base de datos y debe terminar
-con éxito antes de que `backend`/`worker` arranquen — es una dependencia
-declarada en el compose (`condition: service_completed_successfully`), no
-necesitas orquestarla a mano.
+The `migrate` service runs the database migrations. It must finish
+successfully before `backend`/`worker` start. This is a declared dependency
+in the compose file (`condition: service_completed_successfully`) — you do
+not need to orchestrate it by hand.
 
-## Smoke checks (obligatorios antes de anunciar el despliegue)
+## Smoke checks (required before you announce the deployment)
 
-1. **Todos los servicios sanos:**
+1. **All services healthy:**
    ```bash
    docker compose -f docker-compose.prod.yml --env-file .prod.env ps
    ```
-   `db` y `valkey` deben mostrar `healthy`; `backend`, `worker`, `frontend`,
-   `admin`, `caddy` deben mostrar `running` (no `restarting` en loop — si lo
-   ves, revisa los logs de ese servicio específico).
-2. **TLS emitido y sitio responde:**
+   `db` and `valkey` must show `healthy`. `backend`, `worker`, `frontend`,
+   `admin`, and `caddy` must show `running`. None should loop through
+   `restarting`. If one does, check that service's own logs.
+2. **TLS issued and the site responds:**
    ```bash
    curl -sI https://<domains.web> | head -1
    curl -sI https://<domains.api>/api/healthz | head -1
    curl -sI https://<domains.admin> | head -1
    ```
-   Todos deben devolver `200`/`30x`, no error de certificado ni timeout.
-3. **El mapa carga y centra en tu región** — abre `https://<domains.web>` y
-   confirma visualmente que no muestra la coordenada de ejemplo.
-4. **Un reporte de prueba funciona de punta a punta** — envía un reporte
-   con datos obviamente ficticios (nunca una persona real) desde el sitio
-   público y confirma que aparece en el mapa/lista. Esto ejercita Turnstile
-   (si está configurada), rate-limit, la ruta pública del backend, Postgres
-   y el render del frontend en un solo flujo.
-5. **El panel admin autentica** con el superadmin sembrado
-   (`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` de tu `.prod.env`).
-6. **Logs sin errores recurrentes:**
+   All three must return `200`/`30x`, with no certificate error and no
+   timeout.
+3. **The map loads and centers on your region.** Open
+   `https://<domains.web>`. Confirm visually that it does not show the
+   example coordinate.
+4. **A test report works end to end.** Send a report with obviously fake
+   data from the public site. Never use a real person's data. Confirm the
+   report appears on the map/list. This one flow exercises Turnstile (if
+   configured), rate limiting, the backend's public route, Postgres, and the
+   frontend render.
+5. **The admin panel authenticates**, with the superadmin seeded from your
+   `.prod.env` (`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`).
+6. **Logs show no recurring errors:**
    ```bash
    docker compose -f docker-compose.prod.yml --env-file .prod.env logs --tail=200 backend worker | grep -i "error\|fatal"
    ```
-   Un error puntual de arranque puede ser normal; un loop de crash no.
+   One startup error can be normal. A crash loop is not.
 
 ## Backups
 
-Esta plantilla no trae un job de backup automatizado — es una decisión tuya
-qué política de retención y qué destino usar (ver `SECURITY.md`), pero el
-mecanismo es simple porque todo el estado con estado vive en dos volúmenes
-Docker:
+This template ships with no automated backup job. The retention policy and
+the destination are your decision (see `SECURITY.md`). The mechanism itself
+is simple. All stateful data lives in two Docker volumes:
 
-- **`pg_data`** — Postgres completo (reportes, personas, hospitales, RBAC).
-- **`valkey_data`** — colas BullMQ y cache; recreable, normalmente no
-  necesitas respaldarlo (perder la cola en curso no pierde datos de negocio,
-  solo reintentos en vuelo).
+- **`pg_data`** — the full Postgres database (reports, people, hospitals,
+  RBAC).
+- **`valkey_data`** — BullMQ queues and cache. This volume is recreatable.
+  You normally do not need to back it up: losing a queue in progress does
+  not lose business data, only retries in flight.
 
-Backup lógico de Postgres (recomendado, portable entre versiones y fácil de
-restaurar parcialmente):
+Logical Postgres backup (recommended: portable across versions, and easy to
+restore partially):
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .prod.env exec -T db \
   pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > backup-$(date +%F).sql.gz
 ```
 
-Automatízalo con un cron en el VPS (fuera del compose, para que sobreviva un
-`down`/`up` del stack) y sube el resultado a un destino fuera del VPS —
-object storage S3-compatible (el mismo proveedor R2 que ya podrías estar
-usando para fotos, u otro), o cualquier destino que controles. Un backup que
-vive solo en el mismo disco que la base de datos no protege contra la
-pérdida del VPS completo.
+Automate this with a cron job on the VPS. Keep the cron job outside the
+compose file, so it survives a stack `down`/`up`. Upload the result to a
+destination outside the VPS. Use S3-compatible object storage (perhaps the
+same R2 provider you already use for photos), or any other destination you
+control. A backup that lives only on the database's own disk does not
+protect you against losing the whole VPS.
 
-Para restaurar:
+To restore:
 
 ```bash
 gunzip -c backup-2026-07-10.sql.gz | \
@@ -227,66 +231,71 @@ gunzip -c backup-2026-07-10.sql.gz | \
   psql -U "$POSTGRES_USER" "$POSTGRES_DB"
 ```
 
-Prueba tu restore al menos una vez antes de necesitarlo de verdad —un backup
-nunca probado es una suposición, no una garantía.
+Test your restore at least once, before you really need it. An untested
+backup is an assumption, not a guarantee.
 
-## Actualizar un despliegue existente
+## Update an existing deployment
 
-> Aplica **solo si ya existe** un stack VPS/compose corriendo. Para Terremoto
-> Colombia no hay ninguno: actualizar producción es `git push` a `main`
-> (frontend, backend y admin se despliegan solos, con filtro de rutas).
+> This applies **only if a VPS/compose stack is already running.** For
+> Terremoto Colombia, none is. Updating production means `git push` to
+> `main` — the frontend and admin deploy on their own, each with its own
+> path filter. **The backend does not**: a human must run
+> `deploy-backend.yml` by hand (`workflow_dispatch`), after a schema-drift
+> gate. See `CLAUDE.md` → "Where this actually runs."
 
 ```bash
 cd app
-git pull origin main   # o la rama que uses para producción
+git pull origin main   # or the branch you use for production
 docker compose -f docker-compose.prod.yml --env-file .prod.env up -d --build
 ```
 
-- El servicio `migrate` vuelve a correr en cada `up --build` y aplica
-  cualquier migración nueva antes de que `backend`/`worker` arranquen —no
-  necesitas correr migraciones a mano.
-- Las migraciones de este proyecto deben ser expand-contract (ver
-  `docs/architecture.md`) precisamente para que este `up` sin downtime
-  funcione: el contenedor viejo sigue sirviendo tráfico mientras el nuevo
-  arranca contra el esquema ya migrado.
-- Si cambiaste variables `NEXT_PUBLIC_*` en `.prod.env`, no basta con
-  reiniciar — esas variables se inlinean en build time, así que el rebuild
-  de `frontend` de arriba ya las toma; confírmalo si dudas:
+- The `migrate` service runs again on every `up --build`. It applies any new
+  migration before `backend`/`worker` start. You do not need to run
+  migrations by hand.
+- This project's migrations must be expand-contract (see
+  `docs/architecture.md`). This pattern is exactly why this `up` command
+  causes no downtime. The old container keeps serving traffic. The new
+  container starts against the already-migrated schema.
+- If you changed `NEXT_PUBLIC_*` variables in `.prod.env`, a restart is not
+  enough. Those variables get inlined at build time. The `frontend` rebuild
+  above already picks them up. Confirm this if you are unsure:
   ```bash
   docker compose -f docker-compose.prod.yml --env-file .prod.env build --no-cache frontend
   ```
-- Revisa los smoke checks de arriba después de cada actualización, no solo
-  en el primer despliegue.
+- Run the smoke checks above after every update, not only after the first
+  deployment.
 
 ## Rollback
 
-Si algo falla después de `up -d` y necesitas volver al estado anterior:
+If something fails after `up -d` and you need to return to the previous
+state, follow these steps:
 
 ```bash
-# Detén el stack nuevo SIN borrar volúmenes (conserva los datos):
+# Stop the new stack. Do NOT delete volumes (this keeps the data):
 docker compose -f docker-compose.prod.yml --env-file .prod.env down
 
-# Vuelve al commit/tag anterior:
+# Go back to the previous commit or tag:
 git checkout <commit-o-tag-anterior>
 
-# Reconstruye y levanta esa versión:
+# Rebuild and start that version:
 docker compose -f docker-compose.prod.yml --env-file .prod.env up -d --build
 ```
 
-Los volúmenes (`pg_data`, `valkey_data`, `caddy_data`, `caddy_config`) NO se
-tocan por un `down` normal (sin `-v`) — los datos sobreviven al rollback. Si
-el rollback es por una migración de esquema rota, revisa primero si la
-migración nueva era expand-contract antes de intentar revertir el esquema —
-revertir código con un esquema ya migrado hacia adelante puede romper más de
-lo que arregla.
+A normal `down` (without `-v`) does NOT touch the volumes (`pg_data`,
+`valkey_data`, `caddy_data`, `caddy_config`). The data survives the rollback.
+If the rollback is for a broken schema migration, first check whether the
+new migration was expand-contract. Do this before you try to revert the
+schema. Reverting code against an already-forward-migrated schema can break
+more than it fixes.
 
-**Nunca** uses `down -v` (borra volúmenes, incluida la base de datos) como
-parte de un rollback de rutina — es destructivo e irreversible. Solo con
-autorización explícita de quien opera el despliegue para descartar datos.
+**Never** use `down -v` as part of a routine rollback. This command deletes
+volumes, including the database. It is destructive and irreversible. Use it
+only with explicit authorization from whoever operates the deployment, to
+discard data.
 
-## Siguiente paso
+## Next step
 
-Antes de que tu fork se haga público o se comparta ampliamente, corre
-`disaster-content-audit` sobre el árbol completo (ver
-[`SECURITY.md`](../SECURITY.md)) — el despliegue en VPS no reemplaza esa
-revisión.
+Before your fork goes public or gets shared widely, run
+`disaster-content-audit` over the full tree (see
+[`SECURITY.md`](../SECURITY.md)). The VPS deployment does not replace that
+review.

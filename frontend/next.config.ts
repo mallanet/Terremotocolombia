@@ -142,16 +142,14 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
-  // Fija la raíz del workspace al root del monorepo (padre de frontend/), NO a
-  // este directorio: sin esto Turbopack infiere la raíz por lockfiles en
-  // carpetas superiores (p. ej. un pnpm-lock.yaml en el home) — pero fijarla al
-  // propio `frontend/` bloquea la resolución de `../../config/deployment.
-  // config.json` (fuera de este paquete, a propósito: un solo archivo de
-  // config compartido por frontend/backend/admin).
+  // Fija la raíz al paquete. El prebuild copia deployment.config.json desde el
+  // root del monorepo antes de que Next lo importe, así que el bundle ya no
+  // necesita resolver archivos externos. Esto también mantiene el standalone
+  // en `.next/standalone/.next`, la ubicación que OpenNext empaqueta.
   // No anunciar el stack en cada respuesta.
   poweredByHeader: false,
   turbopack: {
-    root: path.join(import.meta.dirname, ".."),
+	root: path.resolve(import.meta.dirname),
   },
   // Cabeceras de seguridad para toda la app (ver constantes arriba).
   async headers() {

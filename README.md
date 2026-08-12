@@ -3,27 +3,28 @@
 *[Léelo en español](README.es.md)*
 
 Live disaster-response site for the **2026 Colombia earthquake**, run by
-[Mallanet.org](https://mallanet.org): a real-time citizen emergency map with
-georeferenced incident reports, a missing-persons + hospital/shelter directory,
-a collection-center directory, and an admin panel with role-based access.
+[Mallanet.org](https://mallanet.org). It is a real-time citizen emergency map
+with georeferenced incident reports, a missing-persons + hospital/shelter
+directory, a collection-center directory, and an admin panel with role-based
+access.
 
 **→ https://terremotocolombia.co**
 
 > This is **not** the generic template any more — it is a live deployment
 > serving real traffic. It began as a fork of a disaster-response template, and
-> most of the code is still generic: every identity value (organization,
+> most of the code is still generic. Every identity value (organization,
 > disaster name, region, domains, contact, map center) still lives in
 > `config/deployment.config.json`, never hardcoded. But the standup already
 > happened, the identity is filled in, and **pushing to `main` deploys the
 > frontend automatically**.
 >
 > If you are here to stand up your own deployment for a different disaster,
-> start from the upstream template rather than forking this repo — this one
+> start from the upstream template rather than forking this repo. This one
 > carries Mallanet's identity and branding.
 
 Agents and contributors: read [`CLAUDE.md`](CLAUDE.md) first — it covers where
-this actually runs, what deploys automatically, and what must never be done
-without a human.
+this actually runs, what deploys automatically, and what a human must always
+do.
 
 ## This deployment
 
@@ -39,12 +40,12 @@ without a human.
 | Admin deploys | **Automatically, on every push to `main`** touching `admin/**` |
 | Backend deploys | **Manual only** — `workflow_dispatch`, never on merge |
 
-**`main` is production**, and there is also a `staging` branch and environment
+**`main` is production**. There is also a `staging` branch and environment
 (`staging.terremotocolombia.co`, its own Neon branch) where the whole stack —
 including the API — deploys automatically. Production is the asymmetric one: the
-frontend and admin panel ship with the merge, but the API only ships when a human
-launches `deploy-backend.yml`, which first runs a schema-drift gate that fails
-closed. Migrations are never run by CI, in either environment.
+frontend and admin panel ship with the merge, but the API only ships when a
+human launches `deploy-backend.yml`. That workflow first runs a schema-drift
+gate that fails closed. CI never runs migrations, in either environment.
 
 Not currently deployed: the BullMQ queue worker (its jobs were ported to
 Cloudflare Queues and Cron Triggers).
@@ -65,7 +66,7 @@ Cloudflare Queues and Cron Triggers).
 This template ships five [Claude Code](https://claude.com/claude-code) skills
 under `.claude/skills/`. Open the repo in an agent that reads `CLAUDE.md`
 (Claude Code does this automatically) and ask it to stand up your
-deployment — it runs these five skills, in this order:
+deployment. It runs these five skills, in this order:
 
 1. **`disaster-configure`** — writes your organization, disaster, region, map
    center, and domains into `config/deployment.config.json` and the few
@@ -92,10 +93,10 @@ deployment — it runs these five skills, in this order:
    until it actually is.
 
 Each skill is a `SKILL.md` with exact file paths, verification steps, and
-hard stops — an agent doesn't need any tribal knowledge beyond what's in the
+hard stops. An agent doesn't need any tribal knowledge beyond what's in the
 repo. The human-readable version of this same path is
-[`docs/standup-guide.md`](docs/standup-guide.md); the VPS step alone is
-detailed in [`docs/deploy-vps.md`](docs/deploy-vps.md).
+[`docs/standup-guide.md`](docs/standup-guide.md); [`docs/deploy-vps.md`](docs/deploy-vps.md)
+details the VPS step alone.
 
 ## Architecture, in one paragraph
 
@@ -104,13 +105,13 @@ React + Leaflet) is the public map and directories; it never touches the
 database directly, only the API. `backend/` (Express + TypeScript + Drizzle
 ORM over Postgres) serves everything under `/api`, plus `backend/worker/`
 (BullMQ over Valkey) for background sync, geocoding, deduplication, and
-optional hub federation. `admin/` is a separate Next.js microservice — a
+optional hub federation. `admin/` is a separate Next.js microservice. It is a
 backend-for-frontend with its own RBAC (JWT in an httpOnly cookie) that talks
 to the backend over the internal network, never straight to the database.
 The template's **one VPS** path (`docker-compose.prod.yml` + Caddy as the single
 TLS-terminating reverse proxy, Postgres and Valkey co-located) is still
-supported and is the only path where queues and interactive transactions all
-work — but it is **not** what serves terremotocolombia.co today. This deployment
+supported. It is the only path where queues and interactive transactions all
+work. But it is **not** what serves terremotocolombia.co today. This deployment
 runs on Cloudflare Workers with Neon Postgres, as the table above says. See
 [`docs/architecture.md`](docs/architecture.md) for the full picture.
 
@@ -118,8 +119,8 @@ runs on Cloudflare Workers with Neon Postgres, as the table above says. See
 
 With your information ready (org name, disaster/region, domains, real local
 emergency numbers — see `docs/standup-guide.md` for the full list), the path
-below takes about **30 minutes** of active work, plus however long DNS
-propagation takes.
+below takes about **30 minutes** of active work. DNS propagation adds more
+time on top of that.
 
 1. Click **Use this template** on GitHub and create your own repository from
    it.
@@ -128,7 +129,7 @@ propagation takes.
    `CLAUDE.md`/`AGENTS.md`).
 4. Follow `CLAUDE.md` — it points the agent at the standup skills in the
    order above. Answer the questions it asks (your organization's name, your
-   region's real emergency numbers, your domains) as they come up; the
+   region's real emergency numbers, your domains) as they come up. The
    skills refuse to invent this information for you.
 
 Prefer to do it by hand, or want to see every step before an agent runs it?
@@ -148,8 +149,8 @@ Read [`docs/standup-guide.md`](docs/standup-guide.md).
 - **An i18n framework.** The UI ships in Spanish (the default language for
   this kind of deployment) as plain JSX strings — there is no next-intl/
   i18next abstraction underneath. Localizing to another language today means
-  having your agent edit the copy directly; that's a real cost we chose not
-  to hide behind a false claim of "multi-language support."
+  having your agent edit the copy directly. That is a real cost. We chose
+  not to hide it behind a false claim of "multi-language support."
 
 ## Safety model
 
@@ -158,27 +159,27 @@ enforces a few things structurally, and asks the deployer to own the rest:
 
 - **Content-audit gate.** `disaster-content-audit` (and `scripts/content-audit/`
   standalone) blocks on any of the literal patterns this repo's own history
-  was scrubbed of — the same check that runs before this template's own
+  was scrubbed of. The same check that runs before this template's own
   releases runs on every fork that uses it.
 - **No-real-data policy.** Seeds and fixtures are synthetic by convention
   (`AGENTS.md` makes this a hard rule for anyone contributing code). Real
   crisis data belongs in your database, never in a commit, an issue, or a
   screenshot.
 - **Deployers' PII obligations.** Standing this up means you will collect
-  real personal data about people in an emergency. That's a legal and
-  ethical responsibility this template cannot discharge for you — see
-  [`SECURITY.md`](SECURITY.md) for what it does enforce (rate limiting,
-  bot-check on public writes, RBAC on the admin surface) and what remains
-  yours to decide (retention, access, and eventually decommissioning the
-  deployment).
+  real personal data about people in an emergency. That is a legal and
+  ethical responsibility this template cannot discharge for you. See
+  [`SECURITY.md`](SECURITY.md) for what it enforces (rate limiting,
+  bot-check on public writes, RBAC on the admin surface). It also lists
+  what remains yours to decide (retention, access, and eventually
+  decommissioning the deployment).
 
 ## Credit
 
-Maintained by [mallanet.org](https://mallanet.org). This template is
-extracted from the production platform mallanet built and ran during the
-2026 Venezuela earthquake response — the parts specific to that event and
-everything sensitive were removed; the parts that make the software work
-were kept and made generic. If you use this template for a real deployment,
-you're standing on that field experience.
+Maintained by [mallanet.org](https://mallanet.org). Mallanet built and ran
+the production platform during the 2026 Venezuela earthquake response.
+Mallanet extracted this template from that platform. Mallanet removed the
+parts specific to that event and everything sensitive. Mallanet kept the
+parts that make the software work and made them generic. If you use this
+template for a real deployment, you're standing on that field experience.
 
 MIT licensed. See [`LICENSE`](LICENSE).

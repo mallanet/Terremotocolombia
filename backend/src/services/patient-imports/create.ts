@@ -121,6 +121,27 @@ export async function setImportJob(id: string, jobId: string): Promise<void> {
 		.where(eq(patientImports.id, id));
 }
 
+/** Atomically reserve one retry so two operators cannot enqueue it twice. */
+export async function claimImportRetry(id: string): Promise<boolean> {
+	const db = getDb();
+	const claimed = await db
+		.update(patientImports)
+		.set({
+			status: "queued",
+			failedStage: null,
+			updatedAt: Date.now(),
+		})
+		.where(
+			and(
+				eq(patientImports.id, id),
+				eq(patientImports.status, "failed"),
+				eq(patientImports.failedStage, "process"),
+			),
+		)
+		.returning({ id: patientImports.id });
+	return Boolean(claimed[0]);
+}
+
 export async function markImportQueued(
 	id: string,
 	jobId: string,
@@ -182,6 +203,24 @@ export async function markImportFailed(
 			status: "failed",
 			failedStage: failedStage ?? null,
 			errorSummary: summary.slice(0, 500),
+			updatedAt: Date.now(),
+		})
+		.where(eq(patientImports.id, importId));
+}
+
+/** Mark the terminal DLQ state without overwriting the processor's root cause. */
+export async function markImportDeadLettered(
+	importId: string,
+	fallbackSummary: string,
+	failedStage: PatientImportFailedStage,
+): Promise<void> {
+	const db = getDb();
+	await db
+		.update(patientImports)
+		.set({
+			status: "failed",
+			failedStage,
+			errorSummary: sql`coalesce(${patientImports.errorSummary}, ${fallbackSummary.slice(0, 500)})`,
 			updatedAt: Date.now(),
 		})
 		.where(eq(patientImports.id, importId));

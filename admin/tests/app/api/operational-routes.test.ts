@@ -30,6 +30,25 @@ describe("BFF patient imports", () => {
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ jobId: "job-1" });
   });
+
+  it("reintenta procesamiento y preserva 202", async () => {
+    server.use(
+      http.post(`${BACKEND}/api/public/patient-imports/batch-1/retry`, ({ request }) => {
+        expect(request.headers.get("authorization")).toBe("Bearer tok");
+        return HttpResponse.json({ jobId: "retry-1" }, { status: 202 });
+      }),
+    );
+    const { POST } = await import("@/app/api/admin/patient-imports/[id]/retry/route");
+    const response = await POST(
+      new Request("http://admin.local/api/admin/patient-imports/batch-1/retry", {
+        method: "POST",
+        headers: authHeaders,
+      }),
+      { params: Promise.resolve({ id: "batch-1" }) },
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ jobId: "retry-1" });
+  });
 });
 
 describe("BFF grants", () => {

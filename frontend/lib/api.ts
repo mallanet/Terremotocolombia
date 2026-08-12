@@ -69,10 +69,12 @@ export function mediaUrl(path: string | null | undefined): string | undefined {
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  requestId?: string;
+  constructor(message: string, status: number, requestId?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.requestId = requestId;
   }
 }
 
@@ -99,7 +101,7 @@ async function request<T>(
       } catch {
         /* sin cuerpo JSON */
       }
-      throw new ApiError(msg, res.status);
+      throw new ApiError(msg, res.status, res.headers.get("x-request-id") ?? undefined);
     }
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;

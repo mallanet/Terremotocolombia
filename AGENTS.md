@@ -1,168 +1,178 @@
 # AGENTS.md
 
-Guía operativa para agentes de código (y humanos) que trabajen en este
-repositorio: **el despliegue en producción de terremotocolombia.co** (Terremoto
-Colombia 2026, Mallanet.org). Mapa/lista de reportes, directorio de
-hospitales/refugios, centros de acopio, panel de administración con RBAC y un
-worker de sincronización.
+This is the operating guide for code agents (and humans) who work in this
+repository: **the production deployment of terremotocolombia.co** (Terremoto
+Colombia 2026, Mallanet.org). It runs a report map/list, a
+hospital/shelter directory, a collection-center directory, an admin panel
+with role-based access, and a sync worker.
 
-Nació como plantilla genérica y el código sigue siéndolo en su mayoría: la
-identidad vive en `config/deployment.config.json` y en Doppler, nunca
-hardcodeada. Pero el standup ya ocurrió y esto sirve tráfico real.
+The project began as a generic template, and most of the code still is
+generic. The deployment identity lives in `config/deployment.config.json`
+and in Doppler, never hardcoded. But the launch already happened, and this
+deployment serves real traffic.
 
-> **`CLAUDE.md` y `AGENTS.md` son dos ficheros distintos, a propósito. No los
-> fusiones ni conviertas uno en symlink del otro.**
+> **`CLAUDE.md` and `AGENTS.md` are two separate files, on purpose. Do not
+> merge them, and do not turn one into a symlink of the other.**
 >
-> Una versión anterior de este archivo pedía justo eso. Ya no aplica y seguirlo
-> sería destructivo: `CLAUDE.md` contiene lo que un agente necesita saber
-> **antes** de tocar nada (que empujar a `main` despliega, qué no se toca sin un
-> humano, dónde corre cada pieza), y convertirlo en un enlace a este fichero
-> borraría todo eso.
+> An earlier version of this file asked for exactly that merge. That
+> instruction no longer applies, and following it now would cause harm.
+> `CLAUDE.md` holds what an agent needs to know **before** touching
+> anything: that a push to `main` deploys, what a human must always handle,
+> and where each piece runs. Turning it into a link to this file would erase
+> all of that.
 >
-> Reparto: **`CLAUDE.md` manda en despliegue y seguridad operativa**; este
-> fichero manda en **convenciones de código**.
+> The split: **`CLAUDE.md` governs deployment and operational security**.
+> **This file governs code conventions.**
 
-## Antes de tocar código
+## Before you touch code
 
-- Lee este archivo, `CONTRIBUTING.md` y el código que vas a modificar antes de
-  escribir nada.
-- Si el cambio toca arquitectura, sincronización, datos, endpoints públicos,
-  workers o despliegue, revisa también `docs/architecture.md` y actualízalo en
-  el mismo cambio (ver "Regla de arquitectura" abajo).
-- Si el cambio toca UI pública, estilos, layout, componentes visuales o copy
-  de experiencia, revisa `docs/DESIGN.md` antes de editar y conserva sus
-  tokens y criterios como fuente de verdad visual.
-- Trabaja en una rama con nombre descriptivo. Haz cambios pequeños,
-  revisables y con una razón clara: mantener el proyecto operativo vale más
-  que una refactorización amplia.
-- No reescribas historial, no borres ramas ajenas y no reviertas cambios que
-  no hiciste.
-- **Un merge a `main` que toque `frontend/**` o `config/deployment.config.json`
-  despliega el frontend automáticamente, sin aprobación.** Trata "empujar a
-  main" como "desplegar a un sitio que está usando gente ahora". El backend NO
-  se despliega solo (workflow manual con confirmación). Detalles y lo que
-  nunca se hace sin un humano: `CLAUDE.md`.
+- Read this file, `CONTRIBUTING.md`, and the code you plan to change, before
+  you write anything.
+- If your change touches architecture, sync, data, public endpoints,
+  workers, or deployment, also read `docs/architecture.md` and update it in
+  the same change (see "Architecture rule" below).
+- If your change touches public UI, styles, layout, visual components, or
+  experience copy, read `docs/DESIGN.md` first, and keep its tokens and
+  criteria as the visual source of truth.
+- Work on a branch with a descriptive name. Make changes that are small,
+  reviewable, and have a clear reason: keeping the project running matters
+  more than a broad refactor.
+- Do not rewrite history, delete branches you do not own, or revert changes
+  you did not make.
+- **A merge to `main` that touches `frontend/**` or
+  `config/deployment.config.json` deploys the frontend automatically, with
+  no approval step.** Treat "push to main" the same as "deploy to a site
+  people are using right now." **The backend does not deploy on its own** —
+  it deploys only when a human runs `deploy-backend.yml` by hand
+  (`workflow_dispatch`), which also runs a schema-drift gate. For the full
+  rules on what a human must always do: `CLAUDE.md`.
 
-## Regla de arquitectura
+## Architecture rule
 
-Si cambias la arquitectura real del sistema, no dejes la documentación atrás:
+If you change the system's real architecture, update the documentation in
+the same change:
 
-- Actualiza `docs/architecture.md` en el mismo cambio.
-- Si cambia una regla que los agentes deben seguir, actualiza este archivo.
-- Si agregas variables de entorno, actualiza `.env.example` (grupo correcto,
-  marca `[REQ]`/`[OPT]`, valor placeholder obviamente falso).
-- Si agregas o cambias un dominio/puerto/servicio, actualiza
-  `docker-compose.yml`, `docker-compose.prod.yml` y `Caddyfile.example` a la
-  vez que el código que lo necesita.
-- **Y lo que gobierna producción hoy**, que no está en compose:
+- Update `docs/architecture.md` in the same change.
+- If a rule that agents must follow changes, update this file.
+- If you add environment variables, update `.env.example` (correct group,
+  mark `[REQ]`/`[OPT]`, and use an obviously fake placeholder value).
+- If you add or change a domain, port, or service, update
+  `docker-compose.yml`, `docker-compose.prod.yml`, and `Caddyfile.example`
+  at the same time as the code that needs it.
+- **And what governs production today, which compose does not cover:**
   - `frontend/wrangler.jsonc` / `backend/wrangler.jsonc` — bindings, vars,
-    `compatibility_flags`, alias de bundling.
-  - `frontend/open-next.config.ts` — adaptador Next → Workers.
-  - `.github/workflows/deploy-*.yml` — filtros de rutas y smoke checks.
-  - El módulo OpenTofu **externo** (`~/Colombia/infra/cloudflare`) si cambia
-    DNS, WAF, cache o rate limit de la zona.
+    `compatibility_flags`, bundling aliases.
+  - `frontend/open-next.config.ts` — the Next → Workers adapter.
+  - `.github/workflows/deploy-*.yml` — path filters and smoke checks.
+  - The **external** OpenTofu module (`~/Colombia/infra/cloudflare`), if DNS,
+    WAF, cache, or the zone's rate limit changes.
 
-  Un cambio que solo toca `docker-compose*.yml` **no llega a producción**.
+  A change that only touches `docker-compose*.yml` **does not reach
+  production**.
 
-## Seguridad y privacidad (invariantes duros)
+## Security and privacy (hard invariants)
 
-Este tipo de proyecto maneja datos de personas en crisis. GitHub es público y
-**no** debe usarse como canal de emergencia ni como base de datos de personas
-afectadas.
+A project of this kind handles data about people in crisis. GitHub is
+public. It must **never** serve as an emergency channel or as a database of
+affected people.
 
-- **No hardcodees identidad real en el código de la aplicación.** Ningún
-  dominio, IP, email, teléfono, nombre de organización/evento, coordenada
-  sensible o handle real va en `frontend/`, `backend/`, `admin/`, fixtures o
-  tests. Usa `example.org`, variables de entorno, o valores leídos de
-  `config/deployment.config.json`.
+- **Never hardcode a real identity in application code.** No domain, IP
+  address, email, phone number, organization/event name, sensitive
+  coordinate, or real handle goes in `frontend/`, `backend/`, `admin/`,
+  fixtures, or tests. Use `example.org`, environment variables, or values
+  read from `config/deployment.config.json`.
 
-  **Excepción esperada — no la "arregles":** los ficheros de despliegue **sí**
-  llevan los nombres reales a propósito, porque describen *esta* instalación y
-  no una plantilla:
+  **Expected exception — do not "fix" this:** deployment files **do**
+  carry real names on purpose, because they describe *this* installation,
+  not a template:
 
   ```text
   config/deployment.config.json      terremotocolombia.co, Mallanet.org
-  frontend/wrangler.jsonc            terremotocolombia-web + dominios propios
+  frontend/wrangler.jsonc            terremotocolombia-web + owned domains
   backend/wrangler.jsonc             terremotocolombia-api
-  .github/workflows/deploy-*.yml     nombres de Worker y URLs de smoke check
-  .neon                              org y proyecto de Neon
+  .github/workflows/deploy-*.yml     Worker names and smoke-check URLs
+  .neon                              Neon org and project
   ```
 
-  Sustituirlos por placeholders rompe el despliegue. La regla protege el
-  **código**, no la configuración de infraestructura.
-- **No inventes ni cargues datos reales de personas.** Para ejemplos, tests y
-  fixtures usa datos sintéticos, claramente marcados como demo. Nunca
-  publiques en código, issues, PRs o capturas: teléfonos, correos personales,
-  documentos de identidad, direcciones privadas completas, notas médicas,
-  fotos privadas o hashes de fotos reales.
-- **Toda ruta de API necesita rate-limit + validación.** Es un invariante
-  duro, **enforced con ESLint** (`backend/eslint-rules/`, corre en
-  `npm run lint` + CI):
-  - `require-rate-limit`: toda ruta declara `rateLimit({ scope, limit })`, sin
-    excepción por comentario.
-  - `user-facing-mutation-needs-guard`: toda mutación (POST/PUT/PATCH/DELETE)
-    en `src/routes/*` lleva `requireHuman` (Turnstile) o un gate
-    (`requireAdmin` / `requireCapability` / `requireCron` /
-    `requireSupplyWrite`). La excepción anónima legítima se documenta con
-    `// eslint-disable-next-line local/user-facing-mutation-needs-guard -- razón`.
-  - `no-turnstile-in-public-api`: `src/public-api/*` (superficie autenticada
-    por capacidades) NO lleva Turnstile — no es tráfico de navegador.
-  - Toda validación de entrada pública se hace con Zod, en el servidor. No
-    confíes en validaciones solo del cliente.
-- **Nunca commitees secretos.** `.env`, `.prod.env`, dumps de base de datos,
-  credenciales o tokens no van al repo (`.gitignore` ya los cubre). Si
-  agregas un secreto nuevo, documenta su placeholder en `.env.example`, nunca
-  su valor real.
-- **No serialices objetos completos de entrada hacia respuestas públicas.**
-  Expone solo los campos permitidos.
-- Si encuentras una vulnerabilidad o una fuga de datos real, no abras un
-  issue público — repórtalo por el canal privado de seguridad de tu fork u
-  organización (p.ej. GitHub Security Advisories).
+  Replacing these with placeholders breaks the deployment. This rule
+  protects **application code**, not infrastructure configuration.
+- **Never invent or load real data about people.** For examples, tests, and
+  fixtures, use synthetic data, clearly marked as demo data. Never publish,
+  in code, issues, PRs, or screenshots: phone numbers, personal emails,
+  identity documents, full private addresses, medical notes, private
+  photos, or hashes of real photos.
+- **Every API route needs rate limiting and validation.** This is a hard
+  invariant, **enforced by ESLint** (`backend/eslint-rules/`, runs in
+  `npm run lint` and in CI):
+  - `require-rate-limit`: every route declares
+    `rateLimit({ scope, limit })`, with no exception by comment.
+  - `user-facing-mutation-needs-guard`: every mutation (POST/PUT/PATCH/
+    DELETE) under `src/routes/*` carries `requireHuman` (Turnstile) or a
+    gate (`requireAdmin` / `requireCapability` / `requireCron` /
+    `requireSupplyWrite`). Document a legitimate anonymous exception with
+    `// eslint-disable-next-line local/user-facing-mutation-needs-guard --
+    reason`.
+  - `no-turnstile-in-public-api`: `src/public-api/*` (the
+    capability-authenticated surface) carries **no** Turnstile — it does
+    not serve browser traffic.
+  - Every public input validates with Zod, on the server. Do not trust
+    client-only validation.
+- **Never commit a secret.** `.env`, `.prod.env`, database dumps,
+  credentials, and tokens do not go in the repository (`.gitignore` already
+  covers them). When you add a new secret, document its placeholder in
+  `.env.example`, never its real value.
+- **Never serialize a full input object into a public response.** Expose
+  only the fields you intend to expose.
+- If you find a real vulnerability or a data leak, do not open a public
+  issue. Report it through your fork's or organization's private security
+  channel — for example, GitHub Security Advisories.
 
-## Estado actual del stack
+## Current state of the stack
 
-No hay `package.json` en la raíz. Es un monorepo simple con tres paquetes npm
-y una capa de infraestructura compartida:
+No root `package.json` exists. This is a simple monorepo with three npm
+packages and a shared infrastructure layer:
 
-- `frontend/`: Next.js + React. UI/SSR pública; no accede directo a la base de
-  datos ni reintroduce rutas `app/api/**` propias — todo HTTP pasa por
-  `frontend/lib/api.ts`, `frontend/lib/server-api.ts` o hooks.
-- `backend/`: Express + TypeScript. Sirve toda la superficie `/api`, valida
-  entorno al arrancar (fail-fast), usa Drizzle sobre Postgres y reutiliza la
-  misma imagen para API, worker y migraciones.
-- `backend/worker/`: workers BullMQ (sync de fuentes externas, geocode,
-  deduplicación, federación de hub, migraciones/backfills) sobre Valkey.
-- `admin/`: panel de administración como microservicio Next.js standalone
-  (RBAC con JWT en cookie httpOnly). Su BFF (`app/api/*`) reenvía al backend
-  por la red interna; no es tráfico público.
-- `infra/db/`: esquema Drizzle (`schema.ts`, fuente de verdad) y migraciones
-  versionadas.
-- `config/deployment.config.json`: identidad del despliegue (nombre,
-  dominios, centro del mapa, idioma, contacto) — lee de ahí antes de
-  hardcodear cualquier dato de branding.
+- `frontend/`: Next.js + React. Public UI and SSR. It does not access the
+  database directly, and it does not add its own `app/api/**` routes — every
+  HTTP call goes through `frontend/lib/api.ts`, `frontend/lib/server-api.ts`,
+  or a hook.
+- `backend/`: Express + TypeScript. Serves the entire `/api` surface,
+  validates its environment at startup (fail-fast), uses Drizzle over
+  Postgres, and reuses one image for the API, the worker, and migrations.
+- `backend/worker/`: BullMQ workers (external-source sync, geocoding,
+  deduplication, hub federation, migrations/backfills) running over Valkey.
+- `admin/`: the admin panel, a standalone Next.js microservice
+  (role-based access with a JWT in an httpOnly cookie). Its BFF (`app/api/*`)
+  forwards to the backend over the internal network — it does not serve
+  public traffic.
+- `infra/db/`: the Drizzle schema (`schema.ts`, the source of truth) and
+  versioned migrations.
+- `config/deployment.config.json`: the deployment's identity (name,
+  domains, map center, language, contact). Read from here before you
+  hardcode any branding value.
 
-### Despliegue: dos caminos, y hoy corre el segundo
+### Deployment: two paths, and the second one runs today
 
-1. **VPS con `docker-compose.prod.yml` + Caddy** (`Caddyfile.example`).
-   Es el camino que describe `docs/deploy-vps.md`, y el único donde funciona
-   **todo** el sistema: colas BullMQ/Valkey, transacciones interactivas de
-   Postgres y el panel `admin/`.
-2. **Cloudflare Workers** — *lo que sirve terremotocolombia.co ahora mismo*.
-   Frontend (`terremotocolombia-web`) con `@opennextjs/cloudflare` y API
-   (`terremotocolombia-api`) envolviendo la misma app de Express con
-   `httpServerHandler`, contra **Neon Postgres** externo.
-   En este camino **no** hay colas ni transacciones interactivas, y `admin/`
-   no está desplegado.
+1. **A VPS with `docker-compose.prod.yml` plus Caddy**
+   (`Caddyfile.example`). This is the path `docs/deploy-vps.md` describes,
+   and the only one where **the whole system** works: BullMQ/Valkey queues,
+   interactive Postgres transactions, and the `admin/` panel.
+2. **Cloudflare Workers** — *what serves terremotocolombia.co right now.*
+   The frontend (`terremotocolombia-web`) runs on
+   `@opennextjs/cloudflare`, and the API (`terremotocolombia-api`) wraps the
+   same Express app with `httpServerHandler`, against **external Neon
+   Postgres**. On this path, **no** queues and **no** interactive
+   transactions exist. `admin/` still runs here too — see `CLAUDE.md`.
 
-Antes de asumir dónde corre algo, mira `CLAUDE.md` → "Dónde corre esto de
-verdad". Para desarrollo local, `docker compose` sigue siendo la vía cómoda
-porque levanta Postgres y Valkey por ti.
+Before you assume where something runs, check `CLAUDE.md` → "Where this
+actually runs." For local development, `docker compose` stays the
+convenient path, because it starts Postgres and Valkey for you.
 
-**Los secretos de producción viven en Doppler** (`terremotocolombia-web` /
-`prd`), no en `.env`. Cualquier comando que necesite credenciales reales se
-ejecuta con `doppler run -- …`.
+**Production secrets live in Doppler** (`terremotocolombia-web` / `prd`),
+not in `.env`. Any command that needs real credentials runs through
+`doppler run -- …`.
 
-## Comandos útiles
+## Useful commands
 
 Frontend:
 
@@ -198,17 +208,17 @@ npm run typecheck
 npm run build
 ```
 
-Stack local completo (vía preferida):
+Full local stack (the preferred path):
 
 ```bash
 docker compose up --build
 docker compose down
 ```
 
-Expone `frontend` en `:3000`, `admin` en `:3001`, `backend` en `:8080`,
-Postgres en `:5432` y Valkey en `:6379`.
+This exposes `frontend` on `:3000`, `admin` on `:3001`, `backend` on
+`:8080`, Postgres on `:5432`, and Valkey on `:6379`.
 
-Base de datos:
+Database:
 
 ```bash
 cd backend
@@ -216,288 +226,329 @@ npm run db:generate
 npm run migrate
 ```
 
-> `npm run migrate` aplica sobre la base **local/compose**. En producción no hay
-> gate automático ni las corre CI: son un paso manual contra Neon **directo**
-> (no el `-pooler`), y no se lanzan por iniciativa de un agente. Ver
-> `docs/architecture.md` → "Datos y migraciones".
+> `npm run migrate` runs against the **local/compose** database only. No
+> automatic gate exists in production, and CI does not run migrations
+> there: they are a manual step against Neon **direct** (not the `-pooler`
+> endpoint), and an agent never runs them on its own initiative. See
+> "Schema order" below and `docs/architecture.md` → "Data and migrations."
 
-## Convenciones de implementación
+## Implementation conventions
 
-- Mantén las validaciones de entrada en el servidor. No confíes en
-  validaciones solo del cliente.
-- Usa respuestas de error visibles y accionables. No silencies fallos ni
-  devuelvas éxito cuando la escritura no se guardó.
-- Evita `as any`, casts innecesarios y helpers duplicados. Busca primero si ya
-  existe una función en `frontend/lib/`, `backend/src/lib/` o
-  `backend/src/middleware/`.
-- Conserva los límites de rate-limit, cache y tamaño de payload salvo que el
-  PR explique el riesgo operativo.
-- Para cambios de contrato público, actualiza el bloque `@swagger` del route y
-  el artefacto OpenAPI que corresponda.
-- Para trabajo largo o de terceros (sync, geocode, scrapers, backfills, IA/API
-  externa), encola en BullMQ y devuelve un estado consultable; no lo
-  bloquees en el request path.
+- Keep input validation on the server. Do not trust client-only
+  validation.
+- Return error responses that are visible and actionable. Do not silence a
+  failure, and do not return success when a write did not save.
+- Avoid `as any`, unnecessary casts, and duplicate helpers. Check first
+  whether a function already exists in `frontend/lib/`,
+  `backend/src/lib/`, or `backend/src/middleware/`.
+- Keep existing rate-limit, cache, and payload-size limits, unless the PR
+  explains the operational risk.
+- For public contract changes, update the route's `@swagger` block and the
+  matching OpenAPI artifact.
+- For long-running or third-party work (sync, geocoding, scrapers,
+  backfills, external AI/API calls), queue it through the job-dispatch
+  seam described in "Background jobs" below, and return a status you can
+  poll. Do not block the request path on it.
 
-### Endpoints del backend (reglas ESLint, gate en CI)
+### Backend endpoints (ESLint rules, gated in CI)
 
-El backend tiene DOS superficies HTTP y cada una sigue su patrón:
+The backend has TWO HTTP surfaces, and each one follows its own pattern:
 
-- **`src/public-api/*` — superficie autenticada (integraciones + admin).**
-  Es **deny-by-default**: todo va gateado por
-  `requireCapability("<recurso>:<verbo>")`. Para un CRUD de modelo no escribas
-  el router a mano: añade un `resources/<modelo>.resource.ts` (config) y deja
-  que la **fábrica** (`crud-factory.ts`) monte router + valide + audite +
-  documente OpenAPI desde esa config. Capacidades CRUD =
-  `read | create | edit | delete`; el catálogo fijo vive en
-  `src/auth/capabilities.ts` (se siembra en la tabla `capabilities`).
-- **`src/routes/*` — sitio público (anónimo) + admin legado.** Toda mutación
-  lleva `requireHuman` (Turnstile) o un gate, salvo excepción documentada (ver
-  arriba).
-- **Ambas superficies:** toda ruta declara `rateLimit({ scope, limit })`, sin
-  excepción. Mantén `@swagger` en los routes escritos a mano; los routers de
-  la fábrica CRUD auto-documentan vía sus esquemas Zod.
+- **`src/public-api/*` — the authenticated surface (integrations and
+  admin).** It is **deny-by-default**: every route is gated by
+  `requireCapability("<resource>:<verb>")`. For a model's CRUD, do not
+  write the router by hand: add a `resources/<model>.resource.ts` file
+  (config), and let the **factory** (`crud-factory.ts`) mount the router,
+  validate input, log the audit trail, and document OpenAPI from that
+  config. CRUD capabilities are `read | create | edit | delete`. The fixed
+  catalog lives in `src/auth/capabilities.ts` (it seeds the `capabilities`
+  table).
+- **`src/routes/*` — the public site (anonymous) plus the legacy admin
+  surface.** Every mutation carries `requireHuman` (Turnstile) or a gate,
+  except for a documented exception (see above).
+- **Both surfaces:** every route declares `rateLimit({ scope, limit })`,
+  with no exception. Keep `@swagger` on hand-written routes. CRUD-factory
+  routers document themselves from their Zod schemas.
 
 ### Frontend
 
-- Todo acceso HTTP debe pasar por `frontend/lib/api.ts`,
-  `frontend/lib/server-api.ts` o hooks en `frontend/hooks/`.
-- El navegador llama al backend por `NEXT_PUBLIC_API_URL`; no asumas
-  same-origin para `/api`.
-- Las mutaciones públicas que escriben datos sensibles deben obtener un token
-  de Cloudflare Turnstile con `useTurnstile()` y enviarlo como
-  `turnstileToken` o `cf-turnstile-token`, según el helper existente.
-- Mantén TanStack Query como capa de cache/dedup del cliente; no dupliques
-  fetch manual cuando ya existe un hook.
-- Las URLs de fotos que vengan como rutas relativas deben pasar por
-  `mediaUrl()` para anclarlas al backend.
+- Every HTTP call must go through `frontend/lib/api.ts`,
+  `frontend/lib/server-api.ts`, or a hook in `frontend/hooks/`.
+- The browser calls the backend through `NEXT_PUBLIC_API_URL`. Do not
+  assume `/api` shares an origin with the frontend.
+- Public mutations that write sensitive data must get a Cloudflare
+  Turnstile token with `useTurnstile()`, and send it as `turnstileToken`
+  or `cf-turnstile-token`, matching the existing helper. Turnstile is
+  **active** in both environments — a missing token gets a real `403`, not
+  a bypass.
+- Keep TanStack Query as the client-side cache and dedup layer. Do not
+  duplicate a manual fetch when a hook already exists.
+- Photo URLs that arrive as relative paths must pass through
+  `mediaUrl()`, to anchor them to the backend.
 
 ### Backend/API
 
-- Las rutas viven en `backend/src/routes/`; la lógica de negocio vive en
-  `backend/src/services/`. Este patrón simple aplica al sitio público propio.
-- **Integraciones con terceros** (APIs externas que proyectamos en un dominio
-  propio, p.ej. un directorio de acopio) van como módulos DDD en
-  `backend/src/modules/<dominio>/`, no como un `service` plano. Capas con
-  dependencias hacia adentro: `domain/` (entidades + value objects + reglas
-  puras + el **puerto**/interfaz de la fuente; sin HTTP ni `env`),
-  `application/` (casos de uso), `infrastructure/` (adaptadores que
-  implementan el puerto: cliente HTTP, mapper anti-corruption, decorador de
-  cache), `interface/http/` (router + controller + presenter; única capa con
-  Express y el `@swagger`) y `<dominio>-module.ts` (composition root: único
-  sitio que lee `env` y cablea todo). Referencia: `backend/src/modules/acopio/`
-  y `backend/src/modules/needs/`. Añadir otra fuente externa = otro adaptador
-  del mismo puerto en el composition root. El navegador nunca llama al
-  tercero directo: siempre se proxea por el backend.
-- Cada integración externa opcional se activa con su propio flag
-  `ENABLE_*` en `.env.example` (p.ej. `ENABLE_RESPONSEGRID`,
+- Routes live in `backend/src/routes/`. Business logic lives in
+  `backend/src/services/`. This simple pattern applies to the project's own
+  public site.
+- **Third-party integrations** (external APIs projected onto our own
+  domain, such as a collection-center directory) go in as DDD modules
+  under `backend/src/modules/<domain>/`, not as a plain `service`. Layers
+  depend inward: `domain/` (entities, value objects, pure rules, and the
+  **port**/interface for the source — no HTTP, no `env`), `application/`
+  (use cases), `infrastructure/` (adapters that implement the port: an
+  HTTP client, an anti-corruption mapper, a cache decorator),
+  `interface/http/` (router, controller, presenter — the only layer that
+  knows Express and carries `@swagger`), and `<domain>-module.ts` (the
+  composition root — the only place that reads `env` and wires everything
+  together). Reference:
+  `backend/src/modules/acopio/` and `backend/src/modules/needs/`. Adding
+  another source means adding another adapter for the same port. The
+  browser never calls a third party directly — the backend always proxies
+  the call.
+- Every optional third-party integration turns on with its own `ENABLE_*`
+  flag in `.env.example` (for example, `ENABLE_RESPONSEGRID`,
   `ENABLE_HUB_FEDERATION`, `ENABLE_PATIENT_OCR`, `ENABLE_EXAMPLE_SOURCE`).
-  Todas empiezan en `false`: el template debe funcionar sin ninguna
-  integración de terceros configurada.
-- Monta rutas con `Router`, `asyncHandler`, `validate()` y los middlewares
-  existentes (`rateLimit`, `requireHuman`, `requireAdmin`, auth de hospital)
-  antes de crear helpers nuevos.
-- GETs públicos/polleados deben usar `cached()` y/o `jsonWithEtag()` cuando el
-  contrato lo permita.
-- No uses `*` en CORS. Ajusta `CORS_ORIGINS` para los orígenes frontend
-  permitidos.
-- Si persistes o comparas IPs, usa `clientIp()` y `hashIp()`; nunca guardes
-  IPs crudas.
-- `TURNSTILE_SECRET_KEY` ausente desactiva `requireHuman` para desarrollo
-  local; en producción debe estar configurada.
+  Every flag starts as `false`: the template must run with no third-party
+  integration configured.
+- Mount routes with `Router`, `asyncHandler`, `validate()`, and the
+  existing middleware (`rateLimit`, `requireHuman`, `requireAdmin`,
+  hospital auth) before you write a new helper.
+- Public or polled GET routes should use `cached()` and/or
+  `jsonWithEtag()`, when the contract allows it.
+- A public GET can enter the Worker JSON edge cache only when its path is in
+  `lib/json-edge-cache.ts` and its response has an explicit public `s-maxage`.
+  Never add an authenticated or user-specific response to that allowlist.
+- Never use `*` in CORS. Set `CORS_ORIGINS` to the allowed frontend
+  origins.
+- When you persist or compare an IP address, use `clientIp()` and
+  `hashIp()`. Never store a raw IP.
+- Structured application logs use `request_id` and `ip_hash`. Never add a raw
+  IP, request body, query value, contact value, or error message that can carry
+  PII. Keep every 5xx, and sample routine access logs.
+- With no `TURNSTILE_SECRET_KEY`, `requireHuman` turns off, for local
+  development. In production, that variable must be set — and today it
+  is.
 
-### Acceso a datos (Drizzle ORM)
+### Data access (Drizzle ORM)
 
-- Todo acceso ordinario a la base va por Drizzle. Importa desde
+- All ordinary database access goes through Drizzle. Import from
   `backend/src/db` (`getDb`, `hasDbEnv`, `schema`).
-- El esquema es la fuente de verdad en `infra/db/schema.ts`. No crees tablas
-  en runtime dentro de la API.
-- Si cambias el esquema:
-  1. edita `infra/db/schema.ts`,
-  2. corre `cd backend && npm run db:generate`,
-  3. commitea el `.sql` + el journal en `infra/db/migrations/`.
+- The schema is the source of truth, in `infra/db/schema.ts`. Do not
+  create tables at runtime inside the API.
+- When you change the schema:
+  1. Edit `infra/db/schema.ts`.
+  2. Run `cd backend && npm run db:generate`.
+  3. Commit the generated `.sql` file and its journal entry, in
+     `infra/db/migrations/`.
 
-#### ORDEN de despliegue: el esquema va PRIMERO, y no lo aplica nadie por ti
+#### Schema order: the schema goes FIRST, and no deploy applies it for you
 
-En `docker-compose.prod.yml` el servicio `migrate` corre antes de que arranquen
-`backend`/`worker`. **Eso NO es lo que pasa en producción hoy.** Producción es
-Cloudflare Workers: pushear a `main` despliega **código** y nada más. Las
-migraciones están gateadas por un humano y no las corre ni CI ni el deploy.
+In `docker-compose.prod.yml`, the `migrate` service runs before
+`backend`/`worker` start. **That is NOT what happens in production
+today.** Production runs on Cloudflare Workers: a push to `main` deploys
+**code**, and nothing else. A human gates every migration, and neither CI
+nor any deploy runs one.
 
-Consecuencia que ya costó una caída (2026-08-11, `a81e17c`): si un commit trae
-el `.sql` **y** el código que lo necesita, al mergear queda código nuevo contra
-esquema viejo. Ese día fueron ~6h de 503 en todos los registros de voluntarios y
-~44 inscripciones de personas afectadas perdidas.
+This already caused an outage (2026-08-11, commit `a81e17c`): a single
+commit carried both a new `.sql` migration and the code that needed it.
+Once merged, the new code ran against the old schema. That day cost about
+6 hours of `503` errors across every volunteer registration, and lost
+roughly 44 sign-ups from people affected by the earthquake.
 
-Reglas, en orden de importancia:
+Rules, in order of importance:
 
-1. **Migración primero, en su propio commit, aplicada antes de mergear el
-   código que la usa.** El código que lee/escribe las columnas nuevas va
-   DESPUÉS, en otro commit.
-2. **Escribe migraciones expand-contract**, siempre, no solo "si quieres
-   rollouts sin downtime". Añadir columnas nullable es compatible hacia atrás:
-   el código viejo las ignora. Un `RENAME COLUMN` **no** lo es y rompe en el
-   instante en que el esquema y el código discrepan — fue el `phone` ->
-   `contact` de aquel día. Expand-contract de verdad: añade `contact` nullable,
-   backfillea, cambia el código, y borra `phone` en una migración posterior.
-3. **`npm run check:schema-drift`** compara las columnas que el código espera
-   contra las que la base tiene. Córrelo antes de mergear si tienes dudas; el
-   deploy de backend lo corre solo y **se niega a desplegar** si hay deriva
-   (`backend/worker/check-schema-drift.ts`). Para saltártelo en un hotfix que no
-   toca esas tablas: Actions -> Deploy backend -> Run workflow -> `omitir_drift`.
-4. **`/api/readyz` NO comprueba el esquema y no debe hacerlo.** Una migración
-   pendiente es un estado legítimo (para eso existe el gate humano); acoplarla a
-   la readiness convertiría un fallo acotado a una tabla en una caída total.
+1. **Migrate first, in its own commit, applied before you merge the code
+   that uses it.** Code that reads or writes the new columns goes
+   **after**, in a separate commit.
+2. **Write expand-contract migrations, always** — not only "when you want
+   a rollout with no downtime." Adding a nullable column is backward
+   compatible: old code ignores it. A `RENAME COLUMN` is **not**
+   backward compatible, and breaks the moment the schema and the code
+   disagree — that was the `phone` to `contact` rename on the day of the
+   outage. A real expand-contract migration adds `contact` as nullable,
+   backfills it, changes the code, and drops `phone` in a later
+   migration.
+3. **`npm run check:schema-drift`** compares the columns the code expects
+   against the columns the database actually has. Run it before you merge
+   if you have any doubt. The backend deploy runs it automatically, and
+   **refuses to deploy** on drift (`backend/worker/check-schema-drift.ts`).
+   To skip it for a hotfix that does not touch those tables: Actions →
+   Deploy backend → Run workflow → `omitir_drift`, an audited emergency
+   override.
+4. **`/api/readyz` does NOT check the schema, and it should not.** A
+   pending migration is a legitimate state — that is exactly why the human
+   gate exists. Coupling readiness to the schema would turn one table's
+   scoped failure into a full outage.
 
-### PROHIBIDO: `db.transaction(...)` interactiva en `src/**` (invariante Workers)
+### FORBIDDEN: interactive `db.transaction(...)` in `src/**` (a Workers invariant)
 
-Producción corre en Cloudflare Workers con el driver HTTP de Neon, que **no
-soporta transacciones interactivas**. Una `db.transaction(async (tx) => …)` en
-código alcanzable desde el Worker compila, pasa los tests locales
-(node-postgres sí las soporta) y **revienta solo en producción**. Así estuvo
-roto el create/edit de roles del panel sin que ningún test lo viera.
+Production runs on Cloudflare Workers, using Neon's HTTP driver, which
+**does not support interactive transactions**. A
+`db.transaction(async (tx) => …)` call in code the Worker can reach
+compiles, passes local tests (node-postgres does support it there), and
+**only breaks in production**. Role create/edit in the admin panel broke
+exactly this way, with no test catching it.
 
-En su lugar, los patrones que ya usa el repo (referencia:
+Instead, use the patterns already in the repository (reference:
 `services/patient-imports/apply.ts`, `services/roles.ts`):
 
-- **Claim condicional**: `UPDATE … WHERE <estado esperado> RETURNING` como
-  sentencia única atómica — sustituye a `SELECT … FOR UPDATE`.
-- **Ids deterministas** para escrituras reintentables: mismo input ⇒ mismo id
-  ⇒ el re-insert choca en la PK y el reintento es no-op
-  (`deterministicPatientId`).
-- **Compensación** cuando un paso posterior falla (crear rol → si fallan las
-  capacidades, borrar el rol).
-- **Guard de integridad** cuando dos escrituras secuenciales deben ser
-  coherentes (el process verifica filas == totalRows antes de tocar nada).
-- La duda de siempre: si crees que necesitas una transacción interactiva,
-  primero pregúntate si un UPDATE condicional + idempotencia la reemplaza.
+- **Conditional claim**: a single atomic
+  `UPDATE … WHERE <expected state> RETURNING` statement, in place of
+  `SELECT … FOR UPDATE`.
+- **Deterministic IDs** for retriable writes: the same input always
+  produces the same ID, so a retry hits the same primary key and becomes a
+  no-op (`deterministicPatientId`).
+- **Compensation** when a later step fails (create a role, then delete it
+  if granting capabilities fails).
+- **An integrity guard** when two sequential writes must stay consistent
+  (the process checks row counts against `totalRows` before it touches
+  anything).
+- The standard question: if you think you need an interactive
+  transaction, ask first whether a conditional `UPDATE` plus idempotency
+  can replace it.
 
-`backend/worker/**` (BullMQ, solo compose) SÍ puede usarlas: corre bajo Node.
+`backend/worker/**` (BullMQ, compose only) **can** use interactive
+transactions — it runs under Node.
 
-### Jobs de fondo (Cloudflare Queues / Cron Triggers)
+### Background jobs (Cloudflare Queues / Cron Triggers)
 
-Un job nuevo NO se conecta a BullMQ directo — sigue el seam por capacidad
-(plan `docs/plans/2026-08-10-002-…`, estado en `docs/runbook-fase0.md`):
+A new job does NOT connect to BullMQ directly. It follows the
+capability-based seam instead (plan `docs/plans/2026-08-10-002-…`, status in
+`docs/runbook-fase0.md`):
 
-1. **Productor**: binding de Queues si está registrado; BullMQ con
-   `VALKEY_URL` (compose). Referencia: `lib/job-dispatch.ts` y el branch de
-   `enqueuePatientImport` en `lib/queues.ts`. Mensajes ≤128 KB: lo pesado se
-   materializa en la base ANTES de encolar, nunca viaja en el mensaje.
-2. **Consumidor**: rama en `lib/queue-consumer.ts` (extraído de `worker.ts`
-   para ser testeable) + cableado en el handler `queue` de `src/worker.ts`.
-   Ack POR MENSAJE; fallo → `retry()`; los reintentos/DLQ los configura
-   `wrangler.jsonc` (declarar la cola en AMBOS entornos — `queues` no se
-   hereda en `env.staging`).
-3. **Cartas muertas**: el consumidor del DLQ persiste en `audit_log`
-   (`queue.dead_letter`) y hace ack incondicional. Sin DLQ con consumidor, un
-   mensaje agotado SE PIERDE a los 4 días.
-4. **Colas**: `wrangler queues create <nombre>` para prod y staging antes del
-   primer deploy con la config.
-5. **Verificación**: `scripts/verify-jobs.sh [staging|production]` (frescura
-   derivada, sin escrituras).
+1. **Producer**: a Queues binding, when one is registered; BullMQ with
+   `VALKEY_URL` otherwise (compose). Reference: `lib/job-dispatch.ts` and the
+   `enqueuePatientImport` branch in `lib/queues.ts`. Keep messages at 128 KB
+   or less: write anything heavy to the database **before** you queue it,
+   never inside the message.
+2. **Consumer**: a branch in `lib/queue-consumer.ts` (extracted from
+   `worker.ts` so it stays testable), wired into the `queue` handler in
+   `src/worker.ts`. Acknowledge PER MESSAGE. On failure, call `retry()`.
+   `wrangler.jsonc` configures retries and the DLQ — declare the queue in
+   BOTH environments, since `queues` does not inherit into `env.staging`.
+3. **Dead letters**: the DLQ's consumer persists each one to `audit_log`
+   (`queue.dead_letter`), and acknowledges unconditionally. With no
+   consumer on a DLQ, an exhausted message is LOST after 4 days.
+   A patient-import DLQ transition must preserve the processor's original
+   `error_summary`; do not replace it with the generic retry-exhausted text.
+4. **Queues**: run `wrangler queues create <name>` for both production and
+   staging, before the first deploy that uses the config.
+5. **Verification**: `scripts/verify-jobs.sh [staging|production]` (checks
+   derived freshness, writes nothing).
 
-### Actualizar listas de personas (hospitalizados / refugiados)
+### Updating people lists (hospitalized / sheltered)
 
-Las personas localizadas (en hospital o en refugio/centro de acopio) viven en
-`hospital_patients`, ligadas a un lugar en `hospitals`. Conviven en la misma
-tabla para que una familia las encuentre en una sola búsqueda, distinguidas
-por:
+Located people — in a hospital or in a shelter/collection center — live in
+`hospital_patients`, linked to a place in `hospitals`. They share one table
+so a family can find them with a single search, distinguished by:
 
-- `hospitals.facility_type`: `"refugio"` para centros de acopio/albergues;
-  tipos de hospital para el resto.
-- `hospital_patients.status`: `"hospitalized"` o `"sheltered"`.
+- `hospitals.facility_type`: `"refugio"` for collection centers and
+  shelters; a hospital type for everything else.
+- `hospital_patients.status`: `"hospitalized"` or `"sheltered"`.
 
-Son columnas `TEXT`: valores nuevos no requieren migración, pero sí agregar
-su etiqueta en `frontend/lib/hospitals-meta.ts` para que el front los muestre
-bien.
+These are `TEXT` columns, so a new value needs no migration — but you must
+add its label in `frontend/lib/hospitals-meta.ts`, so the frontend
+displays it correctly.
 
-Para cargas en lote (bulk) de datos reales, usa una herramienta separada,
-fuera de la app, que: corra siempre en dry-run primero, dedupe por
-identificador único + nombre por lugar, no auto-fusione conflictos, no
-invente lugares ni ubicaciones, pida confirmación explícita de un maintainer
-antes de aplicar, y nunca escriba PII (nombres, cédulas, diagnósticos) a
-repos/issues/PRs/gists.
+For bulk loads of real data, use a separate tool, outside the app, that:
+always runs dry-run first, deduplicates by unique identifier and name per
+place, never auto-merges a conflict, never invents a place or a location,
+asks a maintainer for explicit confirmation before it applies anything, and
+never writes PII (names, ID numbers, diagnoses) to a repository, an issue,
+a PR, or a gist.
 
-## Documentación
+## Documentation
 
-- Escribe documentación en español.
-- Usa Markdown con líneas razonablemente cortas para diffs legibles.
-- Estado actual del sistema va en `docs/architecture.md`; sistema de diseño
-  en `docs/DESIGN.md`. Si el proyecto crece, organiza propuestas/decisiones
-  en subcarpetas nuevas (`docs/rfcs/`, `docs/adr/`) y enlázalas desde aquí.
-- GEO/SEO para buscadores de IA: skill en `.claude/skills/geo/` y guía en
-  `docs/geo/README.md`. Audits van a `docs/geo/audit-YYYY-MM-DD.md`.
+- **Write documentation in English, in ASD-STE100 style**: short sentences,
+  one meaning per word, active voice, simple tenses. (Changed 2026-08-12
+  from Spanish — see the note at the top of `README.md` for why.)
+- One deliberate exception: `README.es.md` stays in Spanish. It is the
+  public site's Spanish-language landing page for visitors and
+  contributors in the region, not internal reference documentation.
+- Use Markdown, with reasonably short lines, for readable diffs.
+- Current system state goes in `docs/architecture.md`. The design system
+  goes in `docs/DESIGN.md`. If the project grows, organize proposals and
+  decisions in new subfolders (`docs/rfcs/`, `docs/adr/`), and link them
+  from here.
+- GEO/SEO for AI search engines: the skill lives in `.claude/skills/geo/`,
+  and the guide lives in `docs/geo/README.md`. Audits go to
+  `docs/geo/audit-YYYY-MM-DD.md`.
 
-## Mapa rápido del repo
+## Quick repo map
 
 ```text
-frontend/               Next.js UI/SSR, hooks, componentes, assets publicos
-backend/src/            Express API, servicios, middleware, acceso Drizzle
-backend/src/modules/    Integraciones como modulos DDD (dominio/aplicacion/infra/http)
-backend/worker/         BullMQ workers, sync, migraciones y backfills
-admin/                  Panel admin standalone (Next.js: BFF app/api/* + RBAC)
-infra/db/               Esquema Drizzle + migraciones
-config/                 deployment.config.json (identidad del despliegue)
-docs/                   Diseño y arquitectura
-docs/geo/               GEO/SEO audits + cómo usar el skill
-.claude/skills/geo/     Skill GEO-SEO vendored (zubair-trabzada/geo-seo-claude)
-.claude/agents/geo-*.md Prompts de subagentes GEO
-docker-compose.yml      Stack local (dev)
-docker-compose.prod.yml Stack de produccion (un solo VPS + Caddy)
-Caddyfile.example       Config de Caddy con placeholders {$VAR}
-.env.example            Contrato completo de variables de entorno
+frontend/               Next.js UI/SSR, hooks, components, public assets
+backend/src/            Express API, services, middleware, Drizzle access
+backend/src/modules/    Integrations as DDD modules (domain/application/infra/http)
+backend/worker/         BullMQ workers, sync, migrations, and backfills
+admin/                  Standalone admin panel (Next.js: BFF app/api/* + RBAC)
+infra/db/               Drizzle schema + migrations
+config/                 deployment.config.json (deployment identity)
+docs/                   Design and architecture
+docs/geo/               GEO/SEO audits + how to use the skill
+.claude/skills/geo/     Vendored GEO/SEO skill (zubair-trabzada/geo-seo-claude)
+.claude/agents/geo-*.md GEO subagent prompts
+docker-compose.yml      Local stack (dev)
+docker-compose.prod.yml Production stack (single VPS + Caddy)
+Caddyfile.example       Caddy config with {$VAR} placeholders
+.env.example            Full environment-variable contract
 ```
 
 ## Pull requests
 
-Antes de abrir o actualizar un PR:
+Before you open or update a PR:
 
-- Enlaza la issue que rastrea el trabajo, o explica por qué el cambio es
-  pequeño y no la necesita.
-- Incluye capturas o video si cambia UI pública.
-- Marca los comandos ejecutados (`frontend`/`backend`/`admin` lint,
-  typecheck, build, pruebas manuales) o explica por qué no aplican.
-- Describe cualquier impacto en privacidad, datos de crisis, performance,
-  cache, variables de entorno, despliegue o migraciones.
-- Mantén el PR enfocado. Si aparecen cambios vecinos, abre issues separadas.
+- Link the issue that tracks the work, or explain why the change is small
+  enough to skip one.
+- Include screenshots or video, if the change touches public UI.
+- List the commands you ran (`frontend`/`backend`/`admin` lint, typecheck,
+  build, manual tests), or explain why one does not apply.
+- Describe any impact on privacy, crisis data, performance, cache,
+  environment variables, deployment, or migrations.
+- Keep the PR focused. If related changes come up, open a separate issue
+  for them.
 
-## Principios de código
+## Code principles
 
-- **YAGNI primero.** Antes de escribir código nuevo: ¿ya existe en el repo?
-  ¿lo resuelve la librería estándar, una API nativa del framework o una
-  dependencia ya instalada? Solo entonces escribe el mínimo código que
-  funcione.
-- Sin abstracciones no solicitadas. Sin dependencias nuevas si se puede
-  evitar. La duplicación es más barata que la abstracción equivocada: no
-  extraigas un helper compartido hasta la tercera repetición real.
-- Borrar > añadir. Simple > ingenioso. El diff correcto más corto gana.
-- Deja cada archivo más limpio de lo que lo encontraste. Borra código muerto
-  al verlo.
-- Nombres descriptivos, buscables, pronunciables. Sin números mágicos o
-  strings sueltos — constantes con nombre.
-- Excepciones nunca silenciadas. Errores de negocio con clases específicas.
-- Código no trivial sin test = no enviado. Bug fix = test de regresión que
-  falla antes del fix y pasa después.
-- Antes de dar por terminado: lint clean, typecheck clean, tests verdes.
+- **YAGNI first.** Before you write new code, ask: does this already exist
+  in the repository? Does the standard library, a framework API, or an
+  already-installed dependency solve it? Only then, write the minimum code
+  that works.
+- No abstraction the task did not ask for. No new dependency, when you can
+  avoid one. Duplication costs less than the wrong abstraction — do not
+  extract a shared helper before the third real repetition.
+- Delete more than you add. Simple beats clever. The shortest correct diff
+  wins.
+- Leave every file cleaner than you found it. Delete dead code when you see
+  it.
+- Use names that describe, that you can search for, and that you can say
+  out loud. No magic numbers or loose strings — use named constants.
+- Never silence an exception. Give business errors their own specific
+  classes.
+- Non-trivial code with no test does not ship. A bug fix needs a
+  regression test: one that fails before the fix, and passes after it.
+- Before you call anything done: lint clean, typecheck clean, tests green.
 
-#### Red de durabilidad: `failed_submissions`
+### Durability net: `failed_submissions`
 
-Los cinco formularios públicos (voluntarios, desaparecidos, reportes, contacto,
-supresión de datos) capturan el envío en `failed_submissions` cuando la
-escritura principal falla, en vez de perderlo. `lib/failed-submission.ts`
-**nunca lanza**: corre dentro del `catch` del route y el usuario debe seguir
-recibiendo su 5xx.
+The five public forms (volunteers, missing persons, reports, contact, data
+suppression) capture the submission into `failed_submissions` when the
+main write fails, instead of losing it. `lib/failed-submission.ts` **never
+throws**: it runs inside the route's `catch` block, and the user still
+gets their `5xx` response.
 
-Qué cubre y qué no, sin adornos: cubre que **una tabla** esté rota (deriva de
-esquema, constraint, tipo). **No** cubre que la base entera esté caída — ahí
-también falla la captura, y el log `[failed-submission] ... SE PIERDE` es la
-única señal.
+What it covers, plainly: it covers **one table** breaking (schema drift, a
+constraint, a type mismatch). It does **not** cover the whole database
+going down — the capture also fails there, and the
+`[failed-submission] ... LOST` log line is the only signal you get.
 
-Drenaje: `SELECT form, count(*) FROM failed_submissions WHERE replayed_at IS
-NULL GROUP BY form`. Reinyectar es manual a día de hoy: arregla la causa, mete
-las filas en su tabla y sella `replayed_at`. **Un buzón que nadie vacía es
-pérdida de datos con más pasos** — revísalo después de cada incidente de
-escritura.
+Draining it: `SELECT form, count(*) FROM failed_submissions WHERE
+replayed_at IS NULL GROUP BY form`. Replaying a row is a manual step today:
+fix the cause, insert the row into its real table, and set
+`replayed_at`. **A mailbox nobody empties is data loss with extra steps**
+— check this table after every write incident.
 
-`payload` contiene datos personales a propósito (es el dato que no queremos
-perder). PENDIENTE: el flujo de supresión de la Ley 1581
-(`routes/data-deletion.ts`) todavía NO mira esta tabla.
+`payload` holds personal data on purpose — it is the data you do not want
+to lose. PENDING: the Law 1581 data-suppression flow
+(`routes/data-deletion.ts`) does not check this table yet.
