@@ -2,6 +2,8 @@
 @import "leaflet/dist/leaflet.css";
 @import "../styles/shell-layout.css";
 @import "../styles/rescue-map.css";
+@import "../styles/landing-mobile.css";
+@import "../styles/mobile-polish.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
