@@ -21,7 +21,7 @@ import {
 
 const OFFER_ICONS: Record<VolunteerOfferType, typeof Users> = {
   persona: Users,
-  "donacion-especie": Package,
+  insumos: Package,
   dinero: HandCoins,
   maquinaria: Tractor,
   transporte: Truck,

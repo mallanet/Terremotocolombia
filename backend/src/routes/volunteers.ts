@@ -23,11 +23,11 @@ export const volunteersRouter = Router();
 
 // Contrato del llamado Mallanet: pregunta ramificadora `offerTypes` (cada
 // tipo abre solo sus preguntas) + datos base para todas las personas.
-// `offer` queda como detalles opcionales (especie/dinero/maquinaria/
+// `offer` queda como detalles opcionales (insumos/dinero/maquinaria/
 // transporte); las ramas persona → digital/terreno llegan en sus campos.
 export const VOLUNTEER_OFFER_TYPES = [
   "persona",
-  "donacion-especie",
+  "insumos",
   "dinero",
   "maquinaria",
   "transporte",
@@ -91,7 +91,7 @@ const createBody = z.object({
  *               availability: { type: string }
  *               offerTypes:
  *                 type: array
- *                 items: { type: string, enum: [persona, donacion-especie, dinero, maquinaria, transporte] }
+ *                 items: { type: string, enum: [persona, insumos, dinero, maquinaria, transporte] }
  *               offer: { type: string, description: "Detalles opcionales" }
  *               digitalSkills: { type: array, items: { type: string } }
  *               crisisExperience: { type: boolean }

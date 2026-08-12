@@ -14,7 +14,7 @@ import { apiSend } from "@/lib/api";
 
 export type VolunteerOfferType =
   | "persona"
-  | "donacion-especie"
+  | "insumos"
   | "dinero"
   | "maquinaria"
   | "transporte";
@@ -25,7 +25,7 @@ export interface VolunteerInput {
   zone: string; // ciudad y país actual
   availability: string;
   offerTypes: VolunteerOfferType[];
-  offer?: string; // detalles (especie/dinero/maquinaria/transporte)
+  offer?: string; // detalles (insumos/dinero/maquinaria/transporte)
   digitalSkills?: string[];
   crisisExperience?: boolean;
   fieldCity?: string;
