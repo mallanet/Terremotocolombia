@@ -37,14 +37,25 @@ interface HeroAccessCardProps {
   title: string;
   description: string;
   onClick: () => void;
+  emphasis?: "urgent" | "default";
 }
 
-function HeroAccessCard({ icon: Icon, title, description, onClick }: HeroAccessCardProps) {
+function HeroAccessCard({
+  icon: Icon,
+  title,
+  description,
+  onClick,
+  emphasis = "default",
+}: HeroAccessCardProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="e-hero__access-card"
+      className={
+        emphasis === "urgent"
+          ? "e-hero__access-card e-hero__access-card--urgent"
+          : "e-hero__access-card"
+      }
     >
       <span className="e-hero__card-icon" aria-hidden>
         <Icon strokeWidth={1.5} />
@@ -79,11 +90,20 @@ export default function HeroSection() {
           </h1>
           <p className="e-hero__subtitle">
             Mapa y directorios ciudadanos para coordinar ayuda. No somos un
-            canal oficial. En peligro llama al{" "}
-            <a href="tel:123" className="underline">123</a>.
+            canal oficial.
           </p>
+          <a href="tel:123" className="e-hero__emergency-call">
+            En peligro llama al 123
+          </a>
 
           <div className="e-hero__card-grid">
+            <HeroAccessCard
+              icon={LifeBuoy}
+              title="Necesito Ayuda"
+              description="Estoy en peligro o necesito insumos."
+              onClick={goHelp}
+              emphasis="urgent"
+            />
             <HeroAccessCard
               icon={UserSearch}
               title="Buscar personas"
@@ -95,12 +115,6 @@ export default function HeroSection() {
               title="Reportar Información"
               description="Emergencias, refugios, suministros y más."
               onClick={openEmergencyReport}
-            />
-            <HeroAccessCard
-              icon={LifeBuoy}
-              title="Necesito Ayuda"
-              description="Estoy en peligro o necesito insumos."
-              onClick={goHelp}
             />
             <HeroAccessCard
               icon={HeartHandshake}

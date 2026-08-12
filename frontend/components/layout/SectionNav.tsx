@@ -23,15 +23,15 @@ export { MobileStickyNav } from "./MobileStickyNav";
 
 // Lista PROPIA del header de escritorio, deliberadamente mas corta que
 // SECTION_LINKS (que alimenta la hoja del menu movil): aqui solo caben los
-// destinos de primer nivel. Si añades uno, añadelo tambien a SECTION_LINKS o
+// destinos de primer nivel. Si añades uno, añádelo también a SECTION_LINKS o
 // quedara fuera del menu movil.
 const DESKTOP_HEADER_LINKS = [
-  { href: "/mapa-de-rescate", label: "Mapa de rescate" },
-  { href: "#mapa", label: "Mapa de suministro" },
-  { href: "#e-directory", label: "Personas" },
-  { href: "/mascotas", label: "Mascotas" },
-  { href: "/acopio", label: "Acopio" },
-  { href: "/guia", label: "Guía" },
+  { href: "/mapa-de-rescate", label: "Rescate", title: "Mapa de rescate" },
+  { href: "#mapa", label: "Suministros", title: "Mapa de suministro" },
+  { href: "#e-directory", label: "Personas", title: "Personas" },
+  { href: "/mascotas", label: "Mascotas", title: "Mascotas" },
+  { href: "/acopio", label: "Acopio", title: "Acopio" },
+  { href: "/guia", label: "Guía", title: "Guía" },
 ] as const;
 
 function isAnchor(href: string): boolean {
@@ -179,6 +179,8 @@ export function HeroDesktopNav() {
                 <a
                   key={link.href}
                   href={href}
+                  title={link.title}
+                  aria-label={link.title}
                   aria-current={!anchor && pathname === link.href ? "page" : undefined}
                   onClick={(event) => {
                     if (!anchor || !onHome) return;

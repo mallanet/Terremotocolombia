@@ -38,9 +38,11 @@ function ChipFilterImpl({
         aria-pressed={active}
         aria-label={ariaLabel}
         className={`e-map-type-chip flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm backdrop-blur transition ${
-          active
-            ? "is-active border-transparent bg-slate-900 text-white"
-            : "border-slate-200 bg-white/90 text-slate-400 hover:text-slate-600"
+          count === 0
+            ? "border-slate-200/80 bg-white/70 text-slate-300 opacity-55"
+            : active
+              ? "is-active border-transparent bg-slate-900 text-white"
+              : "border-slate-200 bg-white/90 text-slate-400 hover:text-slate-600"
         }`}
       >
         <span
