@@ -3,9 +3,6 @@ import { HardHat, Laptop } from "lucide-react";
 import { pageMetadata } from "@/lib/metadata";
 import SubPageShell from "@/components/layout/SubPageShell";
 import VolunteerForm from "@/components/features/volunteers/VolunteerForm";
-import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
-
-const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/DR0kbPPw8TnL2FOJ09pwGH";
 
 export const metadata: Metadata = pageMetadata({
   title: "Súmate como voluntario",
@@ -70,26 +67,6 @@ export default function VoluntarioPage() {
           </p>
 
           <VolunteerForm />
-        </div>
-
-        <div className="e-card mt-8 rounded-[24px] bg-white p-6 text-center sm:p-8">
-          <WhatsAppIcon className="mx-auto mb-3 h-10 w-10 text-[#25D366]" />
-          <h2 className="mb-2 text-lg font-bold text-slate-900">
-            Únete al grupo de WhatsApp
-          </h2>
-          <p className="mx-auto mb-5 max-w-md text-sm text-slate-600 sm:text-[15px]">
-            Ahí coordinamos las tareas del día a día: avisos de acopio,
-            traslados y necesidades urgentes. Entra y preséntate.
-          </p>
-          <a
-            href={WHATSAPP_GROUP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="e-m-btn inline-flex items-center gap-2 !bg-[#25D366] !text-white"
-          >
-            <WhatsAppIcon className="h-5 w-5" aria-hidden />
-            Entrar al grupo
-          </a>
         </div>
       </section>
     </SubPageShell>
