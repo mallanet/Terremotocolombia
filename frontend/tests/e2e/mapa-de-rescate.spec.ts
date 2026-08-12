@@ -68,15 +68,13 @@ test("publica una herramienta map-first integrada y respaldada por fuentes", asy
     "Política de privacidad",
   );
   const map = await waitForMap(page);
-  await expect(map).toHaveAttribute("data-mode", "reference");
+  // La base inicial es OSM: la imagen Esri de referencia sale oscura y con
+  // nubes sobre la cordillera; como primera impresión parecía un mapa roto.
+  await expect(map).toHaveAttribute("data-mode", "map");
   await expect(map).toHaveAttribute("data-visible-aoi-count", "4");
   await expect(map).toHaveAttribute("data-before-ready", "false");
   await expect(map).toHaveAttribute("data-after-ready", "false");
-  await expect(
-    page
-      .getByText("Referencia visual · fecha de captura no verificada")
-      .first(),
-  ).toBeVisible();
+  await expect(page.locator(".e-rescue-notice")).toContainText("OpenStreetMap");
   await expect(page.getByText(/no son límites confirmados de daños/)).toBeVisible();
   await expect(page.locator('[data-testid^="rescue-aoi-"]')).toHaveCount(4);
 
@@ -90,10 +88,15 @@ test("publica una herramienta map-first integrada y respaldada por fuentes", asy
     page.getByText("Imágenes pendientes", { exact: true }),
   ).toBeVisible();
   await expect(page.getByText("SCHEDULED", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Mapa", exact: true }).click();
-  await expect(map).toHaveAttribute("data-mode", "map");
   await page.getByRole("button", { name: "Referencia", exact: true }).click();
   await expect(map).toHaveAttribute("data-mode", "reference");
+  await expect(
+    page
+      .getByText("Referencia visual · fecha de captura no verificada")
+      .first(),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Mapa", exact: true }).click();
+  await expect(map).toHaveAttribute("data-mode", "map");
 
   const mapAoiLabel = map
     .locator(".leaflet-tooltip")

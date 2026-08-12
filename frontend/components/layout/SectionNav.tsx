@@ -27,7 +27,7 @@ const MOBILE_NAV_BOTTOM = "calc(3.25rem + env(safe-area-inset-bottom))";
 // quedara fuera del menu movil.
 const DESKTOP_HEADER_LINKS = [
   { href: "/mapa-de-rescate", label: "Mapa de rescate" },
-  { href: "#mapa", label: "Mapa" },
+  { href: "#mapa", label: "Mapa de suministro" },
   { href: "#e-directory", label: "Personas" },
   { href: "/mascotas", label: "Mascotas" },
   { href: "/acopio", label: "Acopio" },
@@ -142,6 +142,12 @@ function PsychNavLink({
 
   if (!PSYCHOSOCIAL_WHATSAPP_URL) return null;
 
+  const countLabel = count !== undefined ? count.toLocaleString("es") : null;
+  const ariaLabel =
+    countLabel !== null
+      ? `Ayuda psicosocial: ${countLabel} personas se han sumado; únete al grupo de WhatsApp (se abre en pestaña nueva)`
+      : "Ayuda psicosocial: únete al grupo de WhatsApp (se abre en pestaña nueva)";
+
   const button = (
     <a
       href={PSYCHOSOCIAL_WHATSAPP_URL}
@@ -153,40 +159,28 @@ function PsychNavLink({
         onNavigate?.();
       }}
       className={className}
-      aria-label="Ayuda psicosocial: únete al grupo de WhatsApp (se abre en pestaña nueva)"
+      aria-label={ariaLabel}
     >
       <HeartHandshake aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
       Ayuda psicosocial
+      {count !== undefined ? (
+        <span
+          className={
+            variant === "desktop"
+              ? "e-nav__psych-count"
+              : "rounded-full bg-blue-600 px-2 py-0.5 text-xs font-bold text-white"
+          }
+        >
+          {countLabel}
+        </span>
+      ) : null}
     </a>
   );
 
-  const caption = (
-    <span
-      className={
-        variant === "desktop"
-          ? "e-nav__psych-caption"
-          : "mt-2 block text-center text-xs text-slate-500"
-      }
-    >
-      Se han sumado ·{" "}
-      <strong>{count !== undefined ? count.toLocaleString("es") : "…"}</strong>
-    </span>
-  );
-
   if (variant === "desktop") {
-    return (
-      <span className="e-nav__psych-wrap">
-        {button}
-        {caption}
-      </span>
-    );
+    return <span className="e-nav__psych-wrap">{button}</span>;
   }
-  return (
-    <span className="block">
-      {button}
-      {caption}
-    </span>
-  );
+  return <span className="block">{button}</span>;
 }
 
 function DonateNavLink({

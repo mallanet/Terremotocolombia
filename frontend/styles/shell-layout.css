@@ -612,7 +612,7 @@
 	color: #fff;
 }
 
-/* Botón + leyenda "Ayuda ofrecida · N" apilados en la barra desktop. */
+/* El wrap apila botón sobre la barra; el conteo va DENTRO del botón. */
 .e-nav__psych-wrap {
 	display: inline-flex;
 	flex-shrink: 0;
@@ -621,10 +621,18 @@
 	gap: 1px;
 }
 
-.e-nav__psych-caption {
-	font-size: 0.625rem;
-	line-height: 1.1;
-	white-space: nowrap;
+.e-nav__psych-count {
+	border-radius: 999px;
+	background: var(--brand-blue-light);
+	color: var(--brand-blue-dark);
+	padding: 1px 7px;
+	font-size: 0.6875rem;
+	font-weight: 800;
+	line-height: 1.2;
+}
+
+.e-nav__psych:hover .e-nav__psych-count {
+	background: #fff;
 	color: var(--brand-blue-dark);
 }
 
