@@ -37,9 +37,9 @@ export default function HelpSection() {
               <div className="e-m-hub-card__icon e-m-hub-card__icon--donate">
                 <WhatsAppIcon className="h-[22px] w-[22px]" />
               </div>
-              <h3 className="e-m-hub-card__title">Donaciones</h3>
+              <h3 className="e-m-hub-card__title">Donar por WhatsApp</h3>
               <p className="e-m-hub-card__desc">
-                Donaciones monetarias coordinadas por WhatsApp
+                Aportes monetarios coordinados por el canal de donaciones
               </p>
               <span className="e-m-hub-card__cta">Donar ahora</span>
             </a>
@@ -49,7 +49,7 @@ export default function HelpSection() {
             <div className="e-m-hub-card__icon e-m-hub-card__icon--support">
               <Heart size={22} strokeWidth={2} aria-hidden />
             </div>
-            <h3 className="e-m-hub-card__title">Donaciones</h3>
+            <h3 className="e-m-hub-card__title">Dónde donar</h3>
             <p className="e-m-hub-card__desc">
               Directorio de organizaciones para donar
             </p>

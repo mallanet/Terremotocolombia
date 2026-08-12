@@ -37,7 +37,7 @@ export default function SiteFooter() {
           <p className="e-footer__text">
             Plataforma ciudadana, gratuita y de código abierto para conectar
             reportes, recursos y equipos de respuesta durante la emergencia.
-            Iniciativa independiente y no partidista — no somos un canal oficial
+            Iniciativa independiente y no partidista. No somos un canal oficial
             de gobierno.
           </p>
         </section>
