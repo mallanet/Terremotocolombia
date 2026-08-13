@@ -29,7 +29,7 @@ export const TURNSTILE_SITE_KEY =
 const SCRIPT_SRC =
   "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
-interface TurnstileAPI {
+export interface TurnstileAPI {
   render: (
     el: HTMLElement,
     opts: {
@@ -44,6 +44,23 @@ interface TurnstileAPI {
   getResponse: (id: string) => string | undefined;
   reset: (id: string) => void;
   remove: (id: string) => void;
+}
+
+/**
+ * Turnstile invokes its success callback before it finishes updating the
+ * widget. Resetting synchronously from that callback can make Turnstile render
+ * "Nothing to reset found" inside the form. Defer the reset and ignore it when
+ * React has already replaced the widget container.
+ */
+export function scheduleTurnstileReset(
+  api: TurnstileAPI,
+  id: string,
+  isCurrent: () => boolean,
+): ReturnType<typeof setTimeout> {
+  return setTimeout(() => {
+    if (!isCurrent()) return;
+    api.reset(id);
+  }, 0);
 }
 declare global {
   interface Window {
@@ -81,6 +98,7 @@ export interface UseTurnstile {
 export function useTurnstile(): UseTurnstile {
   const elRef = useRef<HTMLDivElement | null>(null);
   const widgetId = useRef<string | null>(null);
+  const mountGeneration = useRef(0);
   const tokenRef = useRef<string>("");
   // Resolvers esperando un token mientras el challenge está pendiente.
   const waiters = useRef<((t: string) => void)[]>([]);
@@ -94,12 +112,33 @@ export function useTurnstile(): UseTurnstile {
 
   const mount = useCallback(
     (el: HTMLDivElement | null) => {
+      const generation = ++mountGeneration.current;
       elRef.current = el;
-      if (!el || !TURNSTILE_SITE_KEY) return;
+      if (!el) {
+        const currentId = widgetId.current;
+        widgetId.current = null;
+        tokenRef.current = "";
+        if (currentId && window.turnstile) {
+          try {
+            window.turnstile.remove(currentId);
+          } catch {
+            // The provider may already have removed a detached container.
+          }
+        }
+        return;
+      }
+      if (!TURNSTILE_SITE_KEY) return;
       loadScript()
         .then(() => {
-          if (!elRef.current || !window.turnstile || widgetId.current) return;
-          widgetId.current = window.turnstile.render(elRef.current, {
+          if (
+            mountGeneration.current !== generation ||
+            elRef.current !== el ||
+            !window.turnstile ||
+            widgetId.current
+          ) {
+            return;
+          }
+          widgetId.current = window.turnstile.render(el, {
             sitekey: TURNSTILE_SITE_KEY,
             appearance: "interaction-only", // invisible salvo que CF pida reto
             theme: "auto",
@@ -121,8 +160,13 @@ export function useTurnstile(): UseTurnstile {
 
   useEffect(() => {
     return () => {
+      mountGeneration.current += 1;
       if (widgetId.current && window.turnstile) {
-        window.turnstile.remove(widgetId.current);
+        try {
+          window.turnstile.remove(widgetId.current);
+        } catch {
+          // The callback ref may have already released the widget.
+        }
         widgetId.current = null;
       }
     };
@@ -134,7 +178,14 @@ export function useTurnstile(): UseTurnstile {
     if (tokenRef.current) {
       const t = tokenRef.current;
       tokenRef.current = "";
-      if (widgetId.current && window.turnstile) window.turnstile.reset(widgetId.current);
+      const currentId = widgetId.current;
+      if (currentId && window.turnstile) {
+        scheduleTurnstileReset(window.turnstile, currentId, () =>
+          Boolean(
+            widgetId.current === currentId && elRef.current?.isConnected,
+          ),
+        );
+      }
       return t;
     }
     // Challenge pendiente (o aún cargando): espera el callback, con timeout.
@@ -144,7 +195,14 @@ export function useTurnstile(): UseTurnstile {
         if (settled) return;
         settled = true;
         tokenRef.current = "";
-        if (widgetId.current && window.turnstile) window.turnstile.reset(widgetId.current);
+        const currentId = widgetId.current;
+        if (currentId && window.turnstile) {
+          scheduleTurnstileReset(window.turnstile, currentId, () =>
+            Boolean(
+              widgetId.current === currentId && elRef.current?.isConnected,
+            ),
+          );
+        }
         resolve(t);
       };
       waiters.current.push(finish);

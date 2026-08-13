@@ -10,6 +10,7 @@ export interface ReportComposerSubmit {
   volunteerCode?: string;
   needs: string;
   photo: string | null;
+  turnstileToken?: string;
 }
 
 // El formulario de reporte es un modal grande (campos + foto + cámara). Fuera del
