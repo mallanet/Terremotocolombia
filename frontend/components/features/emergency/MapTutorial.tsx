@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
-import { MAP_TOUR_STORAGE_KEY, MAP_TUTORIAL_STEPS } from "./map-tutorial-steps";
+import { MAP_TUTORIAL_STEPS } from "./map-tutorial-steps";
 
-export { MAP_TUTORIAL_STEPS, MAP_TOUR_STORAGE_KEY };
+export { MAP_TUTORIAL_STEPS };
 
 export function startMapTour(): void {
   const tour = driver({
@@ -18,29 +18,12 @@ export function startMapTour(): void {
       element: step.element,
       popover: { title: step.title, description: step.body },
     })),
-    onDestroyed: () => {
-      try {
-        localStorage.setItem(MAP_TOUR_STORAGE_KEY, "1");
-      } catch {
-        return;
-      }
-    },
   });
   tour.drive();
 }
 
 export default function MapTutorialButton() {
   const start = useCallback(() => startMapTour(), []);
-
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(MAP_TOUR_STORAGE_KEY)) return;
-    } catch {
-      return;
-    }
-    const timer = window.setTimeout(() => startMapTour(), 700);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   return (
     <button
