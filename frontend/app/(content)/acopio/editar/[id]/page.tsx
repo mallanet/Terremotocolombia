@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { pageMetadata } from "@/lib/metadata";
 import SubPageShell from "@/components/layout/SubPageShell";
 import EditCollectionCenter from "./EditCollectionCenter";
@@ -12,15 +11,16 @@ export const metadata: Metadata = pageMetadata({
 
 export default async function EditarAcopioPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ token?: string }>;
 }) {
   const { id } = await params;
+  const { token } = await searchParams;
   return (
     <SubPageShell breadcrumb="Editar punto" path={`/acopio/editar/${id}`}>
-      <Suspense fallback={<p className="e-inner">Cargando…</p>}>
-        <EditCollectionCenter reportId={id} />
-      </Suspense>
+      <EditCollectionCenter reportId={id} tokenFromUrl={token ?? ""} />
     </SubPageShell>
   );
 }
