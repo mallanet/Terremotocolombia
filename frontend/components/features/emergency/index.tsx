@@ -95,7 +95,10 @@ export default function EmergencyApp() {
   // Centros de acopio oficiales (capa verde, /api/acopio — siempre montado).
   const acopioQuery = useCollectionCenters(ACOPIO_DEFAULT_FILTERS);
   const acopioCenters = useMemo(
-    () => acopioQuery.data?.items ?? [],
+    () =>
+      (acopioQuery.data?.items ?? []).filter(
+        (center) => center.verificationLevel === "official",
+      ),
     [acopioQuery.data],
   );
   const [showAcopioOnMap, setShowAcopioOnMap] = useState(true);

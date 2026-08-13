@@ -1,72 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useAcopioDirectory } from "@/hooks/acopio-directory";
 import {
   ACOPIO_DEFAULT_FILTERS,
   isModuleDisabledError,
-  useCollectionCenters,
-  type CollectionCenter,
 } from "@/hooks/acopio";
-import { RESPONSEGRID_EMERGENCY_URL } from "@/lib/responsegrid";
-
-const CATEGORY_LABELS: Record<string, string> = {
-  food: "Alimentos",
-  water: "Agua",
-  medicines: "Medicinas",
-  medical_supplies: "Insumos médicos",
-  clothing: "Ropa",
-  shelter: "Refugio",
-  hygiene: "Higiene",
-  blankets: "Cobijas / colchonetas",
-  blood: "Sangre",
-  tools: "Herramientas de rescate",
-};
-
-function categoryLabel(key: string): string {
-  return CATEGORY_LABELS[key] ?? key;
-}
-
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  saturated: { label: "Saturado", cls: "e-m-badge e-m-badge--warning" },
-  paused: { label: "En pausa", cls: "e-m-badge e-m-badge--muted" },
-  closed: { label: "Cerrado", cls: "e-m-badge e-m-badge--danger" },
-};
+import { categoryLabel } from "./CollectionCenterCard";
+import CollectionCenterCard from "./CollectionCenterCard";
 
 const PAGE_SIZE = 24;
 const SEARCH_DEBOUNCE_MS = 300;
 const DEFAULT_COUNTRY = ACOPIO_DEFAULT_FILTERS.country ?? "";
 
-function locationLabel(center: CollectionCenter): string {
-  return [center.city, center.country].filter(Boolean).join(" · ");
-}
-
-function linkifyContact(text: string): ReactNode[] {
-  return text.split(/(\s+)/).map((token, i) => {
-    if (/^https?:\/\//i.test(token)) {
-      return (
-        <a key={i} href={token} target="_blank" rel="noopener noreferrer" className="e-m-link">
-          {token}
-        </a>
-      );
-    }
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(token)) {
-      return (
-        <a key={i} href={`mailto:${token}`} className="e-m-link">
-          {token}
-        </a>
-      );
-    }
-    return <span key={i}>{token}</span>;
-  });
-}
-
-interface FilterChipProps {
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
   active: boolean;
   onClick: () => void;
   children: ReactNode;
-}
-
-function FilterChip({ active, onClick, children }: FilterChipProps) {
+}) {
   return (
     <button
       type="button"
@@ -94,15 +49,6 @@ export default function CollectionCenters() {
     return () => clearTimeout(t);
   }, [rawQuery]);
 
-  function selectCountry(value: string) {
-    setCountry(value);
-    setShown(PAGE_SIZE);
-  }
-  function selectCategory(value: string) {
-    setCategory(value);
-    setShown(PAGE_SIZE);
-  }
-
   const filters = useMemo(
     () => ({
       country: country || undefined,
@@ -113,13 +59,11 @@ export default function CollectionCenters() {
   );
 
   const { data, isLoading, isError, error, isFetching, refetch } =
-    useCollectionCenters(filters);
+    useAcopioDirectory(filters);
   const moduleDisabled = isModuleDisabledError(error);
-
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
   const facets = data?.facets ?? { byCountry: {}, byCategory: {} };
-
   const countryChips = useMemo(
     () => Object.entries(facets.byCountry).sort((a, b) => b[1] - a[1]),
     [facets.byCountry],
@@ -128,7 +72,6 @@ export default function CollectionCenters() {
     () => Object.entries(facets.byCategory).sort((a, b) => b[1] - a[1]),
     [facets.byCategory],
   );
-
   const visible = items.slice(0, shown);
 
   function clearFilters() {
@@ -143,17 +86,24 @@ export default function CollectionCenters() {
     <section id="centros-acopio" className="e-m-section e-m-section--wash">
       <div className="e-m-section__inner">
         <header className="e-m-section__head">
-          <span className="e-m-kicker">ResponseGrid · acopio</span>
+          <span className="e-m-kicker">Mallanet · acopio</span>
           <h1 className="e-m-section__title flex flex-wrap items-center gap-2">
             Centros de acopio
             {!isLoading && (
-              <span className="e-m-eyebrow">{total} {total === 1 ? "punto" : "puntos"}</span>
+              <span className="e-m-eyebrow">
+                {total} {total === 1 ? "punto" : "puntos"}
+              </span>
             )}
           </h1>
           <hr className="e-m-section__rule" />
           <p className="e-m-rg-intro" style={{ marginTop: 16 }}>
-            Lugares verificados donde puedes llevar donaciones físicas para quienes
-            fueron afectados por el terremoto. Revisa qué reciben antes de ir.
+            Lugares oficiales y reportes ciudadanos donde puedes llevar donaciones
+            o encontrar refugio. Revisa qué reciben antes de ir.
+          </p>
+          <p style={{ marginTop: 12 }}>
+            <a href="/acopio/registrar" className="e-m-btn e-m-btn--primary inline-flex">
+              Registrar un punto
+            </a>
           </p>
         </header>
 
@@ -175,14 +125,17 @@ export default function CollectionCenters() {
           <div style={{ marginTop: 16 }}>
             <p className="e-m-filter-label">País</p>
             <div className="flex flex-wrap gap-1.5">
-              <FilterChip active={!country} onClick={() => selectCountry("")}>
+              <FilterChip active={!country} onClick={() => setCountry("")}>
                 Todos
               </FilterChip>
               {countryChips.map(([name, count]) => (
                 <FilterChip
                   key={name}
                   active={country === name}
-                  onClick={() => selectCountry(name)}
+                  onClick={() => {
+                    setCountry(name);
+                    setShown(PAGE_SIZE);
+                  }}
                 >
                   {name} ({count})
                 </FilterChip>
@@ -195,14 +148,17 @@ export default function CollectionCenters() {
           <div style={{ marginTop: 12 }}>
             <p className="e-m-filter-label">Reciben</p>
             <div className="flex flex-wrap gap-1.5">
-              <FilterChip active={!category} onClick={() => selectCategory("")}>
+              <FilterChip active={!category} onClick={() => setCategory("")}>
                 Todas
               </FilterChip>
               {categoryChips.map(([key, count]) => (
                 <FilterChip
                   key={key}
                   active={category === key}
-                  onClick={() => selectCategory(key)}
+                  onClick={() => {
+                    setCategory(key);
+                    setShown(PAGE_SIZE);
+                  }}
                 >
                   {categoryLabel(key)} ({count})
                 </FilterChip>
@@ -240,74 +196,10 @@ export default function CollectionCenters() {
           ) : (
             <>
               <ul className="e-m-card-grid">
-                {visible.map((center) => {
-                  const status = STATUS_META[center.status];
-                  return (
-                    <li key={center.id} className="e-m-center-card">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="e-m-center-card__location">
-                          {locationLabel(center) || "Ubicación no indicada"}
-                        </p>
-                        <div className="flex shrink-0 flex-wrap justify-end gap-1">
-                          <span
-                            className={
-                              center.verificationLevel === "official"
-                                ? "e-m-badge e-m-badge--official"
-                                : "e-m-badge e-m-badge--verified"
-                            }
-                          >
-                            {center.verificationLevel === "official"
-                              ? "✓ Oficial"
-                              : "✓ Verificado"}
-                          </span>
-                          {status && <span className={status.cls}>{status.label}</span>}
-                        </div>
-                      </div>
-
-                      <h3 className="e-m-center-card__title">{center.name}</h3>
-                      {center.manager && (
-                        <p className="e-m-center-card__meta">{center.manager}</p>
-                      )}
-
-                      {center.address && (
-                        <p className="e-m-center-card__body">📍 {center.address}</p>
-                      )}
-
-                      {center.schedule && (
-                        <p className="e-m-center-card__meta" style={{ marginTop: 8 }}>
-                          🕐 {center.schedule}
-                        </p>
-                      )}
-
-                      {center.accepts.length > 0 && (
-                        <div style={{ marginTop: 12 }}>
-                          <p className="e-m-filter-label">Reciben</p>
-                          <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                            {center.accepts.map((item) => (
-                              <li key={item} className="e-m-tag">
-                                {categoryLabel(item)}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {center.contact && (
-                        <p className="e-m-center-card__meta mt-3 break-words">
-                          📞 {linkifyContact(center.contact)}
-                        </p>
-                      )}
-
-                      {center.disputed && (
-                        <p className="e-m-note e-m-note--warning mt-2">
-                          ⚠️ Información en revisión.
-                        </p>
-                      )}
-                    </li>
-                  );
-                })}
+                {visible.map((center) => (
+                  <CollectionCenterCard key={center.id} center={center} />
+                ))}
               </ul>
-
               {items.length > shown && (
                 <div className="mt-6 text-center">
                   <button
@@ -325,39 +217,20 @@ export default function CollectionCenters() {
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <p className="e-m-note e-m-note--info">
-            💚 Si conoces otro punto de acopio activo, repórtalo en el mapa con el
-            marcador <strong>Centro de Acopio</strong> para que más personas puedan
-            donar.
+            💚 ¿Conoces otro punto?{" "}
+            <a href="/acopio/registrar" className="e-m-link">
+              Regístralo aquí
+            </a>{" "}
+            o en el mapa como <strong>Centro de Acopio / Refugio</strong>.
           </p>
           <p className="e-m-note e-m-note--warning">
-            ⚠️ Verifica horarios y disponibilidad antes de desplazarte. La información
-            proviene de convocatorias ciudadanas y puede cambiar.
+            ⚠️ Verifica horarios y disponibilidad antes de ir. Los reportes
+            ciudadanos pueden cambiar.
           </p>
         </div>
 
         <p className="e-m-rg-foot mt-6">
-          Datos:{" "}
-          {RESPONSEGRID_EMERGENCY_URL ? (
-            <a
-              href={RESPONSEGRID_EMERGENCY_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="e-m-link"
-            >
-              ResponseGrid
-            </a>
-          ) : (
-            "ResponseGrid"
-          )}{" "}
-          / Global Emergency ·{" "}
-          <a
-            href="https://creativecommons.org/licenses/by-sa/4.0/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="e-m-link"
-          >
-            CC BY-SA 4.0
-          </a>
+          Datos: Mallanet.org · reportes ciudadanos y centros oficiales
           {isFetching && !isLoading ? " · actualizando…" : ""}
         </p>
       </div>

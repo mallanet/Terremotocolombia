@@ -1,6 +1,7 @@
 "use client";
 
 import { apiFetch } from "@/lib/api";
+import { saveAcopioEditToken } from "@/lib/acopio-edit-store";
 import type { QueuedPayload } from "@/lib/offline-queue";
 import type { EmergencyReport } from "@/lib/types";
 
@@ -24,7 +25,11 @@ export async function postReportToServer(
   }
   if (res.ok) {
     const data = await res.json().catch(() => ({}));
-    return { status: "ok", report: data.report };
+    const report = data.report as EmergencyReport | undefined;
+    if (report?.id && typeof data.editToken === "string") {
+      saveAcopioEditToken(report.id, data.editToken);
+    }
+    return { status: "ok", report };
   }
   if (res.status === 429 || res.status === 503) return { status: "queue" };
   const data = await res.json().catch(() => ({}));

@@ -6,6 +6,7 @@ import { logDbFailure } from "@/lib/db-error";
 import { captureFailedSubmission } from "@/lib/failed-submission";
 import { badRequest, payloadTooLarge, serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/reports";
+import { issueReportEditToken } from "@/lib/report-edit-token";
 import { getVolunteerByCode } from "@/services/volunteers";
 import { publishNeedAtLocation } from "@/modules/needs";
 
@@ -85,7 +86,10 @@ export function registerReportCreate(router: Router): void {
           photo: body.photo ?? null,
           volunteerId,
         });
-        res.status(201).json({ report });
+        res.status(201).json({
+          report,
+          editToken: issueReportEditToken(report.id),
+        });
         if (body.type === "need") mirrorNeedReport(body);
       } catch (err) {
         logDbFailure("reports.create", err);

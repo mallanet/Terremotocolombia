@@ -45,7 +45,8 @@ The four current modules:
 
 `GET /api/acopio` is always mounted. It serves a static list of official
 collection centers for this earthquake, from
-`modules/acopio/infrastructure/static/`.
+`modules/acopio/infrastructure/static/`, plus citizen `shelter` reports
+from the map.
 
 When this flag is `true`, the endpoint also merges the
 [ResponseGrid](https://responsegrid.app) directory. This flag also enables
@@ -54,8 +55,8 @@ directly.
 
 **Endpoints:**
 
-- `GET /api/acopio` — always mounted. It returns the static list, plus the
-  ResponseGrid data when the flag is on.
+- `GET /api/acopio` — always mounted. Static official list, citizen
+  shelter reports, and ResponseGrid when the flag is on.
 - `POST /api/needs` and `GET /api/needs/status/{jobId}` — mounted only
   when the flag is on. `POST` returns `202 { queued: true, jobId }`; callers
   must poll the status endpoint until `completed` or `failed` before showing
