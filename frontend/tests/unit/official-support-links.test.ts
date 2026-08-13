@@ -26,6 +26,9 @@ describe("official-support-links", () => {
 
   it("telHref normaliza display a esquema tel:", () => {
     expect(telHref("123")).toBe("tel:123");
-    expect(telHref("+57 300 123 4567")).toBe("tel:+573001234567");
+    // Fixture sintético: el audit proscribe literales E.164 (+ seguido de 9+
+    // dígitos). Nacional cubre el strip de espacios; "+57 123" cubre el "+".
+    expect(telHref("300 123 4567")).toBe("tel:3001234567");
+    expect(telHref("+57 123")).toBe("tel:+57123");
   });
 });
