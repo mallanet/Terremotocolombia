@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, Heart, Home } from "lucide-react";
+import Image from "next/image";
 
 export default function TutorialSteps() {
   return (
@@ -17,7 +17,7 @@ export default function TutorialSteps() {
         <div className="e-m-hub-grid">
           <Link href="/guia" className="e-m-hub-card">
             <div className="e-m-hub-card__icon e-m-hub-card__icon--guides">
-              <BookOpen size={22} strokeWidth={2} aria-hidden />
+              <Image src="/brand/icons/icon-guias.png" alt="" width={26} height={26} unoptimized className="object-contain" />
             </div>
             <h3 className="e-m-hub-card__title">Guías rápidas</h3>
             <p className="e-m-hub-card__desc">Qué hacer en cada situación</p>
@@ -26,7 +26,7 @@ export default function TutorialSteps() {
 
           <Link href="/apoyo-disponible" className="e-m-hub-card">
             <div className="e-m-hub-card__icon e-m-hub-card__icon--support">
-              <Heart size={22} strokeWidth={2} aria-hidden />
+              <Image src="/brand/icons/icon-apoyo.png" alt="" width={26} height={26} unoptimized className="object-contain" />
             </div>
             <h3 className="e-m-hub-card__title">Apoyo</h3>
             <p className="e-m-hub-card__desc">Psicológico y Protección Civil</p>
@@ -35,7 +35,7 @@ export default function TutorialSteps() {
 
           <Link href="/acopio" className="e-m-hub-card">
             <div className="e-m-hub-card__icon e-m-hub-card__icon--shelter">
-              <Home size={22} strokeWidth={2} aria-hidden />
+              <Image src="/brand/icons/icon-acopio.png" alt="" width={26} height={26} unoptimized className="object-contain" />
             </div>
             <h3 className="e-m-hub-card__title">Centros de acopio</h3>
             <p className="e-m-hub-card__desc">Puntos activos de ayuda</p>

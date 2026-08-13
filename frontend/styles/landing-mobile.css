@@ -1,37 +1,6 @@
 @import "./map-shell.css";
 
-@media (max-width: 780px) {
-	.e-nav__psych-wrap {
-		display: inline-flex;
-	}
-
-	.e-nav__psych {
-		padding-inline: 10px;
-		min-height: 42px;
-	}
-}
-
 @media (max-width: 767px) {
-	.e-hero__card-grid {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 8px;
-	}
-
-	.e-hero__access-card {
-		min-height: 88px;
-		padding: 12px;
-		grid-template-columns: 28px minmax(0, 1fr);
-		column-gap: 8px;
-	}
-
-	.e-hero__card-title {
-		font-size: 0.82rem;
-	}
-
-	.e-hero__card-desc {
-		font-size: 11px;
-	}
-
 	.map-overlay .e-m-chip {
 		width: max-content;
 		align-self: flex-start;
