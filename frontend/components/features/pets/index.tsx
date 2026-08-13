@@ -14,7 +14,6 @@ import dynamic from "next/dynamic";
 import { useCreatePet, usePetStats } from "@/hooks/pets";
 import type { PetPayload, PetReportType } from "@/components/features/pets/types";
 import { PetsTab } from "@/components/features/missing-carousel/PetsTab";
-import { Button } from "@/components/ui/button";
 
 const PetForm = dynamic(() => import("@/components/features/pets/PetForm"), {
   ssr: false,
@@ -61,38 +60,42 @@ export default function PetsPage() {
             </p>
           </header>
 
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm font-medium text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <span aria-hidden className="size-1.5 rounded-full bg-amber-500" />
+          <div className="e-m-directory__header">
+            <div className="e-m-person-stats">
+              <span className="e-m-person-stats__item">
+                <span
+                  className="e-m-person-stats__dot e-m-person-stats__dot--missing"
+                  aria-hidden
+                />
                 {fmt(stats.data?.active ?? 0)} perdidas
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span aria-hidden className="size-1.5 rounded-full bg-primary" />
+              <span className="e-m-person-stats__item">
+                <span
+                  className="e-m-person-stats__dot e-m-person-stats__dot--found"
+                  aria-hidden
+                />
                 {fmt(stats.data?.found ?? 0)} reunidas
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button
+              <button
                 type="button"
-                size="sm"
                 onClick={() => openForm("missing")}
-                className="bg-destructive font-semibold text-white hover:bg-destructive/85"
+                className="e-m-btn e-m-btn--crisis e-m-btn--sm"
               >
                 Se me perdió
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
-                size="sm"
-                variant="outline"
                 onClick={() => openForm("found")}
+                className="e-m-btn e-m-btn--sm"
               >
                 Encontré una
-              </Button>
+              </button>
             </div>
           </div>
 
-          <div className="pt-2">
+          <div className="e-m-directory__panel">
             <PetsTab />
           </div>
         </div>

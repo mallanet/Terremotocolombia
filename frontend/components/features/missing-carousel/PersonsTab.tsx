@@ -2,6 +2,7 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { Search } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   MISSING_DEFAULT_LIST_PARAMS,
@@ -16,8 +17,6 @@ import {
 import { qk } from "@/lib/query-keys";
 import { useLowBandwidthMode } from "@/hooks/useLowBandwidthMode";
 import { Pagination } from "@/components/ui/Pagination";
-import { Badge } from "@/components/ui/badge";
-import { SearchInput } from "@/components/ui/SearchInput";
 import { SectionLoading } from "@/components/ui/SectionLoading";
 import { StaleDataNotice } from "@/components/ui/StaleDataNotice";
 import { MissingPersonCard } from "./MissingPersonCard";
@@ -158,14 +157,11 @@ export const PersonsTab = forwardRef<PersonsTabHandle>(function PersonsTab(
 
   return (
     <>
-      <div className="mb-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="font-heading text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
-            Personas
-          </h2>
-          <Badge
-            variant="destructive"
-            className="h-auto px-2.5 py-0.5 text-xs"
+      <div className="e-m-directory__intro">
+        <div className="e-m-person-head">
+          <h2 className="e-m-section__title e-m-section__title--sm">Personas</h2>
+          <span
+            className="e-m-person-head__count"
             aria-label={
               statsUnknown
                 ? "Cargando el número de personas reportadas"
@@ -173,19 +169,19 @@ export const PersonsTab = forwardRef<PersonsTabHandle>(function PersonsTab(
             }
           >
             {reportedLabel} reportadas
-          </Badge>
+          </span>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm font-medium text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="size-1.5 rounded-full bg-amber-500" />
+        <div className="e-m-person-stats">
+          <span className="e-m-person-stats__item">
+            <span className="e-m-person-stats__dot e-m-person-stats__dot--missing" aria-hidden />
             {activeLabel} desaparecidas
           </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="size-1.5 rounded-full bg-primary" />
+          <span className="e-m-person-stats__item">
+            <span className="e-m-person-stats__dot e-m-person-stats__dot--found" aria-hidden />
             {foundLabel} encontradas
           </span>
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="e-m-section__sub">
           Si reconoces a alguien, contacta a quien la reportó.
         </p>
         <StaleDataNotice staleAt={stats.data?.swStaleAt} />
@@ -193,28 +189,30 @@ export const PersonsTab = forwardRef<PersonsTabHandle>(function PersonsTab(
 
       <ZoneFilters filter={filter} onChange={setFilter} />
 
-      <div className="mb-4">
-        <SearchInput
-          id="personas-directory-search"
-          label="Buscar personas"
-          ariaLabel="Buscar personas"
-          value={query}
-          onChange={setQuery}
-          placeholder="Buscar por nombre, zona o descripción…"
-          autoComplete="off"
-        />
+      <div className="e-m-person-search">
+        <label htmlFor="personas-directory-search" className="sr-only">
+          Buscar personas
+        </label>
+        <div className="e-m-person-search__field">
+          <Search size={16} strokeWidth={2} aria-hidden />
+          <input
+            id="personas-directory-search"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar por nombre, zona o descripción…"
+            autoComplete="off"
+            enterKeyHint="search"
+          />
+        </div>
         {queryTooShort && (
-          <p className="mt-1.5 text-xs text-muted-foreground">
+          <p className="mt-1.5 text-xs text-[var(--m-gray-500)]">
             Escribe al menos {MIN_SEARCH_LEN} letras para buscar.
           </p>
         )}
       </div>
 
-      <div
-        ref={gridRef}
-        role="list"
-        className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 min-[960px]:grid-cols-3 min-[1280px]:grid-cols-4"
-      >
+      <div ref={gridRef} className="e-m-person-grid" role="list">
         {/* "Cargando" y "vacío" NO son el mismo estado. Mientras la lista viaja
             hay que enseñar el esqueleto: pintar "Aún no hay reportes" con la
             respuesta todavía en vuelo se lee como "no hay nadie reportado" y la
@@ -230,27 +228,19 @@ export const PersonsTab = forwardRef<PersonsTabHandle>(function PersonsTab(
           // rama, un error de la API se pinta como "Aún no hay reportes", que
           // afirma algo falso: alguien buscando a un familiar concluiría que su
           // reporte se perdió. Mismo patrón que PetsTab.
-          <div
-            role="listitem"
-            className="col-span-full flex min-h-48 flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-card px-4 py-8 text-center"
-          >
-            <p className="font-heading text-lg font-extrabold text-foreground">
-              No pudimos cargar las personas
-            </p>
-            <p className="max-w-[36ch] text-sm text-muted-foreground">
+          <div className="e-m-person-empty" role="listitem">
+            <p className="e-m-person-empty__title">No pudimos cargar las personas</p>
+            <p className="e-m-person-empty__desc">
               Es un problema nuestro, no tuyo: los reportes siguen guardados.
               Reintentamos solos en unos segundos.
             </p>
           </div>
         ) : people.length === 0 ? (
-          <div
-            role="listitem"
-            className="col-span-full flex min-h-48 flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-card px-4 py-8 text-center"
-          >
-            <p className="font-heading text-lg font-extrabold text-foreground">
+          <div className="e-m-person-empty" role="listitem">
+            <p className="e-m-person-empty__title">
               {isSearching ? "No encontramos coincidencias" : "Aún no hay reportes"}
             </p>
-            <p className="max-w-[36ch] text-sm text-muted-foreground">
+            <p className="e-m-person-empty__desc">
               {isSearching
                 ? "Prueba con otro nombre o zona."
                 : "Sé el primero en compartir información para localizar a alguien."}
@@ -274,7 +264,7 @@ export const PersonsTab = forwardRef<PersonsTabHandle>(function PersonsTab(
         ariaLabel="Paginación del directorio de personas"
       />
       {totalPages > 1 && (
-        <p className="mt-2 text-center text-xs text-muted-foreground">
+        <p className="mt-2 text-center text-xs text-[var(--m-gray-500)]">
           Página {page.toLocaleString("es")} de {totalPages.toLocaleString("es")}
         </p>
       )}
