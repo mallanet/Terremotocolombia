@@ -1,5 +1,3 @@
-export const MAP_TOUR_STORAGE_KEY = "tc-map-tour-v1";
-
 export const MAP_TUTORIAL_STEPS = [
   {
     element: '[data-tour="map-filters"]',
