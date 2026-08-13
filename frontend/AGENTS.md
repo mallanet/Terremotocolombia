@@ -52,3 +52,9 @@ typecheck, and build commands, see the "Useful commands" section of the root
 ## Manual notes
 
 <!-- Preserved on refresh -->
+
+- Visual source of truth remains `../docs/DESIGN.md`.
+- shadcn/ui is initialized in this package: see `components.json` and
+  `../docs/design/shadcn.md`. Prefer shadcn primitives for new forms/dialogs;
+  do not rewrite the `.e-*` shell in the same change as a feature.
+

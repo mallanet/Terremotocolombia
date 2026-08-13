@@ -1,12 +1,3 @@
-/**
- * Service de check-ins de voluntarios: evidencia de quién estuvo dónde y qué
- * dejó (caja/espacio) en un centro de acopio o punto de entrega. La credencial
- * es el CÓDIGO único del voluntario (volunteers.code) — sin login.
- *
- * La foto sigue el patrón de reportes: data-URL → R2 si está configurado,
- * base64 en DB como red de durabilidad (lib/r2 persistPhotoDataUrl).
- * Sin transacciones interactivas (invariante Workers): una sola sentencia.
- */
 import { desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { persistPhotoDataUrl } from "@/lib/r2";
@@ -16,7 +7,6 @@ const { volunteerCheckins, volunteers } = schema;
 
 const LIST_LIMIT = 500;
 
-/** Fila del panel admin. `photo` solo si es URL de CDN (nunca base64 crudo). */
 export interface VolunteerCheckinDTO {
   id: string;
   volunteerName: string;
@@ -28,15 +18,14 @@ export interface VolunteerCheckinDTO {
   createdAt: number;
 }
 
-/**
- * Crea el check-in del dueño del código. Null si el código no existe — el
- * route lo traduce a 400 (el voluntario debe poder corregir un typo).
- */
 export async function createVolunteerCheckin(input: {
   code: string;
   place: string;
   note: string;
   photo?: string | null;
+  availability?: string;
+  talent?: string;
+  area?: string;
 }): Promise<{ id: string } | null> {
   const volunteer = await getVolunteerByCode(input.code);
   if (!volunteer) return null;
@@ -46,6 +35,31 @@ export async function createVolunteerCheckin(input: {
     ({ stored } = await persistPhotoDataUrl(input.photo, "volunteer_checkins", id));
   }
   const db = await getDb();
+  const availability = input.availability?.trim();
+  const talent = input.talent?.trim();
+  const area = input.area?.trim();
+  const patch: {
+    availability?: string;
+    fieldRole?: string;
+    zone?: string;
+    updatedAt: number;
+  } = { updatedAt: Date.now() };
+  let hasStatus = false;
+  if (availability) {
+    patch.availability = availability;
+    hasStatus = true;
+  }
+  if (talent) {
+    patch.fieldRole = talent;
+    hasStatus = true;
+  }
+  if (area) {
+    patch.zone = area;
+    hasStatus = true;
+  }
+  if (hasStatus) {
+    await db.update(volunteers).set(patch).where(eq(volunteers.id, volunteer.id));
+  }
   await db.insert(volunteerCheckins).values({
     id,
     volunteerId: volunteer.id,
@@ -57,7 +71,6 @@ export async function createVolunteerCheckin(input: {
   return { id };
 }
 
-/** Lista para el panel admin, con nombre y código del voluntario resueltos. */
 export async function listVolunteerCheckins(): Promise<VolunteerCheckinDTO[]> {
   const db = await getDb();
   const rows = await db

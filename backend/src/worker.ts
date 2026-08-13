@@ -43,6 +43,11 @@ import {
   persistDeadLetter,
   type IncomingQueueBatch,
 } from "./lib/queue-consumer.js";
+import { registerWorkerRateLimiter } from "./lib/rate-limit.js";
+import {
+  isCacheablePublicJsonPath,
+  servePublicJsonCached,
+} from "./lib/json-edge-cache.js";
 
 // El servidor se crea en ambito de modulo y NO se mueve dentro de fetch():
 // hacerlo daba 500/503 intermitentes porque cada isolate levantaba el suyo y la
@@ -193,6 +198,7 @@ export default {
     // existe dentro del handler: leerlo en ambito global lanza "Disallowed
     // operation called within global scope".
     registerJobBindings(env);
+    registerWorkerRateLimiter(env.EDGE_RATE_LIMITER);
     // Fotos públicas: cache-first sobre caches.default ANTES de Express. Las
     // cache rules de zona no alcanzan a un Worker con custom domain, así que
     // el borde es este isolate (ver lib/photo-edge-cache.ts). El guard de
@@ -204,6 +210,14 @@ export default {
       if (isCacheablePhotoPath(pathname)) {
         return servePhotoCached({
           url: request.url,
+          cache: edgeCache,
+          fetchOrigin: () => nodeHandler.fetch(request, env, ctx),
+          waitUntil: (p) => ctx.waitUntil(p),
+        });
+      }
+      if (isCacheablePublicJsonPath(pathname)) {
+        return servePublicJsonCached({
+          request,
           cache: edgeCache,
           fetchOrigin: () => nodeHandler.fetch(request, env, ctx),
           waitUntil: (p) => ctx.waitUntil(p),
@@ -286,8 +300,8 @@ export default {
             failedReason: "No se pudo publicar después de varios intentos.",
           }),
         onImportDeadLetter: async (job) => {
-          const { markImportFailed } = await import("./services/patient-imports/index.js");
-          await markImportFailed(
+          const { markImportDeadLettered } = await import("./services/patient-imports/index.js");
+          await markImportDeadLettered(
             job.importId,
             `Falló el ${job.mode}: reintentos agotados (ver Auditoría, queue.dead_letter).`,
             job.mode === "apply" ? "apply" : "process",

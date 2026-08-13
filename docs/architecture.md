@@ -91,6 +91,10 @@ API, and the frontend anchors them to the backend with `mediaUrl()`.
 - Build inlines every `NEXT_PUBLIC_*` variable. A change to one of these
   variables needs a frontend rebuild and redeploy.
 - TanStack Query manages client-side cache, deduplication, and polling.
+- `ClientErrorReporter` and both Next.js error boundaries send a redacted
+  `client_error` event through the existing OpenPanel client. The event does
+  not include the error message or page path, because both can contain PII or
+  an invite token.
 - Public forms mount Cloudflare Turnstile with `useTurnstile()`, and send
   single-use tokens to the backend. With no `TURNSTILE_SECRET_KEY` set, the
   check turns off, for local development only — see the Turnstile note
@@ -166,8 +170,21 @@ require human review before any deployment.
   > mismatch, now fixed. `SECURITY.md` has the full timeline. **For new
   > code:** assume Turnstile enforces on every guarded mutation, in both
   > staging and production. A missing or invalid token gets a real `403`.
-- Polled reads use an in-process cache and an ETag, when the contract
-  allows it.
+- Polled reads use an in-process cache and an ETag, when the contract allows
+  it. On Cloudflare Workers, a strict public-path allowlist also uses
+  `caches.default`. Only anonymous `200` responses with an explicit public
+  `s-maxage` enter this edge cache. Authenticated requests and photo routes do
+  not share these JSON entries.
+- The API creates an `X-Request-Id` for every request. It returns this ID to
+  the browser and includes it in structured server logs. Routine access logs
+  use a one-percent sample. Every 5xx access log is kept. Logs contain the
+  salted IP hash and never the raw client IP.
+- Workers Logs persist console events but disable automatic invocation logs.
+  This keeps application errors while it avoids one extra log event for every
+  successful poll.
+- Neon retries only a provably read-only SQL statement. A 5xx response does
+  not prove that a write did not commit, so the driver does not repeat an
+  ambiguous write.
 - `GET /api/reports` paginates the full report set. The public map follows
   `totalPages` in bounded batches and deduplicates IDs across page boundaries,
   so it does not lose older reports once the count passes 500 records.
@@ -207,6 +224,22 @@ require human review before any deployment.
   email) and `source: "admin_api"`, and they do NOT mirror needs to
   ResponseGrid — that stays inside the POC flow. The panel
   (`admin/app/hospital-supplies`) consumes this API through its BFF.
+- **Analítica de voluntarios en `api/public/volunteer-analytics`.** Board de
+  agregados (sin PII) para ops: KPIs (voluntarios/pending/contacted + conteos
+  de tasks/assignments), buckets de intención (taxonomía congelada del canvas
+  + `other`), pipeline, geo, disponibilidad, skills digitales, altas por hora,
+  fuentes y `callouts[]`. Router a mano
+  (`public-api/routers/volunteer-analytics.router.ts`) con
+  `requireCapability("volunteer:read")` (CROSS_CUTTING; el seedAuth la liga
+  solo al rol sistema `admin`) + `cached()` SWR ~120s
+  (`vol:analytics:full` / `vol:analytics:inc:{since}`) y bypass `?refresh=1`.
+  Clasificador puro en
+  `services/volunteer-analytics/classify-intent.ts`
+  (prioridad field_role → offer_types → digital → free-text). El panel
+  (`admin/app/volunteer-analytics`) consume el BFF
+  `/api/admin/volunteer-analytics` (`Cache-Control: no-store`) con Recharts
+  y Query `staleTime` 60s. Schema `volunteers*` en Drizzle: expand-only;
+  **migrar Neon stg/prd es humano** (nunca el agente).
 
 ## Third-party integrations (`ENABLE_*` flags)
 
@@ -261,7 +294,13 @@ flowchart TB
 
 The first module is **acopio** (`modules/acopio/`, always mounted at
 `/api/acopio`). It serves a static list of the earthquake's official
-collection centers (`infrastructure/static/`). When
+collection centers (`infrastructure/static/`) and citizen map reports of
+type `shelter` (`infrastructure/reports/`). Public registration is
+`POST /api/reports` with `type=shelter` (form at `/acopio/registrar`).
+The create response includes a one-time `editToken` (HMAC, not stored).
+`PATCH /api/reports/:id` accepts that token plus Turnstile and updates
+place, coordinates, and needs. List and detail GET responses never
+include the token. When
 `ENABLE_RESPONSEGRID=true`, it also merges in the ResponseGrid directory
 (`RESPONSEGRID_API_URL` / `RESPONSEGRID_EMERGENCY_SLUG`). Adding another
 source means adding another adapter for the same port, wired in the
@@ -342,15 +381,17 @@ surface. Turnstile and rate limiting remain the real protection.
 >
 > | Surface | State on Cloudflare Workers |
 > | --- | --- |
-> | `GET /api/earthquakes` | **live sync**, by Cron Trigger (`*/5`) |
+> | `GET /api/earthquakes` | **live sync**, by Cron Trigger (`*/5`); response `{ earthquakes, sync: { fetchedAt } }` |
 > | Pending geocoding | **live**, by Cron Trigger (`2-59/5`) |
 > | `POST /api/needs` (publication) | **live**: a Cloudflare Queue, with a `queue` consumer in `src/worker.ts`. The dead-letter queue persists to `audit_log` (`queue.dead_letter`) |
 > | Source sync (people) | pending (unit U5; with no `ENABLE_*` source turned on, there is nothing to sync) |
 > | Patient import | **live**: the `terremotocolombia-imports` queue, with a consumer in the same Worker. The interactive transactions were rewritten as an idempotent state machine (a conditional per-row claim, plus a deterministic patient ID, so a retry resumes with no duplicate). CSV/XLSX files are written to storage BEFORE they are queued (128 KB per message limit). An exhausted batch stays `failed`, and its dead letter goes to `audit_log` |
 > | Hub federation | does not run (its flag is off) |
 >
-> The distributed rate limiter also falls back to its degraded mode
-> (in-memory, per isolate), because no `VALKEY_URL` exists on this path.
+> A Cloudflare Rate Limiting binding enforces a shared, per-location flood
+> ceiling before the fallback. The route middleware still applies its declared
+> limit. If Valkey is absent, the exact route limit uses a bounded per-isolate
+> map; the map expires inactive keys and has a hard size cap.
 
 - Valkey backs BullMQ and the distributed rate limiter.
 - The `migrate` service in `docker-compose.prod.yml` uses the same backend
@@ -395,7 +436,10 @@ surface. Turnstile and rate limiting remain the real protection.
   public and cheap to fetch. The startup backfill is idempotent (it runs
   only when the table is empty), so the first deploy seeds the table once.
   The public surface is `GET /api/earthquakes` (read-only, anonymous,
-  cached with an ETag).
+  cached with an ETag). It returns `{ earthquakes, sync: { fetchedAt } }`
+  where `sync.fetchedAt` is `MAX(fetched_at)` in epoch-ms, or `null`.
+  `scripts/verify-jobs.sh` judges **sync health** (`sync.fetchedAt` ≤ 20 min),
+  not the age of the latest earthquake.
 
 ## Identity layer (Family Search)
 
@@ -509,6 +553,12 @@ flowchart TB
   `@opennextjs/cloudflare`.
 - The API keeps its original Express code: `backend/src/worker.ts` wraps
   the same Express app with `httpServerHandler`, from `cloudflare:node`.
+- The same entrypoint checks `caches.default` before Express for allowlisted
+  public JSON and immutable photos. This cache is local to a Cloudflare data
+  center. It reduces repeated polls without caching authenticated responses.
+- `EDGE_RATE_LIMITER` is a Workers Rate Limiting binding. Production and
+  staging use separate namespaces, so test traffic cannot consume production
+  counters.
 - Database: **Neon Postgres** (external), through its `-pooler` endpoint.
   On Workers, the driver is Neon's HTTP driver, because a TCP socket
   belongs to the request that opened it, and a stateful pool cannot

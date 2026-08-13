@@ -3,12 +3,10 @@ import { deploymentConfig } from "@/lib/deployment-config";
 import { EMERGENCY_CONTACT_GROUPS } from "@/lib/emergency-contacts";
 
 const PRIMARY_ALERT =
-  "Réplicas activas — Mantente alejado de estructuras dañadas";
+  "Réplicas activas. Mantente alejado de estructuras dañadas";
 
 const REGION_CONTEXT = `${deploymentConfig.disasterName} · Región: ${deploymentConfig.regionLabel}`;
 
-/** Toma los primeros números de contacto de emergencia configurados
- *  (lib/emergency-contacts.ts) para el ticker rápido. */
 const EMERGENCY_LINKS = EMERGENCY_CONTACT_GROUPS.flatMap((group) =>
   group.contacts.flatMap((contact) =>
     contact.numbers.map((number) => ({

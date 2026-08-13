@@ -17,10 +17,11 @@ import type { Request, Response, NextFunction, RequestHandler } from "express";
 import type { ZodType } from "zod";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
-import { clientIp } from "@/lib/client-ip";
+import { hashIp } from "@/lib/client-ip";
 import { HttpError, tooManyRequests, badRequest, unauthorized, forbidden } from "@/lib/errors";
 import { env } from "@/config/env";
 import { timingSafeEqual } from "crypto";
+import { requestId } from "@/lib/request-context";
 
 /** Envuelve un handler async para que los throws lleguen al errorHandler. */
 export function asyncHandler(
@@ -55,7 +56,7 @@ export function setPublicPhotoHeaders(res: Response, contentType: string): void 
 /** Rate-limit por IP (cf-connecting-ip) + scope. Valkey-backed, fail-open. */
 export function rateLimit(opts: { scope: string; limit: number; windowMs?: number }): RequestHandler {
   return (req, _res, next) => {
-    checkRateLimit(`${opts.scope}:${clientIp(req)}`, { limit: opts.limit, windowMs: opts.windowMs })
+    checkRateLimit(`${opts.scope}:${hashIp(req)}`, { limit: opts.limit, windowMs: opts.windowMs })
       .then((ok) => {
         if (!ok) throw tooManyRequests("Vas muy rápido. Espera un momento e inténtalo de nuevo.");
         next();
@@ -154,7 +155,7 @@ export function validate(schemas: {
 /** Error handler central: traduce HttpError (y desconocidos) a JSON { error }. */
 export function errorHandler(
   err: unknown,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ): void {
@@ -164,6 +165,15 @@ export function errorHandler(
     return;
   }
   // No filtrar detalles internos al cliente.
-  console.error("Unhandled error:", err);
-  res.status(500).json({ error: "Error interno del servidor." });
+  console.error(
+    JSON.stringify({
+      t: "unhandled_error",
+      request_id: requestId(req),
+      error_name: err instanceof Error ? err.name : typeof err,
+    }),
+  );
+  res.status(500).json({
+    error: "Error interno del servidor.",
+    requestId: requestId(req),
+  });
 }

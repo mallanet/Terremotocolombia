@@ -31,8 +31,42 @@ redis.call('PEXPIRE', key, window)
 return 1
 `;
 
-// Fallback en-memoria (solo si Valkey no está disponible).
-const memHits = new Map<string, number[]>();
+interface WorkerRateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
+let workerRateLimiter: WorkerRateLimiter | null = null;
+
+/** Register the Cloudflare binding inside the fetch handler, where env exists. */
+export function registerWorkerRateLimiter(binding: unknown): void {
+  if (
+    typeof binding === "object" &&
+    binding !== null &&
+    "limit" in binding &&
+    typeof binding.limit === "function"
+  ) {
+    workerRateLimiter = binding as WorkerRateLimiter;
+    return;
+  }
+  workerRateLimiter = null;
+}
+
+type MemoryEntry = { hits: number[]; lastSeen: number; windowMs: number };
+const memHits = new Map<string, MemoryEntry>();
+const MAX_MEMORY_KEYS = 10_000;
+const CLEANUP_EVERY = 256;
+let callsSinceCleanup = 0;
+
+function pruneMemory(now: number): void {
+  for (const [key, entry] of memHits) {
+    if (now - entry.lastSeen >= entry.windowMs) memHits.delete(key);
+  }
+  while (memHits.size > MAX_MEMORY_KEYS) {
+    const oldest = memHits.keys().next().value;
+    if (oldest === undefined) break;
+    memHits.delete(oldest);
+  }
+}
 
 export interface RateLimitOptions {
   /** máximo de peticiones por ventana. */
@@ -55,6 +89,17 @@ export async function checkRateLimit(
   // NODE_ENV, para no relajar nada por accidente.
   if (process.env.RATE_LIMIT_DISABLED === "1") return true;
 
+  // Workers production: shared, per-Cloudflare-location flood ceiling. The
+  // route-specific limit below still enforces the declared, often lower value.
+  if (workerRateLimiter) {
+    try {
+      const result = await workerRateLimiter.limit({ key });
+      if (!result.success) return false;
+    } catch {
+      // A binding outage must not take down the API. Continue to Valkey/memory.
+    }
+  }
+
   const redis = getRedisSafe();
   if (redis) {
     try {
@@ -74,12 +119,27 @@ export async function checkRateLimit(
   }
   // Fallback degradado por-proceso.
   const now = Date.now();
-  const hits = (memHits.get(key) ?? []).filter((ts) => now - ts < windowMs);
+  callsSinceCleanup++;
+  if (callsSinceCleanup >= CLEANUP_EVERY) {
+    callsSinceCleanup = 0;
+    pruneMemory(now);
+  }
+  const previous = memHits.get(key);
+  const hits = (previous?.hits ?? []).filter((ts) => now - ts < windowMs);
+  // Reinsert to keep Map order as a low-cost LRU for the hard cap.
+  if (previous) memHits.delete(key);
   if (hits.length >= limit) {
-    memHits.set(key, hits);
+    memHits.set(key, { hits, lastSeen: now, windowMs });
     return false;
   }
   hits.push(now);
-  memHits.set(key, hits);
+  memHits.set(key, { hits, lastSeen: now, windowMs });
+  if (memHits.size > MAX_MEMORY_KEYS) pruneMemory(now);
   return true;
+}
+
+export function resetRateLimitStateForTests(): void {
+  memHits.clear();
+  workerRateLimiter = null;
+  callsSinceCleanup = 0;
 }

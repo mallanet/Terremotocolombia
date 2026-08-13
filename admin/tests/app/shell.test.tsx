@@ -82,3 +82,16 @@ describe("Shell — nav badge de señales pendientes", () => {
     expect(calls).toBe(0);
   });
 });
+
+describe("Shell — nav volunteer analytics", () => {
+  it("with volunteer:read shows Analítica de voluntarios", async () => {
+    withSession(<Shell>contenido</Shell>, ["volunteer:read"]);
+    expect(await screen.findByText("Analítica de voluntarios")).toBeInTheDocument();
+  });
+
+  it("without volunteer:read hides Analítica de voluntarios", async () => {
+    withSession(<Shell>contenido</Shell>, ["hospital:read"]);
+    expect(await screen.findByText("contenido")).toBeInTheDocument();
+    expect(screen.queryByText("Analítica de voluntarios")).not.toBeInTheDocument();
+  });
+});

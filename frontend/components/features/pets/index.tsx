@@ -14,6 +14,7 @@ import dynamic from "next/dynamic";
 import { useCreatePet, usePetStats } from "@/hooks/pets";
 import type { PetPayload, PetReportType } from "@/components/features/pets/types";
 import { PetsTab } from "@/components/features/missing-carousel/PetsTab";
+import { Button } from "@/components/ui/button";
 
 const PetForm = dynamic(() => import("@/components/features/pets/PetForm"), {
   ssr: false,
@@ -54,48 +55,44 @@ export default function PetsPage() {
             <h1 className="e-m-section__title">Mascotas perdidas</h1>
             <hr className="e-m-section__rule" />
             <p className="e-m-section__sub">
-              Un terremoto tambien separa a la gente de sus animales. Publica una
+              Un terremoto también separa a la gente de sus animales. Publica una
               mascota perdida o reporta una que encontraste para que pueda volver
               a casa.
             </p>
           </header>
 
-          <div className="e-m-directory__header">
-            <div className="e-m-person-stats">
-              <span className="e-m-person-stats__item">
-                <span
-                  className="e-m-person-stats__dot e-m-person-stats__dot--missing"
-                  aria-hidden
-                />
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm font-medium text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span aria-hidden className="size-1.5 rounded-full bg-amber-500" />
                 {fmt(stats.data?.active ?? 0)} perdidas
               </span>
-              <span className="e-m-person-stats__item">
-                <span
-                  className="e-m-person-stats__dot e-m-person-stats__dot--found"
-                  aria-hidden
-                />
+              <span className="inline-flex items-center gap-1.5">
+                <span aria-hidden className="size-1.5 rounded-full bg-primary" />
                 {fmt(stats.data?.found ?? 0)} reunidas
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
+              <Button
                 type="button"
+                size="sm"
                 onClick={() => openForm("missing")}
-                className="e-m-btn e-m-btn--crisis e-m-btn--sm"
+                className="bg-destructive font-semibold text-white hover:bg-destructive/85"
               >
-                Se me perdio
-              </button>
-              <button
+                Se me perdió
+              </Button>
+              <Button
                 type="button"
+                size="sm"
+                variant="outline"
                 onClick={() => openForm("found")}
-                className="e-m-btn e-m-btn--sm"
               >
-                Encontre una
-              </button>
+                Encontré una
+              </Button>
             </div>
           </div>
 
-          <div className="e-m-directory__panel">
+          <div className="pt-2">
             <PetsTab />
           </div>
         </div>

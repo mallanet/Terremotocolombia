@@ -1,0 +1,82 @@
+/* Mobile polish: denser bar, readable prose, less "vibe coded" chrome */
+
+.e-nav__mobile-bar--polish {
+	border-top-color: color-mix(in srgb, var(--eborder) 80%, transparent);
+	background-color: color-mix(in srgb, var(--esurf, #fff) 92%, transparent);
+}
+
+.e-nav__mobile-bar--polish .e-nav__mobile-bar-item {
+	min-height: 3.4rem;
+	gap: 3px;
+	font-size: 10px;
+	letter-spacing: 0.01em;
+	color: var(--etext2);
+	transition: color 120ms ease, background-color 120ms ease;
+}
+
+.e-nav__mobile-bar--polish .e-nav__mobile-bar-item--active {
+	color: var(--eblue, #4080f2);
+}
+
+.e-nav__mobile-bar--polish .e-nav__mobile-bar-icon {
+	display: grid;
+	place-items: center;
+	width: 1.5rem;
+	height: 1.5rem;
+	color: inherit;
+}
+
+.e-nav__mobile-bar--polish .e-nav__mobile-badge {
+	right: -0.55rem;
+	top: -0.35rem;
+	background-color: #ce1126;
+	border: 1.5px solid var(--esurf, #fff);
+}
+
+@media (max-width: 767px) {
+	.e-subpage__breadcrumb-bar {
+		padding-inline: 1rem;
+		padding-block: 0.75rem 0.25rem;
+	}
+
+	.e-subpage__content.e-prose-mobile,
+	.e-prose-mobile {
+		font-size: 1rem;
+		line-height: 1.55;
+	}
+
+	.e-prose-mobile h1,
+	.e-subpage__content h1 {
+		font-family: var(--font-heading, Sora, system-ui, sans-serif);
+		font-size: clamp(1.45rem, 5vw, 1.85rem);
+		line-height: 1.2;
+		letter-spacing: -0.02em;
+	}
+
+	.e-prose-mobile h2,
+	.e-subpage__content h2 {
+		font-family: var(--font-heading, Sora, system-ui, sans-serif);
+		font-size: 1.2rem;
+		margin-top: 1.5rem;
+	}
+
+	.e-prose-mobile p,
+	.e-subpage__content p {
+		max-width: 42rem;
+	}
+
+	.e-prose-mobile a,
+	.e-subpage__content a {
+		text-underline-offset: 2px;
+	}
+
+	/* Cards & lists feel less cramped on phones */
+	.e-subpage__content .rounded-xl,
+	.e-subpage__content .rounded-2xl {
+		border-radius: 1rem;
+	}
+
+	body.has-mobile-nav {
+		padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
+	}
+}

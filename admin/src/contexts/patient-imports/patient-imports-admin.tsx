@@ -88,11 +88,13 @@ export function PatientImportsAdmin() {
       setImportId(created.id);
       setFile(null);
       setApplyEnFlight(false);
+      setRetryEnFlight(false);
     },
   });
 
   // Declarado ANTES del useQuery: refetchInterval cierra sobre esta variable.
   const [applyEnFlight, setApplyEnFlight] = useState(false);
+  const [retryEnFlight, setRetryEnFlight] = useState(false);
 
   const summary = useQuery({
     queryKey: ["patient-import", importId],
@@ -102,12 +104,12 @@ export function PatientImportsAdmin() {
       ),
     enabled: Boolean(importId),
     refetchInterval: ({ state }) => {
-      const status =
-        (state.data as { import?: ImportSummary } | undefined)?.import?.status ?? "";
+      const status = (state.data as { import?: ImportSummary } | undefined)?.import?.status ?? "";
       if (["pending", "queued", "processing", "applying"].includes(status)) return 2_000;
       // Ventana post-apply: seguir sondeando "processed" hasta que el
       // consumidor de la cola lo mueva a applied/failed.
       if (applyEnFlight && status !== "applied" && status !== "failed") return 2_000;
+      if (retryEnFlight && status !== "processed" && status !== "failed") return 2_000;
       return false;
     },
   });
@@ -123,6 +125,17 @@ export function PatientImportsAdmin() {
       }),
     onSuccess: () => {
       setApplyEnFlight(true);
+      void summary.refetch();
+    },
+  });
+
+  const retry = useMutation({
+    mutationFn: () =>
+      requestJson(`/api/admin/patient-imports/${encodeURIComponent(importId)}/retry`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      setRetryEnFlight(true);
       void summary.refetch();
     },
   });
@@ -165,7 +178,8 @@ export function PatientImportsAdmin() {
   }
 
   const current = summary.data?.import;
-  const error = create.error ?? summary.error ?? apply.error;
+  const error = create.error ?? summary.error ?? retry.error ?? apply.error;
+  const canRetry = current && current.status === "failed" && current.failedStage === "process";
   const canApply =
     current &&
     (current.status === "processed" ||
@@ -195,7 +209,11 @@ export function PatientImportsAdmin() {
           </Button>
         </div>
 
-        <Input label="Fuente (opcional)" value={source} onChange={(event) => setSource(event.target.value)} />
+        <Input
+          label="Fuente (opcional)"
+          value={source}
+          onChange={(event) => setSource(event.target.value)}
+        />
 
         <label className="text-sm font-medium">
           Hospital destino
@@ -217,8 +235,8 @@ export function PatientImportsAdmin() {
               ))}
           </select>
           <span className="mt-1 block text-xs text-gray-500">
-            Todos los pacientes de este archivo se asignan a este hospital (no hace
-            falta columna de hospital en el CSV).
+            Todos los pacientes de este archivo se asignan a este hospital (no hace falta columna de
+            hospital en el CSV).
           </span>
           {hospitals.isError && (
             <span className="mt-1 block text-xs text-red-600">
@@ -260,6 +278,7 @@ export function PatientImportsAdmin() {
         onChange={(event) => {
           setImportId(event.target.value);
           setApplyEnFlight(false);
+          setRetryEnFlight(false);
         }}
       />
 
@@ -277,6 +296,11 @@ export function PatientImportsAdmin() {
             ))}
           </dl>
           {current.errorSummary && <p className="text-sm text-red-600">{current.errorSummary}</p>}
+          {canRetry && (
+            <Button type="button" disabled={retry.isPending} onClick={() => retry.mutate()}>
+              {retry.isPending ? "Reintentando…" : "Reintentar procesamiento"}
+            </Button>
+          )}
           {canApply && (
             <Button type="button" disabled={apply.isPending} onClick={() => apply.mutate()}>
               {apply.isPending ? "Aplicando…" : "Aplicar filas válidas"}

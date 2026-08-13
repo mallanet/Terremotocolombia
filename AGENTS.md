@@ -316,10 +316,16 @@ The backend has TWO HTTP surfaces, and each one follows its own pattern:
   hospital auth) before you write a new helper.
 - Public or polled GET routes should use `cached()` and/or
   `jsonWithEtag()`, when the contract allows it.
+- A public GET can enter the Worker JSON edge cache only when its path is in
+  `lib/json-edge-cache.ts` and its response has an explicit public `s-maxage`.
+  Never add an authenticated or user-specific response to that allowlist.
 - Never use `*` in CORS. Set `CORS_ORIGINS` to the allowed frontend
   origins.
 - When you persist or compare an IP address, use `clientIp()` and
   `hashIp()`. Never store a raw IP.
+- Structured application logs use `request_id` and `ip_hash`. Never add a raw
+  IP, request body, query value, contact value, or error message that can carry
+  PII. Keep every 5xx, and sample routine access logs.
 - With no `TURNSTILE_SECRET_KEY`, `requireHuman` turns off, for local
   development. In production, that variable must be set — and today it
   is.
@@ -424,6 +430,8 @@ capability-based seam instead (plan `docs/plans/2026-08-10-002-…`, status in
 3. **Dead letters**: the DLQ's consumer persists each one to `audit_log`
    (`queue.dead_letter`), and acknowledges unconditionally. With no
    consumer on a DLQ, an exhausted message is LOST after 4 days.
+   A patient-import DLQ transition must preserve the processor's original
+   `error_summary`; do not replace it with the generic retry-exhausted text.
 4. **Queues**: run `wrangler queues create <name>` for both production and
    staging, before the first deploy that uses the config.
 5. **Verification**: `scripts/verify-jobs.sh [staging|production]` (checks

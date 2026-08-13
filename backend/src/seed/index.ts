@@ -83,6 +83,7 @@ async function main(): Promise<void> {
   await db.insert(schema.missingPersons).values(data.missing).onConflictDoNothing();
   await db.insert(schema.donations).values(data.donations).onConflictDoNothing();
   await db.insert(schema.chatMessages).values(data.chat).onConflictDoNothing();
+  await db.insert(schema.volunteers).values(data.volunteers).onConflictDoNothing();
 
   console.log(
     "[seed] listo:",
@@ -95,6 +96,7 @@ async function main(): Promise<void> {
       missing: data.missing.length,
       donations: data.donations.length,
       chat: data.chat.length,
+      volunteers: data.volunteers.length,
     }),
   );
 }

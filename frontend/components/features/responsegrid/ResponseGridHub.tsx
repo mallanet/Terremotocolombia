@@ -7,9 +7,9 @@ import {
   ACOPIO_DEFAULT_FILTERS,
   deriveAcopioOperationalSummary,
   isModuleDisabledError,
-  useCollectionCenters,
   type CollectionCenter,
 } from "@/hooks/acopio";
+import { useAcopioDirectory } from "@/hooks/acopio-directory";
 import {
   RESPONSEGRID_DONATE_URL,
   RESPONSEGRID_DONATE_WHATSAPP_URL,
@@ -55,7 +55,7 @@ const ALL_ACTION_CARDS = [
   {
     icon: Building2,
     title: "Registrar un punto",
-    href: RESPONSEGRID_REGISTER_POINT_URL,
+    href: RESPONSEGRID_REGISTER_POINT_URL || "/acopio/registrar",
     external: true,
     desc: "Acopio, almacén o espacio",
   },
@@ -85,7 +85,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
 export default function ResponseGridHub() {
   const hubFilters = ACOPIO_DEFAULT_FILTERS;
   const { data, isLoading, isError, error, refetch } =
-    useCollectionCenters(hubFilters);
+    useAcopioDirectory(hubFilters);
   const [highlight, setHighlight] = useState<CollectionCenter | null>(null);
 
   const items = useMemo(() => data?.items ?? [], [data?.items]);
@@ -134,30 +134,13 @@ export default function ResponseGridHub() {
                 <hr className="e-m-section__rule" />
               </div>
               <p className="e-m-rg-intro">
-                Esta es la página oficial de {deploymentConfig.disasterName}
-                {RESPONSEGRID_EMERGENCY_URL ? (
-                  <>
-                    {" "}
-                    en{" "}
-                    <a
-                      href={RESPONSEGRID_EMERGENCY_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="e-m-link"
-                    >
-                      ResponseGrid
-                    </a>
-                  </>
-                ) : null}
-                . Aquí encuentras los puntos de acopio verificados, las
-                necesidades de material validadas por coordinación y qué{" "}
-                <strong>no</strong> llevar, actualizado en tiempo real. Confirma
-                por teléfono antes de ir y evita desplazamientos que saturan la
-                logística.
+                Esta es la página de {deploymentConfig.disasterName} de{" "}
+                {deploymentConfig.orgName}. Aquí encuentras los puntos de acopio
+                oficiales y los reportes ciudadanos. Confirma por teléfono antes
+                de ir.
               </p>
               <p className="e-m-rg-meta">
-                Información coordinada y verificada · proyecto open source de
-                Global Emergency
+                Información coordinada por {deploymentConfig.orgName}
               </p>
             </div>
 
@@ -213,8 +196,9 @@ export default function ResponseGridHub() {
                   <li key={card.title} className="flex">
                     <a
                       href={card.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      {...(card.href.startsWith("http")
+                        ? { target: "_blank", rel: "noopener noreferrer" }
+                        : {})}
                       className="e-m-action-card"
                     >
                       <card.icon

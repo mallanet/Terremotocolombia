@@ -1,0 +1,42 @@
+# Local stack: staging secrets via Doppler; DB = Neon branch off production.
+#   export LOCAL_DATABASE_URL=$(neonctl connection-string br-ancient-sky-axkldszg --project-id cool-sea-70146941 --org-id org-wandering-hill-20323267 --database-name neondb --role-name neondb_owner --pooled)
+#   doppler run --project terremotocolombia-web --config stg -- docker compose -f docker-compose.yml -f docker-compose.staging.yml up --build -d
+# Without LOCAL_DATABASE_URL the backend falls back to the Doppler stg DATABASE_URL.
+# Writes land on the Neon branch (isolated copy of prod), never on production.
+# migrate-seed keeps its own hardcoded local DATABASE_URL: migrations never leave the throwaway db.
+services:
+  backend:
+    environment:
+      DATABASE_URL: ${LOCAL_DATABASE_URL:-${DATABASE_URL:?run via doppler --config stg}}
+      JWT_SECRET: ${JWT_SECRET:?run via doppler --config stg}
+      IP_SALT: ${IP_SALT:-localdev-salt}
+      PATIENT_DOCUMENT_HASH_SECRET: ${PATIENT_DOCUMENT_HASH_SECRET:-local-dev-patient-document-hash-secret-0123456789}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      CRON_SECRET: ${CRON_SECRET:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      R2_ENDPOINT: ${R2_ENDPOINT:-}
+      R2_STATIC_BUCKET: ${R2_STATIC_BUCKET:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_PUBLIC_BASE: ${R2_PUBLIC_BASE:-}
+      R2_KEY_PREFIX: ""
+      CLOUDFLARE_ACCESS_KEY_ID: ${CLOUDFLARE_ACCESS_KEY_ID:-}
+      CLOUDFLARE_SECRET_ACCESS_KEY: ${CLOUDFLARE_SECRET_ACCESS_KEY:-}
+      CLOUDFLARE_ACCOUNT_API_TOKEN: ${CLOUDFLARE_ACCOUNT_API_TOKEN:-}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      CLOUDFLARE_API_TOKEN_COLOMBIA_SCOPED: ${CLOUDFLARE_API_TOKEN_COLOMBIA_SCOPED:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      EARTHQUAKES_MIN_LAT: ${EARTHQUAKES_MIN_LAT:-}
+      EARTHQUAKES_MAX_LAT: ${EARTHQUAKES_MAX_LAT:-}
+      EARTHQUAKES_MIN_LNG: ${EARTHQUAKES_MIN_LNG:-}
+      EARTHQUAKES_MAX_LNG: ${EARTHQUAKES_MAX_LNG:-}
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
+        NEXT_PUBLIC_WHATSAPP_GROUP_URL: ${NEXT_PUBLIC_WHATSAPP_GROUP_URL:-}

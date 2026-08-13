@@ -3,9 +3,10 @@ import localFont from "next/font/local";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 import PwaRegister from "@/components/layout/PwaRegister";
-import PsychosocialSticky from "@/components/layout/PsychosocialSticky";
+import CornerActions from "@/components/layout/CornerActions";
 import PrivacyConsentGate from "@/components/layout/PrivacyConsentGate";
 import OpenPanelProduction from "@/components/layout/OpenPanelProduction";
+import ClientErrorReporter from "@/components/layout/ClientErrorReporter";
 import ThemeProvider from "@/components/layout/ThemeProvider";
 import QueryProvider from "@/components/layout/QueryProvider";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -18,7 +19,6 @@ import {
 import { SITE_URL, SITE_NAME, SITE_PRODUCT_NAME, SITE_BRAND_NAME } from "@/lib/site";
 import { deploymentConfig } from "@/lib/deployment-config";
 import { ogImageMeta } from "@/lib/og-image";
-
 // Tipografías AUTO-ALOJADAS (ver app/fonts/README.md).
 //
 // Antes esto era `next/font/google`, que descarga los .woff2 desde Google en
@@ -211,12 +211,13 @@ export default function RootLayout({
         {OPENPANEL_CLIENT_ID && (
           <OpenPanelProduction clientId={OPENPANEL_CLIENT_ID} />
         )}
+        <ClientErrorReporter />
 
         <QueryProvider>
           <PrivacyConsentGate>{children}</PrivacyConsentGate>
         </QueryProvider>
         <PwaRegister />
-        <PsychosocialSticky />
+        <CornerActions />
         <JsonLd data={jsonLd} />
       </body>
       {GA_MEASUREMENT_ID && <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />}

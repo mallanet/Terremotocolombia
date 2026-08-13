@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": ".open-next/assets",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
   },
   // El dominio propio (admin.terremotocolombia.co) se adjunta por la API de
   // cuenta (/accounts/{id}/workers/domains), IGUAL que web y api.
@@ -16,12 +16,13 @@
   // permiso, y el fallo aborta el deploy DESPUÉS de subir el código y ANTES de
   // promover la versión (el Worker se queda sirviendo la build anterior).
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": false },
   },
   // El BFF solo necesita saber dónde vive la API; no hay secretos de runtime
   // (la sesión es el JWT del backend en cookie httpOnly, firmado por la API).
   "vars": {
-    "EMERGENCY_API_URL": "https://api.terremotocolombia.co"
+    "EMERGENCY_API_URL": "https://api.terremotocolombia.co",
   },
   // Staging: Worker aparte, dominio aparte (admin-staging), API de staging.
   // Mismo fichero a propósito — ver frontend/wrangler.jsonc.
@@ -32,14 +33,15 @@
       "compatibility_flags": ["nodejs_compat"],
       "assets": {
         "directory": ".open-next/assets",
-        "binding": "ASSETS"
+        "binding": "ASSETS",
       },
       "observability": {
-        "enabled": true
+        "enabled": true,
+        "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": false },
       },
       "vars": {
-        "EMERGENCY_API_URL": "https://api-staging.terremotocolombia.co"
-      }
-    }
-  }
+        "EMERGENCY_API_URL": "https://api-staging.terremotocolombia.co",
+      },
+    },
+  },
 }

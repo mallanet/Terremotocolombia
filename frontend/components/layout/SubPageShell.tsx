@@ -10,6 +10,14 @@ import {
   type BreadcrumbItem,
   type JsonLdNode,
 } from "@/lib/jsonld";
+import {
+  Breadcrumb,
+  BreadcrumbItem as UiBreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 // Re-export type used by pages that pass custom crumb trails.
 export type { BreadcrumbItem };
@@ -62,25 +70,42 @@ export default function SubPageShell({
     );
   }
   nodes.push(...extraSchema);
+  const lastIndex = crumbItems.length - 1;
+
   return (
     <>
       <JsonLd data={graph(...nodes)} />
       <HeroDesktopNav />
       <main id="main" className="e-subpage">
         <div className="e-subpage__breadcrumb-bar">
-          <nav
-            aria-label="Migas de pan"
-            className="e-subpage__breadcrumb"
-          >
-            <Link href="/">← Inicio</Link>
-            <span aria-hidden>/</span>
-            <span aria-current="page" className="truncate">
-              {breadcrumb}
-            </span>
-          </nav>
+          <Breadcrumb>
+            <BreadcrumbList className="e-subpage__breadcrumb flex-nowrap text-sm">
+              {crumbItems.map((item, index) => {
+                const isLast = index === lastIndex;
+                return (
+                  <span key={`${item.name}-${index}`} className="contents">
+                    {index > 0 ? <BreadcrumbSeparator /> : null}
+                    <UiBreadcrumbItem className="min-w-0">
+                      {isLast || !item.path ? (
+                        <BreadcrumbPage className="truncate font-medium">
+                          {item.name}
+                        </BreadcrumbPage>
+                      ) : (
+                        <BreadcrumbLink asChild>
+                          <Link href={item.path} className="truncate">
+                            {item.name}
+                          </Link>
+                        </BreadcrumbLink>
+                      )}
+                    </UiBreadcrumbItem>
+                  </span>
+                );
+              })}
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
 
-        <div className="e-subpage__content">{children}</div>
+        <div className="e-subpage__content e-prose-mobile">{children}</div>
       </main>
 
       <SiteFooter />

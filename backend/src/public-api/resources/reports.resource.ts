@@ -1,23 +1,8 @@
-/**
- * Recurso `api/public/reports` — CONFIG declarativa sobre la fábrica CRUD.
- * Este es el PRECEDENTE limpio que el resto de modelos replican: aquí no hay
- * boilerplate de routing/middleware, solo capacidad + esquemas + qué función del
- * service respalda cada verbo. La fábrica pone rate-limit, requireCapability,
- * validación y auditoría.
- */
 import { z } from "zod";
 import { createCrudRouter, type CrudResource } from "@/public-api/crud-factory";
 import * as service from "@/services/reports";
 
-const reportType = z.enum([
-  "critical",
-  "supplies",
-  "shelter",
-  "nopower",
-  "missing",
-  "building",
-  "starlink",
-]);
+const reportType = z.enum(service.REPORT_TYPE_KEYS);
 
 const createSchema = z.object({
   type: reportType,
@@ -39,8 +24,6 @@ const updateSchema = z
   })
   .refine((o) => Object.keys(o).length > 0, "Envía al menos un campo a actualizar.");
 
-// DTO de SALIDA (lo que devuelve el service: ReportDTO). Solo para documentar la
-// forma del retorno en /api/docs.
 const responseSchema = z.object({
   id: z.string(),
   type: reportType,
@@ -73,7 +56,7 @@ export const reportsResource: CrudResource<
         place: input.place,
         affected: input.affected,
         needs: input.needs,
-        photo: null, // las integraciones no suben base64 por este endpoint
+        photo: null,
       }),
     update: (id, input) => service.updateReport(id, input),
     remove: (id) => service.removeReport(id),

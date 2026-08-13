@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Heart, Users } from "lucide-react";
+import Image from "next/image";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { RESPONSEGRID_DONATE_WHATSAPP_URL } from "@/lib/responsegrid";
 
@@ -18,13 +18,24 @@ export default function HelpSection() {
         <div className="e-m-hub-grid">
           <Link href="/voluntario" className="e-m-hub-card">
             <div className="e-m-hub-card__icon e-m-hub-card__icon--shelter">
-              <Users size={22} strokeWidth={2} aria-hidden />
+              <Image src="/brand/icons/icon-voluntario.png" alt="" width={26} height={26} unoptimized className="object-contain" />
             </div>
             <h3 className="e-m-hub-card__title">Voluntario</h3>
             <p className="e-m-hub-card__desc">
               Rescate, logística o asistencia médica
             </p>
             <span className="e-m-hub-card__cta">Inscribirme</span>
+          </Link>
+
+          <Link href="/checkin" className="e-m-hub-card">
+            <div className="e-m-hub-card__icon e-m-hub-card__icon--shelter">
+              <Image src="/brand/icons/icon-ubicacion.png" alt="" width={26} height={26} unoptimized className="object-contain" />
+            </div>
+            <h3 className="e-m-hub-card__title">Ya soy voluntario</h3>
+            <p className="e-m-hub-card__desc">
+              Ubicación, disponibilidad, talento, área y reporte
+            </p>
+            <span className="e-m-hub-card__cta">Actualizar</span>
           </Link>
 
           {RESPONSEGRID_DONATE_WHATSAPP_URL && (
@@ -37,9 +48,9 @@ export default function HelpSection() {
               <div className="e-m-hub-card__icon e-m-hub-card__icon--donate">
                 <WhatsAppIcon className="h-[22px] w-[22px]" />
               </div>
-              <h3 className="e-m-hub-card__title">Donaciones</h3>
+              <h3 className="e-m-hub-card__title">Donar por WhatsApp</h3>
               <p className="e-m-hub-card__desc">
-                Donaciones monetarias coordinadas por WhatsApp
+                Aportes monetarios coordinados por el canal de donaciones
               </p>
               <span className="e-m-hub-card__cta">Donar ahora</span>
             </a>
@@ -47,9 +58,9 @@ export default function HelpSection() {
 
           <Link href="/donaciones" className="e-m-hub-card">
             <div className="e-m-hub-card__icon e-m-hub-card__icon--support">
-              <Heart size={22} strokeWidth={2} aria-hidden />
+              <Image src="/brand/icons/icon-corazon.png" alt="" width={26} height={26} unoptimized className="object-contain" />
             </div>
-            <h3 className="e-m-hub-card__title">Donaciones</h3>
+            <h3 className="e-m-hub-card__title">Dónde donar</h3>
             <p className="e-m-hub-card__desc">
               Directorio de organizaciones para donar
             </p>

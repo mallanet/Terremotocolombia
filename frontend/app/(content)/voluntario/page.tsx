@@ -58,14 +58,6 @@ export default function VoluntarioPage() {
         </div>
 
         <div className="e-card rounded-[24px] bg-white p-6 sm:p-10">
-          <h2 className="mb-2 text-lg font-bold text-slate-900">
-            Formulario de registro
-          </h2>
-          <p className="mb-8 text-sm text-slate-600 sm:text-[15px]">
-            El equipo de coordinación se pondrá en contacto contigo en las
-            próximas horas.
-          </p>
-
           <VolunteerForm />
         </div>
       </section>

@@ -6,11 +6,15 @@ import { useCheckinSubmit } from "@/hooks/checkin";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { usePrivacyConsent } from "@/components/layout/PrivacyConsentGate";
+import { CheckinStatusFields } from "./CheckinStatusFields";
 
 export default function CheckinForm() {
   const { ensureConsent } = usePrivacyConsent();
   const [code, setCode] = useState("");
   const [place, setPlace] = useState("");
+  const [availability, setAvailability] = useState("");
+  const [talent, setTalent] = useState("");
+  const [area, setArea] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -41,6 +45,9 @@ export default function CheckinForm() {
       await mutation.mutateAsync({
         code: code.trim(),
         place: place.trim(),
+        availability,
+        talent,
+        area: area.trim(),
         note: note.trim() || undefined,
         photo,
         turnstileToken: await turnstileGetToken(),
@@ -60,8 +67,8 @@ export default function CheckinForm() {
       <div className="e-m-alert-success text-center" role="status">
         <span className="block text-lg font-bold">Check-in registrado</span>
         <span className="mt-1 block">
-          Gracias: tu actividad quedó guardada con tu código. El equipo de
-          coordinación ya puede verla en el panel.
+          Gracias: tu ubicación, disponibilidad, talento y área quedaron
+          actualizados. El reporte quedó ligado a tu código.
         </span>
       </div>
     );
@@ -92,23 +99,32 @@ export default function CheckinForm() {
 
       <div>
         <label htmlFor="checkin-place" className="mb-2 block text-sm font-semibold text-slate-900">
-          Lugar
+          Ubicación ahora
         </label>
         <input
           id="checkin-place"
           type="text"
           value={place}
           onChange={(e) => setPlace(e.target.value)}
-          placeholder="Centro de acopio, refugio o punto de entrega"
+          placeholder="Centro de acopio, refugio, barrio o punto de entrega"
           maxLength={200}
           className="e-input w-full"
           required
         />
       </div>
 
+      <CheckinStatusFields
+        availability={availability}
+        talent={talent}
+        area={area}
+        onAvailability={setAvailability}
+        onTalent={setTalent}
+        onArea={setArea}
+      />
+
       <div>
         <label htmlFor="checkin-note" className="mb-2 block text-sm font-semibold text-slate-900">
-          ¿Qué dejaste o recogiste? (opcional)
+          Reporte (opcional)
         </label>
         <textarea
           id="checkin-note"
@@ -116,7 +132,7 @@ export default function CheckinForm() {
           onChange={(e) => setNote(e.target.value)}
           rows={3}
           maxLength={1000}
-          placeholder="Ej.: dejé la caja 12 con agua en el estante B"
+          placeholder="Qué viste o hiciste: cajas dejadas, personas, bloqueo, necesidad urgente…"
           className="e-input w-full resize-none"
         />
       </div>
@@ -183,7 +199,7 @@ export default function CheckinForm() {
         disabled={mutation.isPending || processingPhoto}
         className="e-m-btn e-m-btn--crisis e-m-btn--block disabled:opacity-60"
       >
-        {mutation.isPending ? "Registrando…" : "Registrar check-in"}
+        {mutation.isPending ? "Enviando…" : "Enviar"}
       </button>
     </form>
   );

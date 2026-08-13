@@ -107,7 +107,11 @@ gofundme\.com/
 buy\.stripe\.com/[A-Za-z0-9]
 paypal\.com/ncp/payment/
 wa\.me/[A-Za-z0-9]+
-chat\.whatsapp\.com
+# (retirado) chat\.whatsapp\.com
+#   chat.whatsapp.com/… es el enlace publico de comunidad de Mallanet,
+#   el operador de este despliegue (communityWhatsappUrl en
+#   config/deployment.config.json). Se anuncia a proposito en llms.txt,
+#   el footer y el JSON-LD del sitio. Mismo precedente que discord.gg/.
 
 # ---------------------------------------------------------------------------
 # Hard-banned: generic secret shapes

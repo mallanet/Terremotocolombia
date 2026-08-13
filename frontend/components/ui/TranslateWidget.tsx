@@ -1,7 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Languages } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Check, Languages } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { loadGoogleTranslateScript } from "@/lib/google-translate-loader";
 import {
   TRANSLATE_LANGS,
@@ -126,9 +136,8 @@ function initGoogleTranslate() {
 export default function TranslateWidget({
   variant = "default",
 }: {
-  variant?: "default" | "header";
+  variant?: "default" | "fab";
 }) {
-  const [open, setOpen] = useState(false);
   // Servidor y primer render cliente deben usar el mismo idioma para evitar
   // una hidratación distinta cuando ya existe la cookie `googtrans`.
   const [activeLang, setActiveLang] =
@@ -136,7 +145,6 @@ export default function TranslateWidget({
   // El script de Google Translate solo se pide cuando hace falta: traducción
   // ya activa (cookie) o primera interacción con el widget.
   const [gtRequested, setGtRequested] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
 
   const handleLangApplied = useCallback((lang: TranslateLangCode) => {
     setActiveLang(lang);
@@ -157,16 +165,6 @@ export default function TranslateWidget({
   }, []);
 
   useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node))
-        setOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [open]);
-
-  useEffect(() => {
     if (!gtRequested) return;
     patchDomForGoogleTranslate();
     loadGoogleTranslateScript(initGoogleTranslate);
@@ -177,64 +175,69 @@ export default function TranslateWidget({
   const isTranslated = activeLang !== TRANSLATE_SOURCE_LANG;
 
   return (
-    <div ref={ref} className="notranslate relative" translate="no">
+    <div className="notranslate relative" translate="no">
       <div id="google-translate-container" className="hidden" aria-hidden />
-      <button
-        type="button"
-        aria-label="Cambiar idioma de la página"
-        aria-expanded={open}
-        onClick={() => {
-          setGtRequested(true);
-          setOpen((v) => !v);
+      <DropdownMenu
+        onOpenChange={(open) => {
+          if (open) setGtRequested(true);
         }}
-        className={
-          variant === "header"
-            ? `e-nav__language${isTranslated ? " e-nav__language--active" : ""}`
-            : `inline-flex h-9 min-h-0 shrink-0 items-center justify-center gap-1.5 rounded-full border-[1.5px] px-3 text-xs font-bold transition ${
-                isTranslated
-                  ? "border-sky-300 bg-sky-50 text-sky-800"
-                  : "border-[var(--eborder)] bg-[var(--esurf)] text-[var(--etext2)] hover:bg-[var(--einput)]"
-              }`
-        }
-        title={`Idioma: ${current.label}`}
       >
-        {variant === "header" ? (
-          <>
-            <Languages aria-hidden className="h-4 w-4" strokeWidth={2.2} />
-            <span>{current.code.toUpperCase()}</span>
-          </>
-        ) : isTranslated ? (
-          <span aria-hidden>{current.flag}</span>
-        ) : (
-          <Languages aria-hidden className="h-4 w-4" strokeWidth={2.2} />
-        )}
-        <span className="hidden sm:inline">{current.label}</span>
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full z-[2000] mt-1.5 min-w-[10rem] animate-[fadeUp_0.18s_ease-out] overflow-hidden rounded-xl border border-[var(--eborder)] bg-[var(--esurf)] shadow-xl">
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size={variant === "fab" ? "default" : "sm"}
+            aria-label="Cambiar idioma de la página"
+            title={`Idioma: ${current.label}`}
+            className={cn(
+              "notranslate shrink-0 gap-1.5 rounded-full font-bold",
+              variant === "fab"
+                ? "h-11 px-3.5 text-xs shadow-lg shadow-black/20"
+                : "h-9 px-3 text-xs",
+              isTranslated &&
+                "border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:text-sky-900",
+            )}
+          >
+            {variant === "fab" ? (
+              <>
+                <Languages aria-hidden className="size-4" strokeWidth={2.2} />
+                <span>{current.code.toUpperCase()}</span>
+              </>
+            ) : isTranslated ? (
+              <span aria-hidden>{current.flag}</span>
+            ) : (
+              <Languages aria-hidden className="size-4" strokeWidth={2.2} />
+            )}
+            <span className="hidden sm:inline">{current.label}</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          side={variant === "fab" ? "top" : "bottom"}
+          className="min-w-[10rem]"
+        >
+          <DropdownMenuLabel className="text-xs text-muted-foreground">
+            Idioma
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
           {TRANSLATE_LANGS.map((lang) => (
-            <button
+            <DropdownMenuItem
               key={lang.code}
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                selectLang(lang.code);
-              }}
-              className={`flex w-full items-center gap-2 px-3 py-2.5 text-sm transition hover:bg-[var(--einput)] ${
-                activeLang === lang.code
-                  ? "bg-[var(--einput)] font-semibold text-[var(--etext)]"
-                  : "font-medium text-[var(--etext2)]"
-              }`}
+              onSelect={() => selectLang(lang.code)}
+              className={cn(
+                "gap-2",
+                activeLang === lang.code && "font-semibold",
+              )}
             >
               <span aria-hidden>{lang.flag}</span>
               {lang.label}
-              {activeLang === lang.code && (
-                <span className="ml-auto text-xs text-[var(--etext3)]">✓</span>
-              )}
-            </button>
+              {activeLang === lang.code ? (
+                <Check className="ml-auto size-3.5 opacity-70" aria-hidden />
+              ) : null}
+            </DropdownMenuItem>
           ))}
-        </div>
-      )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

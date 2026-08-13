@@ -21,3 +21,13 @@ export function trackEvent(event: string, properties?: Record<string, unknown>) 
     ...properties,
   });
 }
+
+/** Operational events omit the page path because it can contain invite tokens. */
+export function trackOperationalEvent(
+  event: string,
+  properties?: Record<string, unknown>,
+) {
+  if (typeof window === "undefined") return;
+  if (!isProductionHost()) return;
+  (window as OpenPanelWindow).op?.("track", event, properties);
+}

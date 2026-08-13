@@ -1,12 +1,8 @@
-// Tests del código único de voluntario: generación en el registro, endpoint
-// de verificación, check-in con evidencia y atribución de reportes.
-// `@/db` mockeado por TABLA (mismo harness que voluntariado.test.ts): el
-// `from(table)` decide qué filas devuelve; el where se ignora (filtrado lo
-// simula el test sembrando o vaciando las filas).
 import "./helpers";
 import express from "express";
 import request from "supertest";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { volunteerCodeDbMock } from "./helpers/volunteer-code-db";
 
 const dbMocks = vi.hoisted(() => ({
   volunteers: [] as Array<Record<string, unknown>>,
@@ -16,43 +12,7 @@ const dbMocks = vi.hoisted(() => ({
 
 vi.mock("@/db", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/db")>();
-
-  function rowsFor(table: unknown): Array<Record<string, unknown>> {
-    if (table === actual.schema.volunteers) return dbMocks.volunteers;
-    if (table === actual.schema.volunteerCheckins) return dbMocks.checkins;
-    if (table === actual.schema.reports) return dbMocks.reports;
-    return [];
-  }
-
-  function chain() {
-    let rows: Array<Record<string, unknown>> = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- doble mínimo de la cadena fluida de Drizzle, solo para tests
-    const c: any = {
-      from: (table: unknown) => {
-        rows = rowsFor(table);
-        return c;
-      },
-      innerJoin: () => c,
-      where: () => c,
-      orderBy: () => c,
-      limit: () => c,
-      then: (resolve: (v: Array<Record<string, unknown>>) => void) => resolve(rows),
-    };
-    return c;
-  }
-
-  return {
-    ...actual,
-    getDb: () => ({
-      select: () => chain(),
-      insert: (table: unknown) => ({
-        values: (row: Record<string, unknown>) => {
-          rowsFor(table).push(row);
-          return Promise.resolve();
-        },
-      }),
-    }),
-  };
+  return volunteerCodeDbMock(actual, dbMocks);
 });
 
 const VOLUNTEER = { id: "vol-1", name: "DEMO-Voluntaria", code: "483920" };
@@ -167,6 +127,31 @@ describe("POST /api/voluntariado/checkin", () => {
 
     expect(response.status).toBe(400);
     expect(dbMocks.checkins).toHaveLength(0);
+  });
+
+  it("con disponibilidad, talento y área → actualiza al voluntario y persiste el reporte", async () => {
+    const response = await request(app)
+      .post("/api/voluntariado/checkin")
+      .send({
+        code: "483920",
+        place: "DEMO-Acopio La Villa",
+        note: "DEMO-Llegaron 12 cajas de agua",
+        availability: "Hoy",
+        talent: "Logística",
+        area: "DEMO-Pereira",
+      });
+
+    expect(response.status).toBe(201);
+    expect(dbMocks.checkins[0]).toMatchObject({
+      volunteerId: "vol-1",
+      place: "DEMO-Acopio La Villa",
+      note: "DEMO-Llegaron 12 cajas de agua",
+    });
+    expect(dbMocks.volunteers[0]).toMatchObject({
+      availability: "Hoy",
+      fieldRole: "Logística",
+      zone: "DEMO-Pereira",
+    });
   });
 });
 

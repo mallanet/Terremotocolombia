@@ -1,11 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Mail, MessagesSquare } from "lucide-react";
+import { Mail } from "lucide-react";
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import {
   CONTACT_EMAIL,
-  DISCORD_INVITE_URL,
+  COMMUNITY_CTA_LABEL,
+  COMMUNITY_WHATSAPP_URL,
   SITE_BRAND_NAME,
-  SITE_NAV_LOGO,
+  SITE_NAV_LOGO_ON_DARK,
   SITE_PRODUCT_NAME,
   contactMailto,
 } from "@/lib/site";
@@ -17,7 +19,7 @@ export default function SiteFooter() {
         <section className="e-footer__about" aria-labelledby="footer-about">
           <div className="e-footer__brand-row">
             <Image
-              src={SITE_NAV_LOGO}
+              src={SITE_NAV_LOGO_ON_DARK}
               alt=""
               width={36}
               height={36}
@@ -35,7 +37,7 @@ export default function SiteFooter() {
           <p className="e-footer__text">
             Plataforma ciudadana, gratuita y de código abierto para conectar
             reportes, recursos y equipos de respuesta durante la emergencia.
-            Iniciativa independiente y no partidista — no somos un canal oficial
+            Iniciativa independiente y no partidista. No somos un canal oficial
             de gobierno.
           </p>
         </section>
@@ -53,13 +55,13 @@ export default function SiteFooter() {
               {CONTACT_EMAIL}
             </a>
             <a
-              href={DISCORD_INVITE_URL}
+              href={COMMUNITY_WHATSAPP_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="e-footer__cta"
             >
-              <MessagesSquare size={16} strokeWidth={2} aria-hidden />
-              ¿Quieres ser voluntario? Únete a nuestra comunidad de Discord
+              <WhatsAppIcon className="e-footer__cta-icon" />
+              {COMMUNITY_CTA_LABEL}
             </a>
           </div>
         </section>

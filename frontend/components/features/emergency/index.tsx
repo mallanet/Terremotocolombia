@@ -81,7 +81,8 @@ export default function EmergencyApp() {
   const missingMapQuery = useMissingMap(debouncedBounds);
   // Mismo queryKey que EarthquakesPanel: TanStack deduplica por clave,
   // asi que tener dos consumidores no dispara una segunda peticion.
-  const { data: earthquakes } = useEarthquakes(60_000);
+  const { data: earthquakesEnvelope } = useEarthquakes(60_000);
+  const earthquakes = earthquakesEnvelope?.earthquakes;
   const missingMapMarkers = useMemo(
     () => missingMapQuery.data ?? [],
     [missingMapQuery.data],
@@ -97,7 +98,10 @@ export default function EmergencyApp() {
   // Centros de acopio oficiales (capa verde, /api/acopio — siempre montado).
   const acopioQuery = useCollectionCenters(ACOPIO_DEFAULT_FILTERS);
   const acopioCenters = useMemo(
-    () => acopioQuery.data?.items ?? [],
+    () =>
+      (acopioQuery.data?.items ?? []).filter(
+        (center) => center.verificationLevel === "official",
+      ),
     [acopioQuery.data],
   );
   const [showAcopioOnMap, setShowAcopioOnMap] = useState(true);

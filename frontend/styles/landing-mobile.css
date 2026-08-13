@@ -1,0 +1,8 @@
+@import "./map-shell.css";
+
+@media (max-width: 767px) {
+	.map-overlay .e-m-chip {
+		width: max-content;
+		align-self: flex-start;
+	}
+}

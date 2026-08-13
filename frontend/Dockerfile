@@ -41,6 +41,8 @@ ENV NEXT_PUBLIC_R2_PUBLIC_BASE=$NEXT_PUBLIC_R2_PUBLIC_BASE
 # Cloudflare Turnstile site key (público, se inlinea en build) para el widget.
 ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
 ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY
+ARG NEXT_PUBLIC_WHATSAPP_GROUP_URL
+ENV NEXT_PUBLIC_WHATSAPP_GROUP_URL=$NEXT_PUBLIC_WHATSAPP_GROUP_URL
 # Google Analytics 4 measurement id (G-…). Vacío = GA deshabilitado en build.
 ARG NEXT_PUBLIC_GA_MEASUREMENT_ID
 ENV NEXT_PUBLIC_GA_MEASUREMENT_ID=$NEXT_PUBLIC_GA_MEASUREMENT_ID
@@ -55,8 +57,9 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
-# Con WORKDIR=/app, Next emite standalone bajo `.next/standalone/app/`.
-COPY --from=builder --chown=node:node /app/.next/standalone/app ./
+# Standalone plano: server.js + node_modules + .next en la raíz (turbopack.root
+# fija la raíz al paquete, así que ya no hay subcarpeta `app/`).
+COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 USER node

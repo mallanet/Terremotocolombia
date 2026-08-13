@@ -18,7 +18,8 @@
   // que el despliegue "no hizo nada". Paso de verdad: la primera build sin la
   // site key de Turnstile siguio viva y el formulario no podia enviarse.
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": false }
   },
   // Entorno de staging: Worker aparte, dominio aparte, base de datos aparte
   // (rama de Neon). Se despliega con `wrangler deploy --env staging`.
@@ -36,7 +37,8 @@
         "binding": "ASSETS"
       },
       "observability": {
-        "enabled": true
+        "enabled": true,
+        "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": false }
       }
     }
   }

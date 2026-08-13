@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import { Button } from "@/components/ui/button";
 
 export function pageWindow(page: number, totalPages: number): number[] {
   const span = 2;
@@ -30,54 +31,58 @@ function PaginationImpl({
   const last = pages[pages.length - 1] ?? totalPages;
 
   return (
-    <nav className="e-m-pagination" aria-label={ariaLabel}>
-      <button
+    <nav className="mt-6 flex flex-wrap items-center justify-center gap-1.5" aria-label={ariaLabel}>
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={() => onPageChange(Math.max(1, page - 1))}
         disabled={page <= 1}
-        className="e-m-pagination__btn"
       >
         ← Anterior
-      </button>
+      </Button>
       {first > 1 && (
         <>
-          <button type="button" onClick={() => onPageChange(1)} className="e-m-pagination__btn">
+          <Button type="button" variant="outline" size="sm" onClick={() => onPageChange(1)}>
             1
-          </button>
-          {first > 2 && <span className="e-m-pagination__ellipsis">…</span>}
+          </Button>
+          {first > 2 && <span className="px-1 text-muted-foreground">…</span>}
         </>
       )}
       {pages.map((p) => (
-        <button
+        <Button
           key={p}
           type="button"
+          variant={p === page ? "default" : "outline"}
+          size="sm"
           onClick={() => onPageChange(p)}
           aria-current={p === page ? "page" : undefined}
-          className={`e-m-pagination__btn${p === page ? " e-m-pagination__btn--current" : ""}`}
         >
           {p}
-        </button>
+        </Button>
       ))}
       {last < totalPages && (
         <>
-          {last < totalPages - 1 && <span className="e-m-pagination__ellipsis">…</span>}
-          <button
+          {last < totalPages - 1 && <span className="px-1 text-muted-foreground">…</span>}
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => onPageChange(totalPages)}
-            className="e-m-pagination__btn"
           >
             {totalPages}
-          </button>
+          </Button>
         </>
       )}
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={() => onPageChange(Math.min(totalPages, page + 1))}
         disabled={page >= totalPages}
-        className="e-m-pagination__btn"
       >
         Siguiente →
-      </button>
+      </Button>
     </nav>
   );
 }

@@ -2,13 +2,20 @@
 
 import { deploymentConfig } from "@/lib/deployment-config";
 import { SITE_BRAND_NAME, SITE_PRODUCT_NAME } from "@/lib/site";
+import { useEffect } from "react";
+import { reportClientError } from "@/lib/client-errors";
 
 export default function GlobalError({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    reportClientError("global-boundary", error, { digest: error.digest });
+  }, [error]);
+
   return (
     <html lang={deploymentConfig.languageTag}>
       <body className="global-error">

@@ -59,6 +59,13 @@ describe("domain/criteria", () => {
     expect(satisfiesCriteria(c, createCriteria({ text: "mérida" }))).toBe(false);
   });
 
+  it("busca también en description", () => {
+    const c = center({ description: "Reciben colchonetas y agua" });
+    expect(satisfiesCriteria(c, createCriteria({ text: "colchonetas" }))).toBe(
+      true,
+    );
+  });
+
   it("criterio vacío no filtra nada", () => {
     const c = center({ country: "Ruritania" });
     expect(satisfiesCriteria(c, createCriteria({ country: "", category: "  " }))).toBe(true);
@@ -168,6 +175,45 @@ describe("infrastructure/ResponseGridClient", () => {
     await expect(client.listAllResources()).rejects.toThrow("excedió su plazo");
     clock.mockRestore();
     globalThis.fetch = originalFetch;
+  });
+});
+
+describe("infrastructure/reports mapper", () => {
+  it("mapea un reporte shelter a centro ciudadano", async () => {
+    const { toCollectionCenterFromReport, isShelterReport } = await import(
+      "@/modules/acopio/infrastructure/reports/reports-collection-center-mapper"
+    );
+    const report = {
+      id: "abc",
+      type: "shelter",
+      lat: 4.8,
+      lng: -75.7,
+      place: "Cruz Roja Pereira",
+      needs: "Alimentos no perecederos y agua. Cobijas.",
+    };
+    expect(isShelterReport(report)).toBe(true);
+    const c = toCollectionCenterFromReport(report, "Colombia");
+    expect(c.id).toBe("report:abc");
+    expect(c.verificationLevel).toBe("citizen");
+    expect(c.country).toBe("Colombia");
+    expect(c.accepts).toEqual(expect.arrayContaining(["food", "water", "blankets"]));
+    expect(c.description).toMatch(/Cobijas/);
+  });
+
+  it("ignora reportes que no son shelter", async () => {
+    const { isShelterReport } = await import(
+      "@/modules/acopio/infrastructure/reports/reports-collection-center-mapper"
+    );
+    expect(
+      isShelterReport({
+        id: "x",
+        type: "building",
+        lat: 1,
+        lng: 1,
+        place: "x",
+        needs: "",
+      }),
+    ).toBe(false);
   });
 });
 

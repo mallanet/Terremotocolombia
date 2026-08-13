@@ -151,3 +151,37 @@ describe("POST /api/reports/:id/confirm", () => {
     expect(second.body.ok).toBe(false);
   });
 });
+
+describe("PATCH /api/reports/:id", () => {
+  it("actualiza con el editToken del create y no lo reexpone en GET", async () => {
+    const created = await request(app)
+      .post("/api/reports")
+      .send(syntheticReport({ type: "shelter", place: "Punto demo edit" }));
+    expect(created.status).toBe(201);
+    const id = created.body.report.id as string;
+    const editToken = created.body.editToken as string;
+    expect(editToken).toMatch(/^[a-f0-9]{64}$/);
+
+    const patched = await request(app)
+      .patch(`/api/reports/${id}`)
+      .send({ editToken, place: "Punto demo editado", needs: "Agua" });
+    expect(patched.status).toBe(200);
+    expect(patched.body.report.place).toBe("Punto demo editado");
+    expect(patched.body).not.toHaveProperty("editToken");
+
+    const detail = await request(app).get(`/api/reports/${id}`);
+    expect(detail.status).toBe(200);
+    expect(detail.body.report.place).toBe("Punto demo editado");
+    expect(detail.body).not.toHaveProperty("editToken");
+    expect(JSON.stringify(detail.body)).not.toContain(editToken);
+  });
+
+  it("rechaza un token inválido", async () => {
+    const created = await request(app).post("/api/reports").send(syntheticReport());
+    const id = created.body.report.id as string;
+    const res = await request(app)
+      .patch(`/api/reports/${id}`)
+      .send({ editToken: "a".repeat(64), place: "No" });
+    expect(res.status).toBe(403);
+  });
+});

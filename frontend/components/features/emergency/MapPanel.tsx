@@ -2,269 +2,110 @@
 
 import dynamic from "next/dynamic";
 import { useState } from "react";
-import AddressSearch, {
-	type GeocodeResult,
-} from "@/components/features/emergency/AddressSearch";
-import type { MapBounds } from "@/components/features/map";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
-import type { MissingMapMarker } from "@/hooks/missing";
-import type { PetMapMarker } from "@/lib/pets";
-import type { CollectionCenter } from "@/hooks/acopio";
-import type { EmergencyReport, ReportType, Earthquake } from "@/lib/types";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { deploymentConfig } from "@/lib/deployment-config";
-import FilterChips from "./FilterChips";
 import { MapLoading } from "@/components/ui/SectionLoading";
+import { mapViewZoom } from "@/lib/map-view-zoom";
+import MapOverlays from "./MapOverlays";
+import type { MapPanelProps } from "./MapPanel.types";
 
-// Mapa Leaflet: pesado + depende de window. next/dynamic ssr:false lo saca del
-// bundle inicial y lo carga en cliente solo cuando esta vista se monta.
+export type { MapPanelProps } from "./MapPanel.types";
+
 const MapView = dynamic(() => import("@/components/features/map"), {
-	ssr: false,
-	loading: () => <MapLoading label="Cargando mapa de reportes…" />,
+  ssr: false,
+  loading: () => <MapLoading label="Cargando mapa de reportes…" />,
 });
 
-export interface MapPanelProps {
-	mapReports: EmergencyReport[];
-	/** Catalogo USGS para pintar sismos y epicentro en el mapa. */
-	earthquakes?: Earthquake[];
-	missingMapMarkers: MissingMapMarker[];
-	showMissingOnMap: boolean;
-	petMapMarkers: PetMapMarker[];
-	showPetsOnMap: boolean;
-	onTogglePets: () => void;
-	acopioCenters: CollectionCenter[];
-	showAcopioOnMap: boolean;
-	onToggleAcopio: () => void;
-	draft: { lat: number; lng: number } | null;
-	confirmed: Set<string>;
-	isAdmin: boolean;
-	focus: { lat: number; lng: number; ts: number; id?: string } | null;
-	fitRequest: { points: { lat: number; lng: number }[]; ts: number } | null;
-	center: [number, number];
-	selectedTypes: Set<ReportType>;
-	counts: Record<ReportType, number>;
-	addressBias: { lat: number; lng: number };
-	placing: boolean;
-	shareCopied: boolean;
-	onBoundsChange: (bounds: MapBounds) => void;
-	onPick: (lat: number, lng: number) => void;
-	onResolve: (id: string) => void;
-	onConfirm: (id: string) => void;
-	onAddressSelect: (result: GeocodeResult) => void;
-	onChipClick: (type: ReportType) => void;
-	onCancelPlacing: () => void;
-	onShare: () => void;
-	onStartReport: () => void;
-}
+export default function MapPanel(props: MapPanelProps) {
+  const [showRain, setShowRain] = useState(false);
+  const [showClouds, setShowClouds] = useState(false);
+  const isMobile = useMediaQuery("(max-width: 759px)");
+  const zoom = mapViewZoom(deploymentConfig.mapZoom, isMobile);
+  const {
+    mapReports,
+    missingMapMarkers,
+    petMapMarkers,
+    acopioCenters,
+    earthquakes,
+    showMissingOnMap,
+    showPetsOnMap,
+    showAcopioOnMap,
+    draft,
+    confirmed,
+    isAdmin,
+    focus,
+    fitRequest,
+    center,
+    placing,
+    onBoundsChange,
+    onPick,
+    onResolve,
+    onConfirm,
+  } = props;
 
-export default function MapPanel({
-	mapReports,
-	missingMapMarkers,
-	petMapMarkers,
-	showPetsOnMap,
-	onTogglePets,
-	acopioCenters,
-	showAcopioOnMap,
-	onToggleAcopio,
-	earthquakes,
-	showMissingOnMap,
-	draft,
-	confirmed,
-	isAdmin,
-	focus,
-	fitRequest,
-	center,
-	selectedTypes,
-	counts,
-	addressBias,
-	placing,
-	shareCopied,
-	onBoundsChange,
-	onPick,
-	onResolve,
-	onConfirm,
-	onAddressSelect,
-	onChipClick,
-	onCancelPlacing,
-	onShare,
-	onStartReport,
-}: MapPanelProps) {
-	const [showRain, setShowRain] = useState(false);
-	const [showClouds, setShowClouds] = useState(false);
-	return (
-		<div
-			className={`map-shell e-leaflet-wrap relative h-full min-h-[360px] w-full overflow-hidden md:min-h-[560px] ${
-				placing ? "is-placing" : ""
-			}`}
-		>
-			<ErrorBoundary
-				fallback={
-					<div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-100 p-6 text-center text-sm text-slate-600">
-						<span className="text-2xl" aria-hidden>
-							🗺️
-						</span>
-						<p className="font-semibold">No se pudo cargar el mapa</p>
-						<p>Recarga la página para volver a intentarlo.</p>
-					</div>
-				}
-			>
-				<MapView
-					reports={mapReports}
-					missingMarkers={missingMapMarkers}
-					petMarkers={petMapMarkers}
-					acopioCenters={acopioCenters}
-					earthquakes={earthquakes}
-					showMissingOnMap={showMissingOnMap}
-					showPetsOnMap={showPetsOnMap}
-					showAcopioOnMap={showAcopioOnMap}
-					onBoundsChange={onBoundsChange}
-					draft={draft}
-					onPick={onPick}
-					onResolve={onResolve}
-					onConfirm={onConfirm}
-					confirmed={confirmed}
-					isAdmin={isAdmin}
-					focus={focus}
-					center={center}
-					zoom={deploymentConfig.mapZoom}
-					fitRequest={fitRequest}
-					showRain={showRain}
-					showClouds={showClouds}
-				/>
-			</ErrorBoundary>
-
-			{/* Buscador + filtros por tipo sobre el mapa (referencia QiHealth). */}
-			<div className="map-overlay pointer-events-none absolute inset-x-0 top-0 z-[1000] flex flex-col gap-2 p-3 sm:pr-14">
-				<div className="pointer-events-auto flex min-w-0 flex-col gap-2 xl:flex-row xl:items-stretch">
-					<div className="w-full shrink-0 xl:max-w-xs">
-						<AddressSearch onSelect={onAddressSelect} bias={addressBias} />
-					</div>
-					<FilterChips
-						selectedTypes={selectedTypes}
-						counts={counts}
-						onChipClick={onChipClick}
-					/>
-					{/* Chip propio y NO uno de FilterChips: esa lista se indexa por
-					    ReportType, que también alimenta el formulario de reportes de
-					    emergencia. Meter "mascotas" ahí ofrecería "mascota" como tipo de
-					    emergencia, que no es. */}
-					<button
-						type="button"
-						onClick={onTogglePets}
-						aria-pressed={showPetsOnMap}
-						title={`Mascotas perdidas: ${petMapMarkers.length}`}
-						aria-label={`Mascotas perdidas: ${petMapMarkers.length} en el mapa. ${
-							showPetsOnMap
-								? "Visibles, toca para ocultar."
-								: "Ocultas, toca para mostrar."
-						}`}
-						className={`e-m-chip shrink-0${showPetsOnMap ? " e-m-chip--active" : ""}`}
-					>
-						<span aria-hidden>🐾</span> Mascotas
-						{petMapMarkers.length > 0 && (
-							<span className="ml-1 tabular-nums">{petMapMarkers.length}</span>
-						)}
-					</button>
-					<button
-						type="button"
-						onClick={onToggleAcopio}
-						aria-pressed={showAcopioOnMap}
-						title={`Centros de acopio: ${acopioCenters.length}`}
-						aria-label={`Centros de acopio: ${acopioCenters.length} en el mapa. ${
-							showAcopioOnMap
-								? "Visibles, toca para ocultar."
-								: "Ocultos, toca para mostrar."
-						}`}
-						className={`e-m-chip shrink-0${showAcopioOnMap ? " e-m-chip--active" : ""}`}
-					>
-						<span aria-hidden>📦</span> Acopio
-						{acopioCenters.length > 0 && (
-							<span className="ml-1 tabular-nums">{acopioCenters.length}</span>
-						)}
-					</button>
-				</div>
-			</div>
-
-			<div className="map-overlay pointer-events-auto absolute right-3 top-20 z-[1000] flex flex-col gap-1.5 rounded-lg bg-white/95 p-1.5 shadow-lg ring-1 ring-black/5 backdrop-blur">
-				<button
-					type="button"
-					onClick={() => setShowRain((v) => !v)}
-					aria-pressed={showRain}
-					aria-label="Mostrar lluvia en el mapa"
-					title="Radar de lluvia (RainViewer)"
-					className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition ${
-						showRain
-							? "bg-blue-600 text-white"
-							: "text-slate-600 hover:bg-slate-100"
-					}`}
-				>
-					<span aria-hidden>🌧️</span>
-					<span>Lluvia</span>
-				</button>
-				<button
-					type="button"
-					onClick={() => setShowClouds((v) => !v)}
-					aria-pressed={showClouds}
-					aria-label="Mostrar nubes en el mapa"
-					title="Nubes globales (EUMETSAT)"
-					className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition ${
-						showClouds
-							? "bg-slate-600 text-white"
-							: "text-slate-600 hover:bg-slate-100"
-					}`}
-				>
-					<span aria-hidden>☁️</span>
-					<span>Nubes</span>
-				</button>
-			</div>
-
-			{/* Modo "elegir en el mapa": atenúa el mapa y muestra una instrucción
-          prominente. El modal queda oculto pero montado (no se pierde lo escrito). */}
-			{placing && (
-				<>
-					<div
-						className="pointer-events-none absolute inset-0 z-[1150] bg-slate-900/25"
-						aria-hidden
-					/>
-					<div className="pointer-events-auto absolute inset-x-0 top-0 z-[1200] flex items-center justify-between gap-3 bg-slate-900 px-4 py-3 text-white shadow-lg">
-						<span className="flex items-center gap-2 text-sm font-semibold">
-							<span aria-hidden className="text-base">
-								📍
-							</span>
-							Toca el mapa para ubicar el reporte
-						</span>
-						<button
-							type="button"
-							onClick={onCancelPlacing}
-							className="shrink-0 rounded-md border border-white/40 px-3 py-1.5 text-xs font-semibold transition hover:bg-white/10"
-						>
-							Volver
-						</button>
-					</div>
-				</>
-			)}
-
-			{/* Barra de acción flotante abajo: reportar + compartir */}
-			<div className="map-overlay pointer-events-none absolute inset-x-0 bottom-3 z-[1000] flex justify-center px-3">
-				<div className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/95 p-1.5 shadow-lg ring-1 ring-black/5 backdrop-blur">
-					<button
-						type="button"
-						onClick={onShare}
-						aria-label="Compartir el mapa"
-						title="Compartir el mapa"
-						className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
-					>
-						<span aria-hidden>{shareCopied ? "✓" : "🔗"}</span>
-						<span>{shareCopied ? "Copiado" : "Compartir"}</span>
-					</button>
-					<button
-						type="button"
-						onClick={onStartReport}
-						className="shrink-0 rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
-					>
-						Reportar Información
-					</button>
-				</div>
-			</div>
-		</div>
-	);
+  return (
+    <div
+      className={`map-shell e-leaflet-wrap flex h-full w-full flex-col overflow-hidden ${
+        placing ? "is-placing" : ""
+      }`}
+    >
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <ErrorBoundary
+          fallback={
+            <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-100 p-6 text-center text-sm text-slate-600">
+              <p className="font-semibold">No se pudo cargar el mapa</p>
+              <p>Recarga la página para volver a intentarlo.</p>
+            </div>
+          }
+        >
+          <MapView
+            reports={mapReports}
+            missingMarkers={missingMapMarkers}
+            petMarkers={petMapMarkers}
+            acopioCenters={acopioCenters}
+            earthquakes={earthquakes}
+            showMissingOnMap={showMissingOnMap}
+            showPetsOnMap={isMobile ? false : showPetsOnMap}
+            showAcopioOnMap={isMobile ? false : showAcopioOnMap}
+            onBoundsChange={onBoundsChange}
+            draft={draft}
+            onPick={onPick}
+            onResolve={onResolve}
+            onConfirm={onConfirm}
+            confirmed={confirmed}
+            isAdmin={isAdmin}
+            focus={focus}
+            center={center}
+            zoom={zoom}
+            fitRequest={fitRequest}
+            showRain={showRain}
+            showClouds={showClouds}
+          />
+        </ErrorBoundary>
+        <MapOverlays
+          petMapMarkers={props.petMapMarkers}
+          showPetsOnMap={props.showPetsOnMap}
+          onTogglePets={props.onTogglePets}
+          acopioCenters={props.acopioCenters}
+          showAcopioOnMap={props.showAcopioOnMap}
+          onToggleAcopio={props.onToggleAcopio}
+          selectedTypes={props.selectedTypes}
+          counts={props.counts}
+          addressBias={props.addressBias}
+          placing={placing}
+          shareCopied={props.shareCopied}
+          onAddressSelect={props.onAddressSelect}
+          onChipClick={props.onChipClick}
+          onCancelPlacing={props.onCancelPlacing}
+          onShare={props.onShare}
+          onStartReport={props.onStartReport}
+          showRain={showRain}
+          showClouds={showClouds}
+          onToggleRain={() => setShowRain((v) => !v)}
+          onToggleClouds={() => setShowClouds((v) => !v)}
+        />
+      </div>
+    </div>
+  );
 }

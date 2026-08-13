@@ -23,6 +23,23 @@ const DEFAULT_COPY: FieldCopy = {
 };
 
 const COPY_BY_TYPE: Partial<Record<ReportType, Partial<FieldCopy>>> = {
+  need: {
+    placeLabel: "Dónde lo necesitas",
+    placePlaceholder: "Ej: barrio, conjunto o punto de encuentro",
+    showAffected: true,
+    affectedLabel: "Personas que necesitan ayuda",
+    needsLabel: "¿Qué necesitas?",
+    needsPlaceholder:
+      "Agua, alimentos, medicinas, cobijas, transporte, refugio… sé específico",
+  },
+  supplies: {
+    placeLabel: "Dónde están los suministros",
+    placePlaceholder: "Ej: casa, acopio o punto de entrega",
+    showAffected: false,
+    needsLabel: "¿Qué ofreces?",
+    needsPlaceholder:
+      "Agua, alimentos no perecederos, cobijas, herramientas, transporte… cantidad si puedes",
+  },
   nopower: {
     placeLabel: "Zona / Sector",
     placePlaceholder: "Ej: Urbanización La Trinidad, calle principal",
@@ -60,5 +77,17 @@ const COPY_BY_TYPE: Partial<Record<ReportType, Partial<FieldCopy>>> = {
 
 export function copyFor(type: ReportType): FieldCopy {
   return { ...DEFAULT_COPY, ...COPY_BY_TYPE[type] };
+}
+
+export function reportFormTitle(type: ReportType): string {
+  if (type === "need") return "Solicitar ayuda";
+  if (type === "supplies") return "Ofrecer suministros";
+  return "Reportar información";
+}
+
+export function reportSubmitLabel(type: ReportType, submitting: boolean): string {
+  if (submitting) return "Publicando…";
+  if (type === "need") return "Publicar pedido";
+  return "Publicar";
 }
 

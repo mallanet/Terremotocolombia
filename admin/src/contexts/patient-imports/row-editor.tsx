@@ -216,7 +216,10 @@ export function RowEditor({
           <div className="shrink-0 md:w-64">
             <p className="text-xs font-medium text-gray-500">Imagen fuente</p>
             {/* Vista completa de la imagen del lote OCR. El recorte a la
-                región exacta de esta fila (layout_cluster_id) es Phase 3. */}
+                región exacta de esta fila (layout_cluster_id) es Phase 3.
+                Se evita next/image para no enviar un documento sensible al
+                optimizador/proxy de imágenes. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={sourceImageUrl}
               alt={`Imagen fuente del lote (fila ${currentRow.rowIndex + 1})`}
