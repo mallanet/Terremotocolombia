@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Brain } from "lucide-react";
+import { Brain, HandCoins, HeartHandshake, MapPinned } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { SiteBrand } from "./HeroSection";
 import { usePsychHelpClickCount, trackPsychosocialClick } from "@/hooks/psychology-help";
 import { trackPsychHelpClicked } from "@/lib/analytics";
 import { PSYCH_HELP_FORM_URL } from "@/lib/psych-help-form";
-
+import { PRIMARY_MAP_LINK } from "@/lib/section-nav";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +18,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 export { MobileStickyNav } from "./MobileStickyNav";
 
@@ -86,27 +84,22 @@ function HelpNavLink() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" aria-label={buttonAriaLabel}>
-          <Image
-            src="/brand/icons/icon-ayuda.png"
-            alt=""
-            width={18}
-            height={18}
-            unoptimized
-            aria-hidden
-            data-icon="inline-start"
-            className="shrink-0 object-contain"
-          />
+        <button
+          type="button"
+          className="e-nav__psych"
+          aria-label={buttonAriaLabel}
+        >
+          <HeartHandshake aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
           Ayuda
           {count !== undefined ? (
             <Badge
               variant="secondary"
-              className="ml-0.5 h-5 min-w-5 rounded-full px-1.5 text-[10px] font-bold tabular-nums"
+              className="e-nav__psych-count ml-0.5 h-5 min-w-5 rounded-full px-1.5 text-[10px] font-bold tabular-nums"
             >
               {countLabel}
             </Badge>
           ) : null}
-        </Button>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[14rem]">
         <DropdownMenuLabel className="text-xs text-muted-foreground">
@@ -150,21 +143,14 @@ function HelpNavLink() {
 
 function DonateNavLink() {
   return (
-    <Button asChild>
-      <Link href="/donaciones" aria-label="Ver formas de donar">
-        <Image
-          src="/brand/icons/icon-donar.png"
-          alt=""
-          width={18}
-          height={18}
-          unoptimized
-          aria-hidden
-          data-icon="inline-start"
-          className="shrink-0 object-contain"
-        />
-        Donar
-      </Link>
-    </Button>
+    <Link
+      href="/donaciones"
+      className="e-nav__donate"
+      aria-label="Ver formas de donar"
+    >
+      <HandCoins aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+      Donar
+    </Link>
   );
 }
 
@@ -189,27 +175,21 @@ export function HeroDesktopNav() {
             ).map((link) => {
               const anchor = isAnchor(link.href);
               const href = anchor && !onHome ? `/${link.href}` : link.href;
-              const active = !anchor && pathname === link.href;
               return (
-                <Button
+                <a
                   key={link.href}
-                  asChild
-                  variant={active ? "secondary" : "ghost"}
+                  href={href}
+                  title={link.title}
+                  aria-label={link.title}
+                  aria-current={!anchor && pathname === link.href ? "page" : undefined}
+                  onClick={(event) => {
+                    if (!anchor || !onHome) return;
+                    event.preventDefault();
+                    scrollToSection(link.href);
+                  }}
                 >
-                  <a
-                    href={href}
-                    title={link.title}
-                    aria-label={link.title}
-                    aria-current={active ? "page" : undefined}
-                    onClick={(event) => {
-                      if (!anchor || !onHome) return;
-                      event.preventDefault();
-                      scrollToSection(link.href);
-                    }}
-                  >
-                    {link.label}
-                  </a>
-                </Button>
+                  {link.label}
+                </a>
               );
             })}
           </div>
@@ -217,5 +197,32 @@ export function HeroDesktopNav() {
         </nav>
       </div>
     </header>
+  );
+}
+
+export function HeroMobileCta() {
+  return (
+    <a
+      href={PRIMARY_MAP_LINK.href}
+      onClick={(e) => {
+        if (window.matchMedia("(max-width: 767px)").matches) {
+          e.preventDefault();
+          scrollToSection(PRIMARY_MAP_LINK.href);
+        }
+      }}
+      className="e-hero__mobile-cta"
+    >
+      <span aria-hidden>{PRIMARY_MAP_LINK.icon}</span>
+      {PRIMARY_MAP_LINK.label}
+    </a>
+  );
+}
+
+export function MobileBackToMapCta() {
+  return (
+    <Link href="/#mapa" prefetch={false} className="e-hero__back-to-map">
+      <MapPinned aria-hidden className="h-4 w-4" strokeWidth={2.2} />
+      Volver al mapa
+    </Link>
   );
 }

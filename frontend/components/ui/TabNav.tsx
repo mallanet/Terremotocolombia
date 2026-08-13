@@ -1,7 +1,6 @@
 "use client";
 
 import type { KeyboardEvent } from "react";
-import { cn } from "@/lib/utils";
 
 export interface TabDef<T extends string> {
   id: T;
@@ -15,6 +14,8 @@ interface TabNavProps<T extends string> {
   active: T;
   onSelect: (tab: T) => void;
   ariaLabel: string;
+  /** compact: pestañas compactas alineadas a la izquierda (sin flex-1). */
+  variant?: "default" | "compact";
 }
 
 export function TabNav<T extends string>({
@@ -22,7 +23,14 @@ export function TabNav<T extends string>({
   active,
   onSelect,
   ariaLabel,
+  variant = "default",
 }: TabNavProps<T>) {
+  const listClass = variant === "compact" ? "e-m-tab-nav__list" : "e-tab-list";
+  const tabClass =
+    variant === "compact"
+      ? "e-m-tab-nav__tab"
+      : "e-tab-label flex flex-1 items-center justify-center";
+
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let nextIndex = index;
     if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
@@ -41,11 +49,7 @@ export function TabNav<T extends string>({
   }
 
   return (
-    <div
-      role="tablist"
-      aria-label={ariaLabel}
-      className="inline-flex min-w-0 items-center gap-1 rounded-lg bg-muted p-1"
-    >
+    <div role="tablist" aria-label={ariaLabel} className={listClass}>
       {tabs.map((tab, index) => (
         <button
           key={tab.id}
@@ -58,10 +62,7 @@ export function TabNav<T extends string>({
           tabIndex={active === tab.id ? 0 : -1}
           onClick={() => onSelect(tab.id)}
           onKeyDown={(event) => handleKeyDown(event, index)}
-          className={cn(
-            "rounded-md px-4 py-2 text-sm font-semibold whitespace-nowrap text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
-            active === tab.id && "bg-background text-foreground shadow-sm",
-          )}
+          className={tabClass}
         >
           {tab.label}
         </button>

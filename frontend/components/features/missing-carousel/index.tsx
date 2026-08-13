@@ -7,8 +7,6 @@ import {
   type MissingPersonPayload,
 } from "@/components/features/missing/MissingPersonForm";
 import { TabNav, type TabDef } from "@/components/ui/TabNav";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { useCreateMissing } from "@/hooks/missing";
 import { useCreatePet } from "@/hooks/pets";
 import type { PetPayload } from "@/components/features/pets/types";
@@ -143,7 +141,7 @@ export default function MissingCarousel() {
   // clase de ESTA sección (no en la regla compartida .e-m-section) para no
   // tocar el layout del resto del sitio.
   return (
-    <section id="e-directory" className="relative scroll-mt-20 px-5 py-[clamp(48px,5vw,72px)]">
+    <section id="e-directory" className="e-m-section scroll-mt-20 relative">
       <span
         id="hospitales"
         className="pointer-events-none absolute -top-24"
@@ -159,47 +157,44 @@ export default function MissingCarousel() {
         className="pointer-events-none absolute -top-24"
         aria-hidden
       />
-      <div className="mx-auto w-full max-w-[1120px]">
-        <header className="mb-[clamp(28px,2rem+1vw,44px)] max-w-[720px]">
-          <span className="mb-2.5 block font-heading text-[13px] font-extrabold tracking-[0.14em] text-primary uppercase">
-            Directorio humanitario
-          </span>
-          <h2 className="font-heading text-3xl font-extrabold tracking-tight text-balance text-foreground sm:text-4xl">
-            Personas, mascotas y hospitales
-          </h2>
-          <Separator className="mt-3.5 h-[3px] w-[72px] rounded-full bg-secondary" />
-          <p className="mt-3 max-w-[58ch] text-base leading-relaxed text-muted-foreground sm:text-lg">
+      <div className="e-m-section__inner">
+        <header className="e-m-section__head">
+          <span className="e-m-kicker">Directorio humanitario</span>
+          <h2 className="e-m-section__title">Personas, mascotas y hospitales</h2>
+          <hr className="e-m-section__rule" />
+          <p className="e-m-section__sub">
             Consulta reportes de personas desaparecidas, localizadas, mascotas
             perdidas y registros hospitalarios.
           </p>
         </header>
 
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="e-m-directory__header">
           <TabNav
             tabs={TABS}
             active={activeTab}
             onSelect={selectTab}
             ariaLabel="Directorio de personas y hospitales"
+            variant="compact"
           />
           {/* El botón sigue a la pestaña activa: en "Mascotas" ofrecer "Reportar
               persona" haría que la gente publicara a su perro como persona
               desaparecida, que es exactamente lo que esta feature evita. */}
           {activeTab === "mascotas" ? (
-            <Button
+            <button
               type="button"
               onClick={() => openPetForm("missing")}
-              className="shrink-0 bg-destructive font-semibold text-white hover:bg-destructive/85 max-sm:w-full"
+              className="e-m-btn e-m-btn--crisis e-m-btn--sm e-m-directory__report"
             >
               Reportar mascota
-            </Button>
+            </button>
           ) : (
-            <Button
+            <button
               type="button"
               onClick={() => openReportForm("missing")}
-              className="shrink-0 bg-destructive font-semibold text-white hover:bg-destructive/85 max-sm:w-full"
+              className="e-m-btn e-m-btn--crisis e-m-btn--sm e-m-directory__report"
             >
               Reportar persona
-            </Button>
+            </button>
           )}
         </div>
 
@@ -208,7 +203,7 @@ export default function MissingCarousel() {
             role="tabpanel"
             id="panel-personas"
             aria-labelledby="tab-personas"
-            className="pt-2"
+            className="e-m-directory__panel"
           >
             <PersonsTab ref={personasRef} />
           </div>
@@ -218,7 +213,7 @@ export default function MissingCarousel() {
             role="tabpanel"
             id="panel-mascotas"
             aria-labelledby="tab-mascotas"
-            className="pt-2"
+            className="e-m-directory__panel"
           >
             <PetsTab ref={mascotasRef} />
           </div>
@@ -228,7 +223,7 @@ export default function MissingCarousel() {
             role="tabpanel"
             id="panel-hospitales"
             aria-labelledby="tab-hospitales"
-            className="pt-2"
+            className="e-m-directory__panel"
           >
             <HospitalsTab />
           </div>

@@ -3,16 +3,21 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Moon, Phone, Sun } from "lucide-react";
+import {
+  HeartHandshake,
+  LifeBuoy,
+  Megaphone,
+  Moon,
+  Sun,
+  UserSearch,
+  type LucideIcon,
+} from "lucide-react";
 import {
   SITE_NAV_LOGO,
   SITE_NAV_LOGO_ON_DARK,
   SITE_BRAND_NAME,
   SITE_PRODUCT_NAME,
 } from "@/lib/site";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { toggleTheme } from "./ThemeProvider";
 
 const OPEN_EMERGENCY_REPORT_EVENT = "open-emergency-report";
@@ -28,7 +33,7 @@ function scrollToSection(id: string) {
 }
 
 interface HeroAccessCardProps {
-  icon: string;
+  icon: LucideIcon;
   title: string;
   description: string;
   onClick: () => void;
@@ -36,7 +41,7 @@ interface HeroAccessCardProps {
 }
 
 function HeroAccessCard({
-  icon,
+  icon: Icon,
   title,
   description,
   onClick,
@@ -46,30 +51,17 @@ function HeroAccessCard({
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "flex items-center gap-3 rounded-xl bg-white/10 p-3 text-left ring-1 ring-white/15 backdrop-blur-sm transition hover:bg-white/20 hover:ring-white/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 active:scale-[0.98] sm:p-4",
-        emphasis === "urgent" &&
-          "bg-destructive/25 ring-destructive/60 hover:bg-destructive/35 hover:ring-destructive/80",
-      )}
+      className={
+        emphasis === "urgent"
+          ? "e-hero__access-card e-hero__access-card--urgent"
+          : "e-hero__access-card"
+      }
     >
-      <span aria-hidden className="size-9 shrink-0 sm:size-10">
-        <Image
-          src={icon}
-          alt=""
-          width={40}
-          height={40}
-          unoptimized
-          className="size-full object-contain"
-        />
+      <span className="e-hero__card-icon" aria-hidden>
+        <Icon strokeWidth={1.5} />
       </span>
-      <span className="min-w-0">
-        <span className="block font-heading text-sm leading-tight font-bold sm:text-base">
-          {title}
-        </span>
-        <span className="mt-0.5 block text-[11px] leading-snug text-white/70 sm:text-xs">
-          {description}
-        </span>
-      </span>
+      <div className="e-hero__card-title">{title}</div>
+      <div className="e-hero__card-desc">{description}</div>
     </button>
   );
 }
@@ -84,67 +76,53 @@ export default function HeroSection() {
   }, []);
 
   return (
-    <header className="relative overflow-hidden bg-[#0f2154] text-white">
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-[linear-gradient(135deg,#0f2154_0%,#163a6e_45%,#4080f2_140%)]"
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-[radial-gradient(56%_90%_at_18%_0%,rgba(64,128,242,0.35),transparent_62%)]"
-      />
+    <header className="e-hero">
+      <div className="e-hero__gradient">
+        <div className="e-hero__bg-image" aria-hidden />
+        <div className="e-hero__bg-overlay" aria-hidden />
 
-      <div className="relative mx-auto flex max-w-5xl flex-col items-center px-4 py-12 text-center sm:px-6 sm:py-16">
-        <Badge
-          variant="outline"
-          className="h-auto border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold tracking-[0.14em] whitespace-normal text-white/85 uppercase"
-        >
-          {SITE_PRODUCT_NAME} · una iniciativa de {SITE_BRAND_NAME}
-        </Badge>
-        <h1 className="mt-4 max-w-3xl font-heading text-3xl font-extrabold tracking-tight text-balance sm:text-5xl">
-          Estamos contigo. ¿Qué necesitas hacer?
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm text-pretty text-white/80 sm:text-base">
-          Mapa y directorios ciudadanos para coordinar ayuda. No somos un
-          canal oficial.
-        </p>
-        <Button
-          asChild
-          size="lg"
-          className="mt-6 rounded-full bg-destructive font-bold text-white shadow-lg hover:bg-destructive/85"
-        >
-          <a href="tel:123">
-            <Phone data-icon="inline-start" aria-hidden />
+        <div className="e-hero__inner">
+          <p className="e-hero__eyebrow">
+            {SITE_PRODUCT_NAME} · una iniciativa de {SITE_BRAND_NAME}
+          </p>
+          <h1 className="e-hero__title">
+            Estamos contigo. ¿Qué necesitas hacer?
+          </h1>
+          <p className="e-hero__subtitle">
+            Mapa y directorios ciudadanos para coordinar ayuda. No somos un
+            canal oficial.
+          </p>
+          <a href="tel:123" className="e-hero__emergency-call">
             En peligro llama al 123
           </a>
-        </Button>
 
-        <div className="mt-10 grid w-full max-w-4xl grid-cols-2 gap-2.5 lg:grid-cols-4">
-          <HeroAccessCard
-            icon="/brand/icons/icon-rescate-red.png"
-            title="Necesito Ayuda"
-            description="Estoy en peligro o necesito insumos."
-            onClick={goHelp}
-            emphasis="urgent"
-          />
-          <HeroAccessCard
-            icon="/brand/icons/icon-buscar.png"
-            title="Buscar personas"
-            description="No encuentro a alguien que conozco."
-            onClick={goMissing}
-          />
-          <HeroAccessCard
-            icon="/brand/icons/icon-reporte.png"
-            title="Reportar Información"
-            description="Emergencias, refugios, suministros y más."
-            onClick={openEmergencyReport}
-          />
-          <HeroAccessCard
-            icon="/brand/icons/icon-ayuda.png"
-            title="Puedo Ayudar"
-            description="Siendo voluntario, donando o apoyando."
-            onClick={goVolunteer}
-          />
+          <div className="e-hero__card-grid">
+            <HeroAccessCard
+              icon={LifeBuoy}
+              title="Necesito Ayuda"
+              description="Estoy en peligro o necesito insumos."
+              onClick={goHelp}
+              emphasis="urgent"
+            />
+            <HeroAccessCard
+              icon={UserSearch}
+              title="Buscar personas"
+              description="No encuentro a alguien que conozco."
+              onClick={goMissing}
+            />
+            <HeroAccessCard
+              icon={Megaphone}
+              title="Reportar Información"
+              description="Emergencias, refugios, suministros y más."
+              onClick={openEmergencyReport}
+            />
+            <HeroAccessCard
+              icon={HeartHandshake}
+              title="Puedo Ayudar"
+              description="Siendo voluntario, donando o apoyando."
+              onClick={goVolunteer}
+            />
+          </div>
         </div>
       </div>
     </header>

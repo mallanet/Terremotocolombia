@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import { Heart, MapPin, Users } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { RESPONSEGRID_DONATE_WHATSAPP_URL } from "@/lib/responsegrid";
 
@@ -18,7 +18,7 @@ export default function HelpSection() {
         <div className="e-m-hub-grid">
           <Link href="/voluntario" className="e-m-hub-card">
             <div className="e-m-hub-card__icon e-m-hub-card__icon--shelter">
-              <Image src="/brand/icons/icon-voluntario.png" alt="" width={26} height={26} unoptimized className="object-contain" />
+              <Users size={22} strokeWidth={2} aria-hidden />
             </div>
             <h3 className="e-m-hub-card__title">Voluntario</h3>
             <p className="e-m-hub-card__desc">
@@ -29,7 +29,7 @@ export default function HelpSection() {
 
           <Link href="/checkin" className="e-m-hub-card">
             <div className="e-m-hub-card__icon e-m-hub-card__icon--shelter">
-              <Image src="/brand/icons/icon-ubicacion.png" alt="" width={26} height={26} unoptimized className="object-contain" />
+              <MapPin size={22} strokeWidth={2} aria-hidden />
             </div>
             <h3 className="e-m-hub-card__title">Ya soy voluntario</h3>
             <p className="e-m-hub-card__desc">
@@ -58,7 +58,7 @@ export default function HelpSection() {
 
           <Link href="/donaciones" className="e-m-hub-card">
             <div className="e-m-hub-card__icon e-m-hub-card__icon--support">
-              <Image src="/brand/icons/icon-corazon.png" alt="" width={26} height={26} unoptimized className="object-contain" />
+              <Heart size={22} strokeWidth={2} aria-hidden />
             </div>
             <h3 className="e-m-hub-card__title">Dónde donar</h3>
             <p className="e-m-hub-card__desc">

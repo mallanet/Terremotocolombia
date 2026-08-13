@@ -4,14 +4,15 @@ import { memo } from "react";
 import { MapPin, PawPrint, BadgeCheck } from "lucide-react";
 import { petDisplayName, type Pet } from "@/lib/pets";
 import { mediaUrl } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 interface PetCardProps {
   pet: Pet;
   onOpen: () => void;
 }
 
+/** Reutiliza las clases `e-m-person-card*` a propósito: es la MISMA rejilla del
+ *  directorio, así que compartir el estilo mantiene ambas pestañas coherentes sin
+ *  duplicar CSS. Lo que cambia es el contenido, no la caja. */
 function PetCardImpl({ pet, onOpen }: PetCardProps) {
   const isFound = pet.status === "found";
   const meta = [
@@ -27,67 +28,54 @@ function PetCardImpl({ pet, onOpen }: PetCardProps) {
     <button
       type="button"
       onClick={onOpen}
+      className={`e-m-person-card${isFound ? " e-m-person-card--found" : ""}`}
       role="listitem"
-      className="group flex h-full flex-col overflow-hidden rounded-xl bg-card text-left ring-1 ring-foreground/10 transition hover:-translate-y-0.5 hover:ring-primary/40 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring max-sm:grid max-sm:min-h-[148px] max-sm:grid-cols-[112px_minmax(0,1fr)]"
     >
-      <span className="relative block aspect-[3/2] w-full overflow-hidden bg-secondary max-sm:aspect-auto max-sm:h-full">
-        <Badge
-          className={cn(
-            "absolute top-2 left-2 z-10 uppercase",
-            isFound
-              ? "bg-secondary text-secondary-foreground"
-              : "bg-amber-100 text-amber-900",
-          )}
+      <div className="e-m-person-card__media">
+        <span
+          className={`e-m-person-card__badge${isFound ? " e-m-person-card__badge--found" : ""}`}
         >
           {isFound ? "Reunida" : "Perdida"}
-        </Badge>
+        </span>
         {pet.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={mediaUrl(pet.photoUrl)}
             alt={`Foto de ${displayName}`}
             loading="lazy"
-            className="block size-full object-cover object-center"
+            className="e-m-person-card__photo"
           />
         ) : (
-          <span className="grid size-full place-items-center text-primary/40" aria-hidden>
+          <div className="e-m-person-card__photo e-m-person-card__photo--empty" aria-hidden>
             <PawPrint size={40} strokeWidth={1.5} />
-          </span>
+          </div>
         )}
-      </span>
+      </div>
 
-      <span className="flex min-w-0 flex-1 flex-col gap-1.5 p-3.5">
-        <span
-          className="line-clamp-2 font-heading text-base leading-snug font-extrabold text-foreground"
-          title={displayName}
-        >
+      <div className="e-m-person-card__body">
+        <h3 className="e-m-person-card__name" title={displayName}>
           {displayName}
-        </span>
-        {meta && (
-          <span className="text-sm font-medium text-muted-foreground">{meta}</span>
-        )}
+        </h3>
+        {meta && <p className="e-m-person-card__meta">{meta}</p>}
 
         {pet.lastSeen && (
-          <span className="flex items-start gap-1.5 text-sm text-muted-foreground">
-            <MapPin size={14} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0 text-primary" />
-            <span className="line-clamp-2">{pet.lastSeen}</span>
-          </span>
+          <p className="e-m-person-card__row">
+            <MapPin size={14} strokeWidth={2} aria-hidden />
+            <span>{pet.lastSeen}</span>
+          </p>
         )}
 
         {/* El NÚMERO no se publica nunca; que exista chip sí, porque es lo que
             permite verificar a quien la reclame. Ver services/pets.ts. */}
         {pet.hasMicrochip && (
-          <span className="flex items-start gap-1.5 text-sm text-muted-foreground">
-            <BadgeCheck size={14} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0 text-primary" />
+          <p className="e-m-person-card__row">
+            <BadgeCheck size={14} strokeWidth={2} aria-hidden />
             <span>Tiene microchip</span>
-          </span>
+          </p>
         )}
 
-        <span className="mt-auto inline-flex items-center gap-1.5 pt-1.5 text-sm font-bold text-primary">
-          Ver detalles
-          <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
-        </span>
-      </span>
+        <span className="e-m-person-card__cta">Ver detalles</span>
+      </div>
     </button>
   );
 }
