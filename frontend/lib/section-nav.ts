@@ -18,6 +18,8 @@ export const PRIMARY_MAP_LINK: SectionLink = {
   mobileBar: true,
 };
 
+export const SUPPORT_DIRECTORY_PATH = "/apoyo-disponible";
+
 export const SECTION_LINKS: SectionLink[] = [
   {
     href: "/mapa-de-rescate",
