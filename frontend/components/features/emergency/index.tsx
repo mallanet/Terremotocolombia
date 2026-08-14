@@ -38,6 +38,7 @@ import {
   type ReportSubmission,
 } from "./post-report";
 import MapPanel from "./MapPanel";
+import MapTutorialButton from "./MapTutorial";
 import ReportComposer, { type ReportComposerSubmit } from "./ReportComposer";
 import AdminPanel from "./AdminPanel";
 import { Check, Link2, WifiOff } from "lucide-react";
@@ -559,6 +560,7 @@ export default function EmergencyApp() {
             )}
             <span>{shareCopied ? "Copiado" : "Compartir"}</span>
           </button>
+          <MapTutorialButton variant="toolbar" />
           <button
             type="button"
             onClick={startReport}

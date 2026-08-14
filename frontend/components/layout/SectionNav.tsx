@@ -1,25 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Brain } from "lucide-react";
-import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
+import { HandCoins, HeartHandshake, MapPinned } from "lucide-react";
 import { SiteBrand } from "./HeroSection";
-import { usePsychHelpClickCount, trackPsychosocialClick } from "@/hooks/psychology-help";
-import { trackPsychHelpClicked } from "@/lib/analytics";
-import { PSYCH_HELP_FORM_URL } from "@/lib/psych-help-form";
-
+import { usePsychHelpClickCount } from "@/hooks/psychology-help";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  PRIMARY_MAP_LINK,
+  SUPPORT_DIRECTORY_PATH,
+} from "@/lib/section-nav";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 export { MobileStickyNav } from "./MobileStickyNav";
 
@@ -63,108 +53,49 @@ function NavHeaderActions() {
   );
 }
 
-// Botón "Ayuda" del header: menú con las dos rutas de apoyo — ayuda
-// psicosocial (grupo de WhatsApp; Doppler NEXT_PUBLIC_WHATSAPP_GROUP_URL,
-// nunca commiteado: el content audit veta el dominio de invitaciones) y ayuda
-// psicológica (formulario Google PSYCH_HELP_FORM_URL). Sin la variable solo
-// se ofrece el formulario. El portal /psicologia (login) y /apoyo-disponible
-// siguen existiendo como rutas propias.
-const PSYCHOSOCIAL_WHATSAPP_URL =
-  process.env.NEXT_PUBLIC_WHATSAPP_GROUP_URL ?? "";
-
 function HelpNavLink() {
-  // El contador cuenta CLICS únicos por IP (dedup server-side): el destino es
-  // WhatsApp y no hay "envío" observable — el clic es la señal real.
   const { data: count } = usePsychHelpClickCount();
   const countLabel = count !== undefined ? count.toLocaleString("es") : null;
 
   const buttonAriaLabel =
     countLabel !== null
-      ? `Ayuda: ${countLabel} personas se han sumado; abre el menú de opciones de ayuda`
-      : "Ayuda: abre el menú de opciones de ayuda";
+      ? `Ayuda: ${countLabel} personas se han sumado; ver apoyo disponible`
+      : "Ver apoyo disponible";
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" aria-label={buttonAriaLabel}>
-          <Image
-            src="/brand/icons/icon-ayuda.png"
-            alt=""
-            width={18}
-            height={18}
-            unoptimized
-            aria-hidden
-            data-icon="inline-start"
-            className="shrink-0 object-contain"
-          />
-          Ayuda
-          {count !== undefined ? (
-            <Badge
-              variant="secondary"
-              className="ml-0.5 h-5 min-w-5 rounded-full px-1.5 text-[10px] font-bold tabular-nums"
-            >
-              {countLabel}
-            </Badge>
-          ) : null}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[14rem]">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">
-          Opciones de ayuda
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {PSYCHOSOCIAL_WHATSAPP_URL ? (
-          <DropdownMenuItem asChild>
-            <a
-              href={PSYCHOSOCIAL_WHATSAPP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Ayuda psicosocial: únete al grupo de WhatsApp (se abre en pestaña nueva)"
-              onClick={() => {
-                trackPsychosocialClick();
-                trackPsychHelpClicked("header");
-              }}
-              className="cursor-pointer gap-2"
-            >
-              <WhatsAppIcon className="h-4 w-4 shrink-0" aria-hidden />
-              Ayuda psicosocial
-            </a>
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem asChild>
-          <a
-            href={PSYCH_HELP_FORM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Ayuda psicológica: abrir formulario de apoyo (se abre en pestaña nueva)"
-            className="cursor-pointer gap-2"
-          >
-            <Brain aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
-            Ayuda psicológica
-          </a>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Link
+      href={SUPPORT_DIRECTORY_PATH}
+      className="e-nav__psych"
+      aria-label={buttonAriaLabel}
+    >
+      <HeartHandshake
+        aria-hidden
+        className="h-4 w-4 shrink-0"
+        strokeWidth={2.2}
+      />
+      Ayuda
+      {count !== undefined ? (
+        <Badge
+          variant="secondary"
+          className="e-nav__psych-count ml-0.5 h-5 min-w-5 rounded-full px-1.5 text-[10px] font-bold tabular-nums"
+        >
+          {countLabel}
+        </Badge>
+      ) : null}
+    </Link>
   );
 }
 
 function DonateNavLink() {
   return (
-    <Button asChild>
-      <Link href="/donaciones" aria-label="Ver formas de donar">
-        <Image
-          src="/brand/icons/icon-donar.png"
-          alt=""
-          width={18}
-          height={18}
-          unoptimized
-          aria-hidden
-          data-icon="inline-start"
-          className="shrink-0 object-contain"
-        />
-        Donar
-      </Link>
-    </Button>
+    <Link
+      href="/donaciones"
+      className="e-nav__donate"
+      aria-label="Ver formas de donar"
+    >
+      <HandCoins aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+      Donar
+    </Link>
   );
 }
 
@@ -189,27 +120,21 @@ export function HeroDesktopNav() {
             ).map((link) => {
               const anchor = isAnchor(link.href);
               const href = anchor && !onHome ? `/${link.href}` : link.href;
-              const active = !anchor && pathname === link.href;
               return (
-                <Button
+                <a
                   key={link.href}
-                  asChild
-                  variant={active ? "secondary" : "ghost"}
+                  href={href}
+                  title={link.title}
+                  aria-label={link.title}
+                  aria-current={!anchor && pathname === link.href ? "page" : undefined}
+                  onClick={(event) => {
+                    if (!anchor || !onHome) return;
+                    event.preventDefault();
+                    scrollToSection(link.href);
+                  }}
                 >
-                  <a
-                    href={href}
-                    title={link.title}
-                    aria-label={link.title}
-                    aria-current={active ? "page" : undefined}
-                    onClick={(event) => {
-                      if (!anchor || !onHome) return;
-                      event.preventDefault();
-                      scrollToSection(link.href);
-                    }}
-                  >
-                    {link.label}
-                  </a>
-                </Button>
+                  {link.label}
+                </a>
               );
             })}
           </div>
@@ -217,5 +142,32 @@ export function HeroDesktopNav() {
         </nav>
       </div>
     </header>
+  );
+}
+
+export function HeroMobileCta() {
+  return (
+    <a
+      href={PRIMARY_MAP_LINK.href}
+      onClick={(e) => {
+        if (window.matchMedia("(max-width: 767px)").matches) {
+          e.preventDefault();
+          scrollToSection(PRIMARY_MAP_LINK.href);
+        }
+      }}
+      className="e-hero__mobile-cta"
+    >
+      <span aria-hidden>{PRIMARY_MAP_LINK.icon}</span>
+      {PRIMARY_MAP_LINK.label}
+    </a>
+  );
+}
+
+export function MobileBackToMapCta() {
+  return (
+    <Link href="/#mapa" prefetch={false} className="e-hero__back-to-map">
+      <MapPinned aria-hidden className="h-4 w-4" strokeWidth={2.2} />
+      Volver al mapa
+    </Link>
   );
 }

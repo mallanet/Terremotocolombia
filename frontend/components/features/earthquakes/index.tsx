@@ -12,10 +12,6 @@ import {
   earthquakesQuietMessage,
   resolveEarthquakesPanelView,
 } from "@/lib/earthquakes-panel";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import { EarthquakeCard } from "./EarthquakeCard";
 
 const USGS_MAP_URL = "https://earthquake.usgs.gov/earthquakes/map/";
@@ -46,81 +42,77 @@ export default function EarthquakesPanel() {
   });
 
   return (
-    <section
-      aria-labelledby="earthquakes-heading"
-      className="bg-muted px-5 py-[clamp(48px,5vw,72px)]"
-    >
-      <div className="mx-auto w-full max-w-3xl">
+    <section aria-labelledby="earthquakes-heading" className="e-m-section e-m-section--wash">
+      <div className="e-m-section__inner max-w-3xl">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div className="max-w-[720px]">
-            <h2
-              id="earthquakes-heading"
-              className="font-heading text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl"
-            >
+          <div className="e-m-section__head mb-0">
+            <h2 id="earthquakes-heading" className="e-m-section__title">
               Sismos recientes
             </h2>
-            <Separator className="mt-3.5 h-[3px] w-[72px] rounded-full bg-secondary" />
-            <p className="mt-3 max-w-[58ch] text-base leading-relaxed text-muted-foreground sm:text-lg">
+            <hr className="e-m-section__rule" />
+            <p className="e-m-section__sub">
               {earthquakesPanelSubtitle(deploymentConfig.regionLabel)}
             </p>
           </div>
           <div
             role="group"
             aria-label="Magnitud mínima"
-            className="flex shrink-0 items-center gap-1 rounded-full border bg-background p-1"
+            className="e-m-quake-panel__filters"
           >
             {MIN_MAG_OPTIONS.map((m) => (
-              <Button
+              <button
                 key={m}
                 type="button"
-                size="sm"
-                variant={minMag === m ? "default" : "ghost"}
-                aria-pressed={minMag === m}
                 onClick={() => {
                   setMinMag(m);
                   setShowAll(false);
                 }}
-                className="rounded-full px-3"
+                aria-pressed={minMag === m}
+                className={`e-m-chip${minMag === m ? " e-m-chip--active" : ""}`}
               >
                 {m}+
-              </Button>
+              </button>
             ))}
           </div>
         </div>
 
         {view === "loading" ? (
-          <ul className="flex flex-col gap-2" aria-hidden>
+          <ul className="e-m-quake-list" aria-hidden>
             {Array.from({ length: 5 }).map((_, i) => (
-              <li key={i}>
-                <Skeleton className="h-16 rounded-xl" />
-              </li>
+              <li
+                key={i}
+                className="h-16 animate-pulse rounded-xl border border-[var(--m-gray-200)] bg-[var(--qi-white)]"
+              />
             ))}
           </ul>
         ) : view === "error" ? (
-          <Alert variant="destructive">
-            <AlertTitle>No se pudieron cargar los sismos</AlertTitle>
-            <AlertDescription>
+          <div className="e-m-hub-card">
+            <p className="e-m-hub-card__title">No se pudieron cargar los sismos</p>
+            <p className="e-m-hub-card__desc">
               Puede ser un problema temporal. También puedes consultar USGS.
-            </AlertDescription>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Button
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <button
                 type="button"
-                size="sm"
                 onClick={() =>
                   void queryClient.invalidateQueries({ queryKey: qk.earthquakes.list })
                 }
+                className="e-m-btn e-m-btn--primary e-m-btn--sm"
               >
                 Reintentar
-              </Button>
-              <Button asChild variant="link" size="sm">
-                <a href={USGS_MAP_URL} target="_blank" rel="noopener noreferrer">
-                  Ver en USGS
-                </a>
-              </Button>
+              </button>
+              <a
+                href={USGS_MAP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="e-m-link text-sm font-bold"
+              >
+                Ver en USGS
+              </a>
             </div>
-          </Alert>
+          </div>
         ) : view === "quiet" ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
+          <p className="py-6 text-center text-sm text-[var(--m-gray-500)]">
             {earthquakesQuietMessage({
               minMag,
               syncFetchedAt,
@@ -129,29 +121,19 @@ export default function EarthquakesPanel() {
           </p>
         ) : (
           <>
-            <ul className="flex flex-col gap-2">
+            <ul className="e-m-quake-list">
               {visible.map((q) => (
                 <EarthquakeCard key={q.id} quake={q} now={now} />
               ))}
             </ul>
             {hidden > 0 && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowAll(true)}
-                className="mt-2 w-full"
-              >
+              <button type="button" onClick={() => setShowAll(true)} className="e-m-quake-more">
                 Ver más ({hidden})
-              </Button>
+              </button>
             )}
-            <p className="mt-3 text-center text-xs text-muted-foreground">
+            <p className="mt-3 text-center text-xs text-[var(--m-gray-500)]">
               Fuente:{" "}
-              <a
-                href={USGS_MAP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
+              <a href={USGS_MAP_URL} target="_blank" rel="noopener noreferrer" className="e-m-link">
                 USGS
               </a>
               {" · "}

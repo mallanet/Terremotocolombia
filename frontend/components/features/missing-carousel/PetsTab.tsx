@@ -15,6 +15,7 @@ import {
   useState,
 } from "react";
 import dynamic from "next/dynamic";
+import { Search } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   PET_DEFAULT_LIST_PARAMS,
@@ -30,9 +31,6 @@ import {
 import { qk } from "@/lib/query-keys";
 import { useLowBandwidthMode } from "@/hooks/useLowBandwidthMode";
 import { Pagination } from "@/components/ui/Pagination";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { SearchInput } from "@/components/ui/SearchInput";
 import { SectionLoading } from "@/components/ui/SectionLoading";
 import { StaleDataNotice } from "@/components/ui/StaleDataNotice";
 import { PetCard } from "./PetCard";
@@ -170,14 +168,11 @@ export const PetsTab = forwardRef<PetsTabHandle>(function PetsTab(_props, ref) {
 
   return (
     <>
-      <div className="mb-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="font-heading text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
-            Mascotas
-          </h2>
-          <Badge
-            variant="destructive"
-            className="h-auto px-2.5 py-0.5 text-xs"
+      <div className="e-m-directory__intro">
+        <div className="e-m-person-head">
+          <h2 className="e-m-section__title e-m-section__title--sm">Mascotas</h2>
+          <span
+            className="e-m-person-head__count"
             aria-label={
               statsUnknown
                 ? "Cargando el número de mascotas reportadas"
@@ -185,19 +180,25 @@ export const PetsTab = forwardRef<PetsTabHandle>(function PetsTab(_props, ref) {
             }
           >
             {reportedLabel} reportadas
-          </Badge>
+          </span>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm font-medium text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="size-1.5 rounded-full bg-amber-500" />
+        <div className="e-m-person-stats">
+          <span className="e-m-person-stats__item">
+            <span
+              className="e-m-person-stats__dot e-m-person-stats__dot--missing"
+              aria-hidden
+            />
             {activeLabel} perdidas
           </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="size-1.5 rounded-full bg-primary" />
+          <span className="e-m-person-stats__item">
+            <span
+              className="e-m-person-stats__dot e-m-person-stats__dot--found"
+              aria-hidden
+            />
             {foundLabel} reunidas
           </span>
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="e-m-section__sub">
           Si reconoces a alguna, contacta a quien la reportó.
         </p>
         <StaleDataNotice staleAt={stats.data?.swStaleAt} />
@@ -205,54 +206,52 @@ export const PetsTab = forwardRef<PetsTabHandle>(function PetsTab(_props, ref) {
 
       <ZoneFilters filter={filter} onChange={setFilter} />
 
-      <div role="group" aria-label="Filtrar por especie" className="mt-2 mb-3 flex flex-wrap items-center gap-1.5">
-        <Button
+      <div className="e-m-person-toolbar" role="group" aria-label="Filtrar por especie">
+        <button
           type="button"
-          size="sm"
-          variant={species === null ? "default" : "outline"}
           aria-pressed={species === null}
           onClick={() => setSpecies(null)}
-          className="rounded-full"
+          className={`e-m-chip${species === null ? " e-m-chip--active" : ""}`}
         >
           Todas
-        </Button>
+        </button>
         {PET_SPECIES_OPTIONS.map((option) => (
-          <Button
+          <button
             key={option.value}
             type="button"
-            size="sm"
-            variant={species === option.value ? "default" : "outline"}
             aria-pressed={species === option.value}
             onClick={() => setSpecies(species === option.value ? null : option.value)}
-            className="rounded-full"
+            className={`e-m-chip${species === option.value ? " e-m-chip--active" : ""}`}
           >
             <span aria-hidden>{option.icon}</span> {option.label}
-          </Button>
+          </button>
         ))}
       </div>
 
-      <div className="mb-4">
-        <SearchInput
-          id="mascotas-directory-search"
-          label="Buscar mascotas"
-          ariaLabel="Buscar mascotas"
-          value={query}
-          onChange={setQuery}
-          placeholder="Buscar por nombre, raza, color o zona…"
-          autoComplete="off"
-        />
+      <div className="e-m-person-search">
+        <label htmlFor="mascotas-directory-search" className="sr-only">
+          Buscar mascotas
+        </label>
+        <div className="e-m-person-search__field">
+          <Search size={16} strokeWidth={2} aria-hidden />
+          <input
+            id="mascotas-directory-search"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar por nombre, raza, color o zona…"
+            autoComplete="off"
+            enterKeyHint="search"
+          />
+        </div>
         {queryTooShort && (
-          <p className="mt-1.5 text-xs text-muted-foreground">
+          <p className="mt-1.5 text-xs text-[var(--m-gray-500)]">
             Escribe al menos {MIN_SEARCH_LEN} letras para buscar.
           </p>
         )}
       </div>
 
-      <div
-        ref={gridRef}
-        role="list"
-        className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 min-[960px]:grid-cols-3 min-[1280px]:grid-cols-4"
-      >
+      <div ref={gridRef} className="e-m-person-grid" role="list">
         {/* "Cargando" y "vacío" NO son el mismo estado: pintar "aún no hay
             reportes" con la respuesta en vuelo afirma algo falso. */}
         {isPending ? (
@@ -267,27 +266,19 @@ export const PetsTab = forwardRef<PetsTabHandle>(function PetsTab(_props, ref) {
           // afirma algo falso: alguien buscando a su mascota concluiría que su
           // reporte se perdió. Pasa de verdad en la ventana entre desplegar el
           // backend y correr la migración, cuando /api/pets todavía da 500.
-          <div
-            role="listitem"
-            className="col-span-full flex min-h-48 flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-card px-4 py-8 text-center"
-          >
-            <p className="font-heading text-lg font-extrabold text-foreground">
-              No pudimos cargar las mascotas
-            </p>
-            <p className="max-w-[36ch] text-sm text-muted-foreground">
+          <div className="e-m-person-empty" role="listitem">
+            <p className="e-m-person-empty__title">No pudimos cargar las mascotas</p>
+            <p className="e-m-person-empty__desc">
               Es un problema nuestro, no tuyo: los reportes siguen guardados.
               Reintentamos solos en unos segundos.
             </p>
           </div>
         ) : pets.length === 0 ? (
-          <div
-            role="listitem"
-            className="col-span-full flex min-h-48 flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-card px-4 py-8 text-center"
-          >
-            <p className="font-heading text-lg font-extrabold text-foreground">
+          <div className="e-m-person-empty" role="listitem">
+            <p className="e-m-person-empty__title">
               {isSearching ? "No encontramos coincidencias" : "Aún no hay reportes"}
             </p>
-            <p className="max-w-[36ch] text-sm text-muted-foreground">
+            <p className="e-m-person-empty__desc">
               {isSearching
                 ? "Prueba con otra raza, color o zona."
                 : "Sé el primero en reportar una mascota perdida o encontrada."}
@@ -307,7 +298,7 @@ export const PetsTab = forwardRef<PetsTabHandle>(function PetsTab(_props, ref) {
         ariaLabel="Paginación del directorio de mascotas"
       />
       {totalPages > 1 && (
-        <p className="mt-2 text-center text-xs text-muted-foreground">
+        <p className="mt-2 text-center text-xs text-[var(--m-gray-500)]">
           Página {page.toLocaleString("es")} de {totalPages.toLocaleString("es")}
         </p>
       )}
