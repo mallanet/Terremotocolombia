@@ -294,7 +294,13 @@ flowchart TB
 
 The first module is **acopio** (`modules/acopio/`, always mounted at
 `/api/acopio`). It serves a static list of the earthquake's official
-collection centers (`infrastructure/static/`). When
+collection centers (`infrastructure/static/`) and citizen map reports of
+type `shelter` (`infrastructure/reports/`). Public registration is
+`POST /api/reports` with `type=shelter` (form at `/acopio/registrar`).
+The create response includes a one-time `editToken` (HMAC, not stored).
+`PATCH /api/reports/:id` accepts that token plus Turnstile and updates
+place, coordinates, and needs. List and detail GET responses never
+include the token. When
 `ENABLE_RESPONSEGRID=true`, it also merges in the ResponseGrid directory
 (`RESPONSEGRID_API_URL` / `RESPONSEGRID_EMERGENCY_SLUG`). Adding another
 source means adding another adapter for the same port, wired in the

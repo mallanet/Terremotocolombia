@@ -6,6 +6,7 @@ import { hashIp } from "@/lib/client-ip";
 import { HttpError, notFound, serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/reports";
 import { registerReportCreate } from "@/routes/reports-create";
+import { registerReportEdit } from "@/routes/reports-edit";
 
 export const reportsRouter = Router();
 
@@ -36,6 +37,19 @@ reportsRouter.get(
 );
 
 registerReportCreate(reportsRouter);
+registerReportEdit(reportsRouter);
+
+reportsRouter.get(
+  "/:id",
+  rateLimit({ scope: "reports:detail", limit: 120 }),
+  validate({ params: idParam }),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params as z.infer<typeof idParam>;
+    const report = await service.getReportById(id);
+    if (!report) throw notFound("No encontrado");
+    jsonWithEtag(req, res, { report }, LIST_CACHE);
+  }),
+);
 
 reportsRouter.delete(
   "/:id",

@@ -44,6 +44,7 @@ function searchableText(center: CollectionCenter): string {
     center.city,
     center.country,
     center.accepts.join(" "),
+    center.description,
   ]
     .filter(Boolean)
     .join(" ");

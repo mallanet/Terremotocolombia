@@ -5,6 +5,7 @@ import { ResponseGridClient } from "./infrastructure/responsegrid/responsegrid-c
 import { ResponseGridCollectionCenterProvider } from "./infrastructure/responsegrid/responsegrid-collection-center-provider";
 import { CachedCollectionCenterProvider } from "./infrastructure/cached-collection-center-provider";
 import { StaticCollectionCenterProvider } from "./infrastructure/static/static-collection-center-provider";
+import { ReportsCollectionCenterProvider } from "./infrastructure/reports/reports-collection-center-provider";
 import { MergedCollectionCenterProvider } from "./infrastructure/merged-collection-center-provider";
 import type { CollectionCenterProvider } from "./domain/collection-center-provider";
 import { createAcopioRouter } from "./interface/http/acopio-router";
@@ -13,13 +14,10 @@ const CACHE_TTL_MS = 120_000;
 const REQUEST_TIMEOUT_MS = 5_000;
 const REFRESH_TIMEOUT_MS = 10_000;
 
-/**
- * Composition root. Siempre sirve la lista estática (centros oficiales del
- * sismo). Si ENABLE_RESPONSEGRID=true, fusiona ResponseGrid encima.
- */
 export function buildAcopioRouter(): Router {
   const providers: CollectionCenterProvider[] = [
     new StaticCollectionCenterProvider(),
+    new ReportsCollectionCenterProvider("Colombia"),
   ];
 
   if (

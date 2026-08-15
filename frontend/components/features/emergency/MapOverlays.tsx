@@ -52,7 +52,7 @@ export default function MapOverlays({
 }: OverlayProps) {
   return (
     <>
-      <div className="map-overlay pointer-events-none absolute inset-x-0 top-0 z-[1000] flex flex-col gap-2 p-3 sm:pr-14">
+      <div className="map-overlay pointer-events-none absolute inset-x-0 top-0 z-[1000] flex flex-col gap-2 p-2 sm:p-3 sm:pr-14">
         <div className="pointer-events-auto flex min-w-0 flex-col gap-2 xl:flex-row xl:items-stretch">
           <div className="w-full shrink-0 xl:max-w-xs" data-tour="map-search">
             <AddressSearch onSelect={onAddressSelect} bias={addressBias} />
@@ -74,7 +74,7 @@ export default function MapOverlays({
                 ? "Visibles, toca para ocultar."
                 : "Ocultas, toca para mostrar."
             }`}
-            className={`e-m-chip shrink-0${showPetsOnMap ? " e-m-chip--active" : ""}`}
+            className={`e-m-chip hidden shrink-0 md:inline-flex${showPetsOnMap ? " e-m-chip--active" : ""}`}
           >
             <span aria-hidden>🐾</span> Mascotas
             {petMapMarkers.length > 0 && (
@@ -91,7 +91,7 @@ export default function MapOverlays({
                 ? "Visibles, toca para ocultar."
                 : "Ocultos, toca para mostrar."
             }`}
-            className={`e-m-chip shrink-0${showAcopioOnMap ? " e-m-chip--active" : ""}`}
+            className={`e-m-chip hidden shrink-0 md:inline-flex${showAcopioOnMap ? " e-m-chip--active" : ""}`}
           >
             <span aria-hidden>📦</span> Acopio
             {acopioCenters.length > 0 && (
@@ -101,7 +101,7 @@ export default function MapOverlays({
         </div>
       </div>
 
-      <div className="map-overlay pointer-events-auto absolute right-3 top-20 z-[1000] flex flex-col gap-1.5 rounded-lg bg-white/95 p-1.5 shadow-lg ring-1 ring-black/5 backdrop-blur">
+      <div className="map-overlay pointer-events-auto absolute right-3 top-20 z-[1000] hidden flex-col gap-1.5 rounded-lg bg-white/95 p-1.5 shadow-lg ring-1 ring-black/5 backdrop-blur md:flex">
         <button
           type="button"
           onClick={onToggleRain}
@@ -158,7 +158,7 @@ export default function MapOverlays({
         </>
       ) : null}
 
-      <div className="map-overlay pointer-events-none absolute inset-x-0 bottom-3 z-[1000] flex justify-center px-3">
+      <div className="map-overlay pointer-events-none absolute inset-x-0 bottom-3 z-[1000] flex justify-center px-3 max-md:bottom-[4.75rem]">
         <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/95 p-1.5 shadow-lg ring-1 ring-black/5 backdrop-blur">
           <button
             type="button"
@@ -168,7 +168,7 @@ export default function MapOverlays({
             className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
           >
             <span aria-hidden>{shareCopied ? "✓" : "🔗"}</span>
-            <span>{shareCopied ? "Copiado" : "Compartir"}</span>
+            <span className="hidden sm:inline">{shareCopied ? "Copiado" : "Compartir"}</span>
           </button>
           <MapTutorialButton />
           <button

@@ -1,0 +1,40 @@
+.e-leaflet-wrap {
+	height: max(520px, calc(100dvh - 13rem));
+	min-height: 520px;
+}
+
+@media (min-width: 760px) {
+	.e-leaflet-wrap {
+		height: var(--e-map-height, 720px);
+		min-height: 560px;
+	}
+}
+
+@media (max-width: 759px) {
+	#mapa {
+		padding-inline: 0;
+		padding-block: 1rem 0.5rem;
+	}
+
+	#mapa > :not(.e-map-grid) {
+		padding-inline: 1rem;
+	}
+
+	.e-map-grid {
+		border-radius: 0;
+		border-left: none;
+		border-right: none;
+	}
+
+	.e-leaflet-wrap .leaflet-top.leaflet-right {
+		top: auto;
+		bottom: 5.25rem;
+		right: 0.5rem;
+	}
+
+	.e-leaflet-wrap .leaflet-control-attribution {
+		font-size: 10px;
+		margin: 0;
+		max-width: 55%;
+	}
+}

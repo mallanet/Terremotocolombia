@@ -6,6 +6,7 @@ import PrivacyPolicyBody from "@/components/content/PrivacyPolicyBody";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useClientMount } from "@/hooks/useClientMount";
 import { PRIVACY_COMPANY_NAME, PRIVACY_EFFECTIVE_DATE } from "@/lib/privacy-policy";
+import { PRIVACY_GATE_Z_INDEX } from "@/lib/privacy-gate-z";
 import { SITE_PRODUCT_NAME } from "@/lib/site";
 
 const SCROLL_THRESHOLD_PX = 48;
@@ -54,10 +55,12 @@ export default function PrivacyConsentModal({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onDismiss();
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      onDismiss();
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
   }, [open, onDismiss]);
 
   if (!mounted || !open) return null;
@@ -65,14 +68,16 @@ export default function PrivacyConsentModal({
   return createPortal(
     <div
       data-privacy-gate-overlay
-      className="fixed inset-0 z-[2000] flex items-end justify-center bg-black/60 p-4 sm:items-center sm:p-6"
+      className="pointer-events-auto fixed inset-0 flex items-end justify-center bg-black/60 p-4 sm:items-center sm:p-6"
+      style={{ zIndex: PRIVACY_GATE_Z_INDEX }}
       role="presentation"
+      onPointerDown={(event) => event.stopPropagation()}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="flex max-h-[min(92vh,720px)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="pointer-events-auto flex h-[min(92dvh,720px)] max-h-[min(92dvh,720px)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
       >
         <header className="shrink-0 border-b border-slate-200 px-5 py-4 sm:px-6">
           <h2 id={titleId} className="text-lg font-bold text-slate-900 sm:text-xl">
@@ -88,7 +93,8 @@ export default function PrivacyConsentModal({
         <div
           ref={scrollRef}
           onScroll={checkScrollEnd}
-          className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6"
+          className="min-h-0 flex-1 overflow-y-scroll overscroll-contain px-5 py-4 sm:px-6"
+          tabIndex={0}
         >
           <PrivacyPolicyBody />
           <div

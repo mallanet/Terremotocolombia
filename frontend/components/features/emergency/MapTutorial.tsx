@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
-import { MAP_TOUR_STORAGE_KEY, MAP_TUTORIAL_STEPS } from "./map-tutorial-steps";
+import { MAP_TUTORIAL_STEPS } from "./map-tutorial-steps";
 
-export { MAP_TUTORIAL_STEPS, MAP_TOUR_STORAGE_KEY };
+export { MAP_TUTORIAL_STEPS };
 
 export function startMapTour(): void {
   const tour = driver({
@@ -18,29 +18,22 @@ export function startMapTour(): void {
       element: step.element,
       popover: { title: step.title, description: step.body },
     })),
-    onDestroyed: () => {
-      try {
-        localStorage.setItem(MAP_TOUR_STORAGE_KEY, "1");
-      } catch {
-        return;
-      }
-    },
   });
   tour.drive();
 }
 
-export default function MapTutorialButton() {
-  const start = useCallback(() => startMapTour(), []);
+type MapTutorialButtonProps = {
+  variant?: "overlay" | "toolbar";
+};
 
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(MAP_TOUR_STORAGE_KEY)) return;
-    } catch {
-      return;
-    }
-    const timer = window.setTimeout(() => startMapTour(), 700);
-    return () => window.clearTimeout(timer);
-  }, []);
+export default function MapTutorialButton({
+  variant = "overlay",
+}: MapTutorialButtonProps) {
+  const start = useCallback(() => startMapTour(), []);
+  const className =
+    variant === "toolbar"
+      ? "inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--eborder)] bg-[var(--esurf)] px-4 py-2 text-sm font-semibold text-[var(--etext)] shadow-sm transition hover:bg-[var(--einput)]"
+      : "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100";
 
   return (
     <button
@@ -48,10 +41,12 @@ export default function MapTutorialButton() {
       onClick={start}
       aria-label="Cómo usar el mapa"
       title="Cómo usar el mapa"
-      className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+      className={className}
     >
       <span aria-hidden>?</span>
-      <span>Cómo usar</span>
+      <span className={variant === "toolbar" ? undefined : "hidden sm:inline"}>
+        Cómo usar
+      </span>
     </button>
   );
 }

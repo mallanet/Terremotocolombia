@@ -26,6 +26,7 @@ describe("official-support-links", () => {
 
   it("telHref normaliza display a esquema tel:", () => {
     expect(telHref("123")).toBe("tel:123");
-    expect(telHref("+1 (555) 0100")).toBe("tel:+15550100");
+    expect(telHref("300 123 4567")).toBe("tel:3001234567");
+    expect(telHref("+57 123")).toBe("tel:+57123");
   });
 });

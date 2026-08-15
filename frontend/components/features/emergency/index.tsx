@@ -33,8 +33,12 @@ import {
   removePending,
   type QueuedPayload,
 } from "@/lib/offline-queue";
-import { postReportToServer } from "./post-report";
+import {
+  postReportToServer,
+  type ReportSubmission,
+} from "./post-report";
 import MapPanel from "./MapPanel";
+import MapTutorialButton from "./MapTutorial";
 import ReportComposer, { type ReportComposerSubmit } from "./ReportComposer";
 import AdminPanel from "./AdminPanel";
 import { Check, Link2, WifiOff } from "lucide-react";
@@ -95,7 +99,10 @@ export default function EmergencyApp() {
   // Centros de acopio oficiales (capa verde, /api/acopio — siempre montado).
   const acopioQuery = useCollectionCenters(ACOPIO_DEFAULT_FILTERS);
   const acopioCenters = useMemo(
-    () => acopioQuery.data?.items ?? [],
+    () =>
+      (acopioQuery.data?.items ?? []).filter(
+        (center) => center.verificationLevel === "official",
+      ),
     [acopioQuery.data],
   );
   const [showAcopioOnMap, setShowAcopioOnMap] = useState(true);
@@ -420,7 +427,7 @@ export default function EmergencyApp() {
         }
       }
 
-      const full: QueuedPayload = {
+      const full: ReportSubmission = {
         ...payload,
         lat: draft.lat,
         lng: draft.lng,
@@ -436,7 +443,17 @@ export default function EmergencyApp() {
         // Sin conexión o servidor no disponible: guardamos el reporte en el
         // dispositivo y lo reintentamos automáticamente al recuperar la red.
         try {
-          await enqueueReport(full);
+          const queuedPayload: QueuedPayload = {
+            type: full.type,
+            lat: full.lat,
+            lng: full.lng,
+            place: full.place,
+            affected: full.affected,
+            needs: full.needs,
+            photo: full.photo,
+            volunteerCode: full.volunteerCode,
+          };
+          await enqueueReport(queuedPayload);
         } catch {
           throw new Error(
             "No hay conexión y no se pudo guardar el reporte en este dispositivo. Inténtalo de nuevo.",
@@ -543,6 +560,7 @@ export default function EmergencyApp() {
             )}
             <span>{shareCopied ? "Copiado" : "Compartir"}</span>
           </button>
+          <MapTutorialButton variant="toolbar" />
           <button
             type="button"
             onClick={startReport}

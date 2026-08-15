@@ -933,16 +933,6 @@ a:focus-visible,
 	background: transparent;
 }
 
-.e-leaflet-wrap {
-	height: 360px;
-}
-
-@media (min-width: 760px) {
-	.e-leaflet-wrap {
-		height: var(--e-map-height, 720px);
-	}
-}
-
 .e-map-type-filters {
 	-ms-overflow-style: none;
 	scrollbar-width: none;
@@ -2081,11 +2071,6 @@ input[type="search"]::-webkit-search-decoration {
 	}
 }
 
-@media (max-width: 767px) {
-	.leaflet-top.leaflet-right {
-		top: 9.5rem;
-	}
-}
 
 .goog-te-banner-frame,
 .goog-te-balloon-frame,

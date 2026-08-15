@@ -1,5 +1,5 @@
 export type PublicStatus = "active" | "saturated" | "paused" | "closed";
-export type VerificationLevel = "verified" | "official";
+export type VerificationLevel = "verified" | "official" | "citizen";
 export type Category = string;
 
 export interface GeoLocation {
