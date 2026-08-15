@@ -29,12 +29,19 @@ function reducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function fitOptions(selected: boolean): L.FitBoundsOptions {
+function fitOptions(
+  selected: boolean,
+  mobileSheetExpanded: boolean,
+): L.FitBoundsOptions {
   const mobile = window.matchMedia("(max-width: 767px)").matches;
   if (mobile) {
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const panelPadding = mobileSheetExpanded
+      ? Math.min(viewportHeight * 0.5, 440)
+      : Math.min(viewportHeight * 0.24, 220);
     return {
       paddingTopLeft: [24, 24],
-      paddingBottomRight: [24, Math.min(window.innerHeight * 0.46, 430)],
+      paddingBottomRight: [24, panelPadding],
       maxZoom: selected ? 15 : 8,
       animate: !reducedMotion(),
       duration: reducedMotion() ? 0 : 0.35,
@@ -52,9 +59,11 @@ function fitOptions(selected: boolean): L.FitBoundsOptions {
 function RescueMapCamera({
   mapping,
   selectedAoiId,
+  mobileSheetExpanded,
 }: {
   mapping: RescueMapMappingSnapshot;
   selectedAoiId: string | null;
+  mobileSheetExpanded: boolean;
 }) {
   const map = useMap();
 
@@ -66,7 +75,10 @@ function RescueMapCamera({
 
     const fit = () => {
       map.invalidateSize({ pan: false });
-      map.fitBounds(L.latLngBounds(ring), fitOptions(Boolean(selected)));
+      map.fitBounds(
+        L.latLngBounds(ring),
+        fitOptions(Boolean(selected), mobileSheetExpanded),
+      );
     };
     const frame = requestAnimationFrame(fit);
     window.addEventListener("orientationchange", fit);
@@ -74,7 +86,7 @@ function RescueMapCamera({
       cancelAnimationFrame(frame);
       window.removeEventListener("orientationchange", fit);
     };
-  }, [map, mapping, selectedAoiId]);
+  }, [map, mapping, mobileSheetExpanded, selectedAoiId]);
 
   return null;
 }
@@ -156,6 +168,8 @@ export default function RescueMapCanvas({
   selectedAoiId,
   epicenter,
   isOnline,
+  mobileViewport,
+  mobileSheetExpanded,
   onSelectAoi,
 }: {
   mapping: RescueMapMappingSnapshot;
@@ -164,6 +178,8 @@ export default function RescueMapCanvas({
   selectedAoiId: string | null;
   epicenter: { longitude: number; latitude: number; magnitude: number };
   isOnline: boolean;
+  mobileViewport: boolean;
+  mobileSheetExpanded: boolean;
   onSelectAoi: (aoiId: string) => void;
 }) {
   const [mapReady, setMapReady] = useState(false);
@@ -255,7 +271,11 @@ export default function RescueMapCanvas({
           mapping={mapping}
           visible={!isOnline || !tileAvailable}
         />
-        <RescueMapCamera mapping={mapping} selectedAoiId={selectedAoiId} />
+        <RescueMapCamera
+          mapping={mapping}
+          selectedAoiId={selectedAoiId}
+          mobileSheetExpanded={mobileSheetExpanded}
+        />
         <ZoomControl position="topright" />
 
         {aois.map(({ rings, product, ...aoi }) => {
@@ -278,22 +298,21 @@ export default function RescueMapCanvas({
                 click: () => onSelectAoi(aoi.id),
               }}
             >
-              <Tooltip
-                permanent
-                direction="center"
-                opacity={0.94}
-                className="e-rescue-aoi-label"
-              >
-                AOI {String(aoi.number).padStart(2, "0")} ·{" "}
-                {product?.type ?? "—"}
-              </Tooltip>
-              <Popup>
-                <strong>{aoi.name[language]}</strong>
-                <p>
-                  {product?.type ?? "—"} ·{" "}
-                  {product?.typeLabel[language] ?? "—"}
-                </p>
-              </Popup>
+              {!mobileViewport || selected ? (
+                <Tooltip
+                  permanent
+                  direction="center"
+                  opacity={0.94}
+                  interactive
+                  className="e-rescue-aoi-label"
+                  eventHandlers={{
+                    click: () => onSelectAoi(aoi.id),
+                  }}
+                >
+                  AOI {String(aoi.number).padStart(2, "0")} ·{" "}
+                  {product?.type ?? "—"}
+                </Tooltip>
+              ) : null}
             </Polygon>
           );
         })}
