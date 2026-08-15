@@ -15,6 +15,16 @@ async function waitForMap(page: Page) {
   return map;
 }
 
+async function expandMobileSheet(page: Page) {
+  const toggle = page.getByTestId("rescue-sheet-toggle");
+  if (
+    (await toggle.isVisible()) &&
+    (await toggle.getAttribute("aria-expanded")) !== "true"
+  ) {
+    await toggle.click();
+  }
+}
+
 async function ensureServiceWorkerControl(page: Page) {
   await page.goto(route);
   await page.evaluate(async () => {
@@ -70,14 +80,31 @@ test("publica una herramienta map-first integrada y respaldada por fuentes", asy
   const map = await waitForMap(page);
   // La base inicial es OSM: la imagen Esri de referencia sale oscura y con
   // nubes sobre la cordillera; como primera impresión parecía un mapa roto.
+  const sheet = page.locator("aside.e-rescue-rail");
+  const sheetToggle = page.getByTestId("rescue-sheet-toggle");
+  const mobileNavigation = page.getByRole("navigation", {
+    name: "Navegación rápida",
+  });
+  await expect(sheet).toHaveAttribute("data-sheet-state", "compact");
+  await expect(sheetToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(mobileNavigation).toBeVisible();
   await expect(map).toHaveAttribute("data-mode", "map");
   await expect(map).toHaveAttribute("data-visible-aoi-count", "4");
   await expect(map).toHaveAttribute("data-before-ready", "false");
   await expect(map).toHaveAttribute("data-after-ready", "false");
   await expect(page.locator(".e-rescue-notice")).toContainText("OpenStreetMap");
+
+  await expandMobileSheet(page);
+  await expect(sheet).toHaveAttribute("data-sheet-state", "expanded");
+  await expect(sheetToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(mobileNavigation).toBeHidden();
   await expect(page.getByText(/no son límites confirmados de daños/)).toBeVisible();
   await expect(page.locator('[data-testid^="rescue-aoi-"]')).toHaveCount(4);
 
+  const comparison = page.locator("details.e-rescue-comparison");
+  await expect(comparison).not.toHaveAttribute("open", "");
+  await comparison.locator("summary").click();
+  await expect(comparison).toHaveAttribute("open", "");
   await expect(
     page.getByRole("button", { name: "Antes", exact: true }),
   ).toBeDisabled();
@@ -98,26 +125,15 @@ test("publica una herramienta map-first integrada y respaldada por fuentes", asy
   await page.getByRole("button", { name: "Mapa", exact: true }).click();
   await expect(map).toHaveAttribute("data-mode", "map");
 
-  const mapAoiLabel = map
-    .locator(".leaflet-tooltip")
-    .filter({ hasText: "AOI 03 · GRA" });
-  await expect(mapAoiLabel).toBeVisible();
-  const mapAoiBox = await mapAoiLabel.boundingBox();
-  expect(mapAoiBox).not.toBeNull();
-  await page.mouse.click(
-    (mapAoiBox?.x ?? 0) + (mapAoiBox?.width ?? 0) / 2,
-    (mapAoiBox?.y ?? 0) + (mapAoiBox?.height ?? 0) / 2,
-  );
-  await expect(map).toHaveAttribute("data-selected-aoi", "emsr916-aoi03");
-  await page
-    .getByRole("button", { name: "Volver a las 4 áreas" })
-    .click();
-  await expect(map).toHaveAttribute("data-selected-aoi", "");
-
   await page.getByTestId("rescue-aoi-03").click();
   await expect(map).toHaveAttribute("data-selected-aoi", "emsr916-aoi03");
+  await expect(map.locator(".leaflet-popup")).toHaveCount(0);
+  await expect(map.locator(".e-rescue-aoi-label")).toHaveCount(1);
+  await expect(map.locator(".e-rescue-aoi-label")).toContainText(
+    "AOI 03 · GRA",
+  );
   await expect(
-    page.getByRole("heading", { name: "Centro de Cali" }),
+    page.getByRole("region", { name: "Centro de Cali" }),
   ).toBeVisible();
   await expect(page.getByText("Pleiades · VHR1", { exact: true })).toBeVisible();
   await expect(
@@ -125,6 +141,12 @@ test("publica una herramienta map-first integrada y respaldada por fuentes", asy
       .locator(".e-rescue-selection")
       .getByText("GRA · Evaluación de daños", { exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Volver a las 4 áreas" })
+    .first()
+    .click();
+  await expect(map).toHaveAttribute("data-selected-aoi", "");
+  await expect(map.locator(".e-rescue-aoi-label")).toHaveCount(0);
 
   const incidentResponse = await request.get(incidentPath);
   expect(incidentResponse.ok()).toBe(true);
@@ -187,6 +209,45 @@ test("publica una herramienta map-first integrada y respaldada por fuentes", asy
   expect(canvasBox?.height).toBeGreaterThan(100);
 });
 
+test("selecciona un AOI desde el mapa sin abrir un popup", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(route);
+  const map = await waitForMap(page);
+
+  const mapAoiLabel = map
+    .locator(".leaflet-tooltip")
+    .filter({ hasText: "AOI 03 · GRA" });
+  await expect(mapAoiLabel).toBeVisible();
+  await mapAoiLabel.click();
+
+  await expect(map).toHaveAttribute("data-selected-aoi", "emsr916-aoi03");
+  await expect(map.locator(".leaflet-popup")).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Centro de Cali" }),
+  ).toBeVisible();
+});
+
+test("selecciona un AOI directamente desde el canvas móvil", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(route);
+  const map = await waitForMap(page);
+  const mapBox = await map.boundingBox();
+  expect(mapBox).not.toBeNull();
+
+  await page.mouse.click(
+    (mapBox?.x ?? 0) + (mapBox?.width ?? 0) * 0.5,
+    (mapBox?.y ?? 0) + (mapBox?.height ?? 0) * 0.42,
+  );
+
+  await expect(map).not.toHaveAttribute("data-selected-aoi", "");
+  await expect(page.getByTestId("rescue-sheet-toggle")).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  await expect(map.locator(".leaflet-popup")).toHaveCount(0);
+  await expect(map.locator(".e-rescue-aoi-label")).toHaveCount(1);
+});
+
 test("permite teclado, usa el idioma global y pasa WCAG AA automatizado", async ({
   page,
   context,
@@ -217,7 +278,7 @@ test("permite teclado, usa el idioma global y pasa WCAG AA automatizado", async 
     name: "Cambiar idioma de la página",
   });
   await globalLanguage.click();
-  await page.getByRole("button", { name: "English", exact: true }).click();
+  await page.getByRole("menuitem", { name: "English", exact: true }).click();
   await expect
     .poll(async () =>
       (await context.cookies()).some(
@@ -250,10 +311,22 @@ test("mantiene mapa, panel, controles y footer utilizables en todos los breakpoi
       };
       const principalControls = Array.from(
         document.querySelectorAll(
-          ".e-rescue-mode-control button, .e-rescue-aoi, .e-rescue-overview",
+          [
+            ".e-rescue-mode-control button",
+            ".e-rescue-aoi",
+            ".e-rescue-overview",
+            ".e-rescue-sheet-toggle",
+            ".e-rescue-map-legend > summary",
+            ".e-rescue-attribution > summary",
+            ".leaflet-control-zoom a",
+          ].join(", "),
         ),
-        (element) => rect(element),
-      ).filter((value): value is NonNullable<typeof value> => value !== null);
+        (element) =>
+          getComputedStyle(element).display === "none" ? null : rect(element),
+      ).filter(
+        (value): value is NonNullable<typeof value> =>
+          value !== null && value.height > 0 && value.width > 0,
+      );
       const main = document.querySelector("main");
       const footer = document.querySelector("footer");
       return {
@@ -275,16 +348,52 @@ test("mantiene mapa, panel, controles y footer utilizables en todos los breakpoi
     expect(layout.footerOffsetTop).toBeGreaterThanOrEqual(
       layout.mainOffsetBottom - 1,
     );
-    expect(layout.principalControls.length).toBeGreaterThanOrEqual(9);
+    expect(layout.principalControls.length).toBeGreaterThanOrEqual(7);
     for (const control of layout.principalControls) {
       expect(control.height).toBeGreaterThanOrEqual(44);
       expect(control.width).toBeGreaterThanOrEqual(44);
     }
     if (width <= 767) {
-      expect(layout.rail?.height).toBeLessThanOrEqual(
+      expect(layout.rail?.height).toBeLessThanOrEqual(200);
+      const compactRailHeight = layout.rail?.height ?? 0;
+      await expect(
+        page.getByRole("navigation", { name: "Navegación rápida" }),
+      ).toBeVisible();
+      await expandMobileSheet(page);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await expect
+        .poll(() =>
+          page
+            .locator("aside.e-rescue-rail")
+            .evaluate((element) => element.getBoundingClientRect().height),
+        )
+        .toBeGreaterThan(compactRailHeight + 40);
+      const expandedGeometry = await page.evaluate(() => {
+        const rail = document
+          .querySelector("aside.e-rescue-rail")
+          ?.getBoundingClientRect();
+        const attribution = document
+          .querySelector(".e-rescue-attribution")
+          ?.getBoundingClientRect();
+        return {
+          rail: rail ? { top: rail.top, bottom: rail.bottom, height: rail.height } : null,
+          attribution: attribution
+            ? { top: attribution.top, bottom: attribution.bottom }
+            : null,
+        };
+      });
+      expect(expandedGeometry.rail?.height).toBeLessThanOrEqual(
         (layout.main?.height ?? height) * 0.49,
       );
+      expect(expandedGeometry.rail?.bottom).toBeLessThanOrEqual(height + 1);
+      expect(expandedGeometry.attribution?.bottom).toBeLessThanOrEqual(
+        (expandedGeometry.rail?.top ?? height) - 1,
+      );
+      await expect(
+        page.getByRole("navigation", { name: "Navegación rápida" }),
+      ).toBeHidden();
     } else {
+      await expect(page.getByTestId("rescue-sheet-toggle")).toBeHidden();
       expect(layout.rail?.width).toBeGreaterThanOrEqual(360);
       expect(layout.rail?.height).toBeGreaterThanOrEqual(
         (layout.main?.height ?? height) - 30,
@@ -295,6 +404,100 @@ test("mantiene mapa, panel, controles y footer utilizables en todos los breakpoi
     await footer.scrollIntoViewIfNeeded();
     await expect(footer).toBeVisible();
   }
+});
+
+test("mantiene la hoja dentro de teléfonos cortos y paisaje", async ({ page }) => {
+  for (const viewport of [
+    { width: 360, height: 568 },
+    { width: 360, height: 640 },
+    { width: 844, height: 390 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto(route);
+    await waitForMap(page);
+
+    const geometry = await page.evaluate(() => {
+      const read = (selector: string) => {
+        const bounds = document.querySelector(selector)?.getBoundingClientRect();
+        return bounds
+          ? { top: bounds.top, bottom: bounds.bottom, height: bounds.height }
+          : null;
+      };
+      return {
+        main: read("main.e-rescue-page"),
+        rail: read("aside.e-rescue-rail"),
+        navigation: read(".e-nav__mobile-bar"),
+        horizontalOverflow:
+          document.documentElement.scrollWidth >
+          document.documentElement.clientWidth,
+      };
+    });
+
+    expect(geometry.horizontalOverflow).toBe(false);
+    expect(geometry.main?.bottom).toBeLessThanOrEqual(viewport.height + 1);
+    expect(geometry.rail?.bottom).toBeLessThanOrEqual(viewport.height + 1);
+
+    if (viewport.width <= 767) {
+      expect(geometry.navigation).not.toBeNull();
+      expect(geometry.rail?.bottom).toBeLessThanOrEqual(
+        (geometry.navigation?.top ?? viewport.height) - 1,
+      );
+      const compactHeight = geometry.rail?.height ?? 0;
+      await expandMobileSheet(page);
+      await expect
+        .poll(() =>
+          page
+            .locator("aside.e-rescue-rail")
+            .evaluate((element) => element.getBoundingClientRect().height),
+        )
+        .toBeGreaterThan(compactHeight + 30);
+      const expanded = await page
+        .locator("aside.e-rescue-rail")
+        .evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          return { top: bounds.top, bottom: bounds.bottom };
+        });
+      expect(expanded.top).toBeGreaterThanOrEqual(0);
+      expect(expanded.bottom).toBeLessThanOrEqual(viewport.height + 1);
+    } else {
+      await expect(page.getByTestId("rescue-sheet-toggle")).toBeHidden();
+    }
+  }
+});
+
+test("lleva el detalle seleccionado al inicio de una hoja desplazada", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(route);
+  await waitForMap(page);
+  await expandMobileSheet(page);
+  const content = page.locator(".e-rescue-rail-content");
+  await content.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+
+  await page.getByTestId("rescue-aoi-03").click();
+  await expect
+    .poll(() => content.evaluate((element) => element.scrollTop))
+    .toBeLessThanOrEqual(1);
+  const visibility = await page.evaluate(() => {
+    const read = (selector: string) => {
+      const bounds = document.querySelector(selector)?.getBoundingClientRect();
+      return bounds ? { top: bounds.top, bottom: bounds.bottom } : null;
+    };
+    return {
+      contentBounds: read(".e-rescue-rail-content"),
+      selectionBounds: read(".e-rescue-selection"),
+    };
+  });
+  expect(visibility.selectionBounds?.top).toBeGreaterThanOrEqual(
+    (visibility.contentBounds?.top ?? 0) - 1,
+  );
+  expect(visibility.selectionBounds?.bottom).toBeLessThanOrEqual(
+    (visibility.contentBounds?.bottom ?? 0) + 1,
+  );
+  await expect(
+    page.getByRole("button", { name: "Volver a las 4 áreas" }).first(),
+  ).toBeVisible();
 });
 
 test("reabre el último mapa descargado sin red y actualiza sin perder la vista", async ({
@@ -318,9 +521,15 @@ test("reabre el último mapa descargado sin red y actualiza sin perder la vista"
   await context.setOffline(true);
   await page.reload({ waitUntil: "domcontentloaded" });
   const map = await waitForMap(page);
-  await expect(page.getByText("Sin conexión", { exact: true }).first()).toBeVisible();
   await expect(
-    page.getByText("Esta imagen requiere conexión", { exact: true }).first(),
+    page
+      .locator(".e-rescue-desktop-intro")
+      .getByText("Sin conexión", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(".e-rescue-map-status")
+      .getByText("Esta imagen requiere conexión", { exact: true }),
   ).toBeVisible();
   await expect(map).toHaveAttribute("data-selected-aoi", "emsr916-aoi03");
   await page.getByText("Instalación y modo offline", { exact: true }).click();
@@ -330,7 +539,9 @@ test("reabre el último mapa descargado sin red y actualiza sin perder la vista"
 
   await context.setOffline(false);
   await expect(
-    page.getByText("En línea", { exact: true }).first(),
+    page
+      .locator(".e-rescue-desktop-intro")
+      .getByText("En línea", { exact: true }),
   ).toBeVisible({ timeout: 10_000 });
   await expect(map).toHaveAttribute("data-selected-aoi", "emsr916-aoi03");
 });
@@ -459,6 +670,7 @@ test("expone instalación Android y abre la ruta correcta desde el manifest", as
   });
   await standalonePage.goto(route);
   await expect(standalonePage).toHaveURL(new RegExp(`${route}$`));
+  await expandMobileSheet(standalonePage);
   await standalonePage
     .getByText("Instalación y modo offline", { exact: true })
     .click();
@@ -479,6 +691,7 @@ test("muestra el flujo Añadir a pantalla de inicio en iOS", async ({
   });
   const page = await context.newPage();
   await page.goto(route);
+  await expandMobileSheet(page);
   await page.getByText("Instalación y modo offline", { exact: true }).click();
   await expect(
     page.getByText(/toca Compartir y elige “Añadir a pantalla de inicio”/),
