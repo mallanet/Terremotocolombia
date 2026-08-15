@@ -71,6 +71,13 @@
       "when": 1786554000005,
       "tag": "0009_volunteer_codes",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786796545149,
+      "tag": "0010_furry_marauders",
+      "breakpoints": true
     }
   ]
 }
