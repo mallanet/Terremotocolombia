@@ -25,6 +25,7 @@ function fakeCache(initial?: Response) {
 describe("public JSON edge cache", () => {
   it("allows hot public reads and rejects private/large binary paths", () => {
     expect(isCacheablePublicJsonPath("/api/missing/stats")).toBe(true);
+    expect(isCacheablePublicJsonPath("/api/deceased")).toBe(true);
     expect(isCacheablePublicJsonPath("/api/hospitals/demo/supply")).toBe(true);
     expect(isCacheablePublicJsonPath("/api/public/users")).toBe(false);
     expect(isCacheablePublicJsonPath("/api/geocode")).toBe(false);

@@ -424,6 +424,21 @@ surface. Turnstile and rate limiting remain the real protection.
   duplicate — see the identity layer below), and every human correction to
   an OCR row logs to `ocr_corrections` (an immutable log, with a
   deterministic ID — the training data for a future phase).
+- Official lists of confirmed deceased people use a separate domain. They do
+  not use `hospitals` or `hospital_patients`. They also do not use citizen
+  records in `missing_persons`. The tables are `official_deceased_lists` and
+  `official_deceased_records`. This separation prevents an official forensic
+  list from changing hospital or missing-person totals.
+  `POST /api/public/deceased-imports` uses the existing `missing:create`
+  capability. It accepts CSV, XLSX, or JSON. It always supports a dry run. The
+  admin panel validates the full file before it enables publication. The list
+  header requires the official institution name and an HTTP(S) source URL.
+  Record IDs derive from the source URL and normalized row identity. A retry is
+  idempotent and does not need an interactive transaction. The public,
+  read-only route is `GET /api/deceased`. It returns only an allowlisted record
+  DTO and its source attribution. The frontend shows these records in a
+  separate `Fallecidos` tab. It shows a source disclaimer and a link to the
+  original list.
 - **Earthquakes** (`earthquakes.queue.ts`): the worker polls a public
   earthquake feed (the USGS realtime feed, global, by default) every
   `EARTHQUAKES_EVERY_MS` (60 seconds, by default). It filters to the

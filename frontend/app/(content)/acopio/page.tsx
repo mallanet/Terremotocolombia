@@ -1,4 +1,3 @@
-import dynamic from "next/dynamic";
 import type { Metadata } from "next";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { pageMetadata } from "@/lib/metadata";
@@ -6,24 +5,14 @@ import SubPageShell from "@/components/layout/SubPageShell";
 import { getQueryClient } from "@/lib/get-query-client";
 import { qk } from "@/lib/query-keys";
 import { serverApiGetCached } from "@/lib/server-api";
-import { SectionLoading } from "@/components/ui/SectionLoading";
+import CollectionCenters from "@/components/features/collection/CollectionCenters";
 import {
   ACOPIO_DEFAULT_FILTERS,
   buildAcopioUrl,
   type AcopioResponse,
 } from "@/lib/acopio";
 
-// Refresca el HTML server-rendered cada 5 min (los centros cambian poco).
 export const revalidate = 300;
-
-const CollectionCenters = dynamic(
-  () => import("@/components/features/collection/CollectionCenters"),
-  {
-    loading: () => (
-      <SectionLoading label="Cargando centros de acopio…" rows={4} />
-    ),
-  },
-);
 
 export const metadata: Metadata = pageMetadata({
   title: "Centros de acopio",
