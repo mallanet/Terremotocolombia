@@ -2,7 +2,7 @@
 
 This runbook describes operation of the admin panel (`admin/`). It covers
 where the panel runs, who can access it, how a new user gets an account,
-and how hospital data is loaded. For architecture, see
+how hospital data is loaded, and how official deceased lists are published. For architecture, see
 `docs/architecture.md`. For deployment rules, see `CLAUDE.md`.
 
 ## Where the panel runs
@@ -96,6 +96,39 @@ Load data in the panel in this order:
 > (`queue.dead_letter`). For CSV and XLSX files, the producer builds the
 > rows before it places the batch on the queue. Each Queue message has a
 > 128 KB limit.
+
+## How to publish an official deceased list
+
+Use **Importar fallecidos** only for a list that an official institution
+published. Do not use the hospital patient import for this data.
+
+1. Confirm that the source page is public and uses HTTPS.
+2. Prepare a CSV or XLSX file. The file must have a `Name` column. It can
+   also have `Age`, `Location`, and `Description` columns. Spanish column
+   names are also accepted.
+3. Open **Importar fallecidos**. Enter the list title, the institution name,
+   the official source URL, and the publication date.
+4. Select **Validate file**. Review the valid, invalid, and duplicate counts.
+   The panel does not enable publication while an invalid row exists.
+5. Compare the preview with the official source. Then select
+   **Publish validated list**.
+6. Open the public **Deceased** tab. Confirm the count, the disclaimer, and
+   the link to the original list.
+
+The import is idempotent for the same source URL and row identity. A retry
+updates matching records and does not create duplicates. The import does not
+remove an older row that is absent from a later file. An operator must review
+source corrections before any removal workflow is added.
+
+The database migration for `official_deceased_lists` and
+`official_deceased_records` must run before the backend code deploy. Apply it
+to staging first. Use the direct Neon URL. Do not use the pooler URL. A human
+must run this migration.
+
+If an official list was previously entered as a hospital, publish and verify
+the new official list first. Only then can an operator remove the incorrect
+hospital record. Hospital deletion also deletes its linked patient rows. A
+human must confirm the target and the public result before that deletion.
 
 ## Analítica de voluntarios
 

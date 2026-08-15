@@ -477,18 +477,29 @@ function decodeBase64(fileBase64: string): Buffer {
 	return buf;
 }
 
-export function parseImportFile(
+/**
+ * Decode a supported CSV/XLSX file into its raw cell grid. Domain importers
+ * map their own headers after this shared, size-limited parsing step.
+ */
+export function parseImportGrid(
 	contentType: string,
 	fileBase64: string,
-): RawPatientRow[] {
+): string[][] {
 	const buf = decodeBase64(fileBase64);
 	if (contentType === CONTENT_TYPE.CSV) {
-		return tableToRows(parseDelimited(buf.toString("utf8")));
+		return parseDelimited(buf.toString("utf8"));
 	}
 	if (contentType === CONTENT_TYPE.XLSX) {
-		return tableToRows(parseXlsxBuffer(buf));
+		return parseXlsxBuffer(buf);
 	}
 	throw new ImportParseError(
 		`Content-type no soportado para archivo: ${contentType}`,
 	);
+}
+
+export function parseImportFile(
+	contentType: string,
+	fileBase64: string,
+): RawPatientRow[] {
+	return tableToRows(parseImportGrid(contentType, fileBase64));
 }

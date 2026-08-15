@@ -98,6 +98,9 @@ function AuthedShell({ children }: { children: ReactNode }) {
             {can("patient:import") && (
               <NavLink href="/patient-imports" label="Importar pacientes" pathname={pathname} />
             )}
+            {can("missing:create") && (
+              <NavLink href="/deceased-imports" label="Importar fallecidos" pathname={pathname} />
+            )}
             {/* Family Search (U9/U11/U15): cola de revisión de coincidencias +
                 señales de estado de socios + ficha de identidad.
                 person:search es la capacidad de lectura mínima del contexto
@@ -116,7 +119,11 @@ function AuthedShell({ children }: { children: ReactNode }) {
             {/* Insumos hospitalarios: agregado restringido sobre el modelo
                 hospital — misma capacidad de lectura que /hospitals. */}
             {can("hospital:read") && (
-              <NavLink href="/hospital-supplies" label="Insumos hospitalarios" pathname={pathname} />
+              <NavLink
+                href="/hospital-supplies"
+                label="Insumos hospitalarios"
+                pathname={pathname}
+              />
             )}
             {can("volunteer:read") && (
               <NavLink
@@ -163,7 +170,9 @@ function AuthedShell({ children }: { children: ReactNode }) {
                 )}
                 {can("role:read") && <NavLink href="/roles" label="Roles" pathname={pathname} />}
                 {can("grant:read") && <NavLink href="/grants" label="Grants" pathname={pathname} />}
-                {can("audit:read") && <NavLink href="/audit" label="Auditoría" pathname={pathname} />}
+                {can("audit:read") && (
+                  <NavLink href="/audit" label="Auditoría" pathname={pathname} />
+                )}
               </ul>
             </>
           )}

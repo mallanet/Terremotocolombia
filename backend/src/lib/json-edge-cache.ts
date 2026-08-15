@@ -1,7 +1,7 @@
 import type { EdgeCache } from "@/lib/photo-edge-cache";
 
 const PUBLIC_JSON_PATH =
-  /^\/api\/(?:missing|pets|reports|chat|hospitals|earthquakes|donations|patients|acopio|hub)(?:\/.*)?$|^\/api\/stats\/psychology-help\/?$/;
+  /^\/api\/(?:missing|deceased|pets|reports|chat|hospitals|earthquakes|donations|patients|acopio|hub)(?:\/.*)?$|^\/api\/stats\/psychology-help\/?$/;
 
 export function isCacheablePublicJsonPath(pathname: string): boolean {
   return PUBLIC_JSON_PATH.test(pathname) && !pathname.endsWith("/photo") &&
