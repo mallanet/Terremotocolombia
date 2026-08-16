@@ -8,11 +8,22 @@
 import type { ModelField } from "../model-registry";
 import type { ModelRow } from "../application/models-gateway";
 
+/**
+ * Una foto llega como data-URL (base64) o como URL del CDN. Volcarla cruda
+ * metería cientos de miles de caracteres en una celda y dejaría la tabla
+ * inservible, así que se colapsa a una marca.
+ */
+function isPhotoValue(value: string): boolean {
+  return value.startsWith("data:image/") || /^https?:\/\/\S+\.(jpe?g|png|webp)$/i.test(value);
+}
+
 export function renderCell(value: unknown): string {
   if (value === null || value === undefined) return "—";
   if (typeof value === "boolean") return value ? "sí" : "—";
   if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+  const text = String(value);
+  if (isPhotoValue(text)) return "📷 Foto adjunta";
+  return text;
 }
 
 /**

@@ -80,6 +80,7 @@ export const CAMPAIGN_MODELS = [
       { key: "donorContact", label: "Contacto" },
       { key: "city", label: "Ciudad" },
       { key: "status", label: "Estado" },
+      { key: "photo", label: "Foto" },
       { key: "createdAt", label: "Fecha" },
     ],
     // Solo lectura: un compromiso lo cierra el responsable del punto cuando el

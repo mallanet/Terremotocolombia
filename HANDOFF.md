@@ -122,10 +122,14 @@ Size ceiling is MAX_REPORT_PHOTO_CHARS, the same one the reports use.
 Verified against the local stack: a pledge with a photo stores it, and
 GET /api/campaign/certificado/<code> does NOT return it. The steward inbox
 does not return it either. Test rows deleted after.
-LEFT TO DO, ONE EDIT: the panel does not show the photo yet, because
-services/campaign/admin-pledges.ts needs `photo` in its columns and DTO,
-and campaign-models.ts needs the column. That file was outside the declared
-file map of the turn, so it was not touched.
+The panel reads the photo: admin-pledges.ts carries it in its columns and
+DTO, the resource schema exposes it, and the Compromisos table has a "Foto"
+column. Verified with a real request to /api/public/campaign-pledges.
+STILL A THUMBNAIL AWAY: the table prints "📷 Foto adjunta" instead of the
+image, because renderCell() returns a string and model-row.tsx types its
+result as one (`const id = renderCell(row.id)`). Showing the image needs
+model-row.tsx to render a node, and that file was outside the declared file
+map. One small edit, nothing else blocks it.
 VIDEO STAYS OUT: it does not fit the base64-through-JSON path that every
 form here uses. It needs a direct upload to R2 with a signed URL.
 

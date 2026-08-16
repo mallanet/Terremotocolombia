@@ -23,6 +23,7 @@ const responseSchema = z.object({
   city: z.string().nullable(),
   publicAlias: z.string().nullable(),
   note: z.string(),
+  photo: z.string().nullable(),
   createdAt: z.number(),
 });
 

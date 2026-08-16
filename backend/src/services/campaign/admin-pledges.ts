@@ -22,6 +22,8 @@ export interface PledgeAdminDTO {
   city: string | null;
   publicAlias: string | null;
   note: string;
+  /** Foto que adjuntó quien dona. Solo aquí: ninguna lectura pública la expone. */
+  photo: string | null;
   createdAt: number;
 }
 
@@ -34,6 +36,7 @@ const columns = {
   status: materialPledges.status,
   publicAlias: materialPledges.publicAlias,
   note: materialPledges.note,
+  photo: materialPledges.photo,
   createdAt: materialPledges.createdAt,
   siteName: campaignSites.name,
   city: campaignSites.city,
@@ -51,6 +54,7 @@ function toDTO(row: Record<string, unknown>): PledgeAdminDTO {
     city: row.city ? String(row.city) : null,
     publicAlias: row.publicAlias ? String(row.publicAlias) : null,
     note: String(row.note ?? ""),
+    photo: row.photo ? String(row.photo) : null,
     createdAt: Number(row.createdAt ?? 0),
   };
 }
