@@ -75,7 +75,11 @@ app.use((req, res, next) => {
       // o el preflight no autoriza el POST y lo bloquea (TypeError: Failed to fetch)
       // → analítica sin eventos. El SDK envía siempre client-id + sdk-name +
       // sdk-version (y opcionalmente client-secret/pending-revenues). Ver routes/op.ts.
+      // x-campaign-steward-token: la pantalla del responsable de punto llama al
+      // API desde el navegador con esa cabecera. Sin ella aquí, el preflight no
+      // autoriza la petición y la pantalla solo dice "Failed to fetch".
       "Content-Type, If-None-Match, x-admin-token, cf-turnstile-token, authorization, " +
+        "x-campaign-steward-token, " +
         "openpanel-client-id, openpanel-client-secret, openpanel-sdk-name, " +
         "openpanel-sdk-version, openpanel-pending-revenues",
     );

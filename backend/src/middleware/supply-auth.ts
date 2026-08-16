@@ -19,7 +19,6 @@ import type { RequestHandler } from "express";
 import { getDb, schema } from "@/db";
 import { env } from "@/config/env";
 import { notFound, unauthorized } from "@/lib/errors";
-import { asyncHandler } from "@/middleware";
 import * as hospitalsService from "@/services/hospitals";
 
 const POC_HEADER = "x-hospital-poc-token";
@@ -57,11 +56,10 @@ async function hasPocAccess(token: string, hospitalId: string): Promise<boolean>
   return rows.length > 0;
 }
 
-/**
- * Middleware: resuelve el hospital (404 si no existe) y exige admin o POC del
- * hospital. Deja el hospital resuelto en res.locals.hospital.
- */
-export const requireSupplyWrite: RequestHandler = asyncHandler(async (req, res) => {
+async function resolveSupplyAccess(
+  req: Parameters<RequestHandler>[0],
+  res: Parameters<RequestHandler>[1],
+): Promise<void> {
   const id = String(req.params.id ?? "");
   const hospital = await hospitalsService.getHospital(id, { includeSupplySummary: true });
   if (!hospital) throw notFound("Hospital no encontrado.");
@@ -74,6 +72,19 @@ export const requireSupplyWrite: RequestHandler = asyncHandler(async (req, res) 
   if (token && (await hasPocAccess(token, hospital.id))) return;
 
   throw unauthorized("No autorizado.");
-});
+}
+
+/**
+ * Middleware: resuelve el hospital (404 si no existe) y exige admin o POC del
+ * hospital. Deja el hospital resuelto en res.locals.hospital.
+ *
+ * NO usa asyncHandler: ese helper solo propaga el error a next() y, cuando la
+ * función termina bien, no llama a next(). Como middleware eso dejaba colgada
+ * toda escritura AUTORIZADA de insumos hasta el timeout del cliente — el
+ * rechazo respondía 401 al instante, que es justo por lo que no se notaba.
+ */
+export const requireSupplyWrite: RequestHandler = (req, res, next) => {
+  resolveSupplyAccess(req, res).then(() => next(), next);
+};
 
 export { POC_HEADER };

@@ -112,7 +112,10 @@ campaignStewardRouter.post(
       ok: true,
       receiptId: outcome.receiptId,
       status: outcome.status,
-      message: "Entrega confirmada. El certificado de esa persona ya es válido.",
+      message:
+        outcome.status === "walk_in"
+          ? "Entrega anotada. Sumó al total del punto."
+          : "Entrega confirmada. El certificado de esa persona ya es válido.",
     });
   }),
 );

@@ -10,9 +10,14 @@ export interface MaterialLineDraft {
 interface Props {
   lines: MaterialLineDraft[];
   onChange: (lines: MaterialLineDraft[]) => void;
+  legend?: string;
 }
 
-export default function MaterialLinesField({ lines, onChange }: Props) {
+export default function MaterialLinesField({
+  lines,
+  onChange,
+  legend = "¿Qué vas a donar?",
+}: Props) {
   function update(index: number, patch: Partial<MaterialLineDraft>) {
     onChange(lines.map((line, i) => (i === index ? { ...line, ...patch } : line)));
   }
@@ -27,9 +32,7 @@ export default function MaterialLinesField({ lines, onChange }: Props) {
 
   return (
     <fieldset className="space-y-3">
-      <legend className="mb-1 block text-sm font-medium text-slate-700">
-        ¿Qué vas a donar?
-      </legend>
+      <legend className="mb-1 block text-sm font-medium text-slate-700">{legend}</legend>
 
       {lines.map((line, index) => (
         <div key={index} className="flex flex-wrap items-end gap-2">

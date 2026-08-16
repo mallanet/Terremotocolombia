@@ -70,8 +70,10 @@ export default function BalanceBoard({ initial }: { initial?: CampaignBalance })
       </section>
 
       <p className="text-xs text-slate-500">
-        {data.confirmedDonations} donaciones confirmadas. Cifras actualizadas
-        automáticamente cada minuto.
+        {data.confirmedDonations === 1
+          ? "1 donación confirmada"
+          : `${data.confirmedDonations} donaciones confirmadas`}
+        . Cifras actualizadas automáticamente cada minuto.
       </p>
     </div>
   );

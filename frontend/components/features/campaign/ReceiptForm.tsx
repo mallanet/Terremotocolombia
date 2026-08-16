@@ -78,7 +78,7 @@ export default function ReceiptForm({ token }: { token: string }) {
         </p>
       </div>
 
-      <MaterialLinesField lines={lines} onChange={setLines} />
+      <MaterialLinesField lines={lines} onChange={setLines} legend="¿Qué recibiste?" />
 
       <div>
         <label htmlFor="recepcion-nota" className="mb-1 block text-sm font-medium text-slate-700">
