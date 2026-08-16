@@ -133,6 +133,15 @@ browser against the local panel.
 VIDEO STAYS OUT: it does not fit the base64-through-JSON path that every
 form here uses. It needs a direct upload to R2 with a signed URL.
 
+PRIVACY OF THE PHOTO, MEASURED 2026-08-16 (not reasoned, measured)
+One pledge with a photo, then four requests against the running stack:
+  /api/public/campaign-pledges (panel, authenticated)  -> 1 row with photo
+  /api/campaign/certificado/<code>                     -> 0 hits of "photo"
+  /api/campaign/punto (steward token)                  -> 0 hits
+  /api/campaign/balance                                -> 0 hits
+Repeat this check if you ever add a field to those projections. Test row
+deleted after.
+
 MIGRATION 0011, WRITTEN, NOT APPLIED OUTSIDE LOCAL
 infra/db/migrations/0011_campaign_photos.sql adds `photo` to
 material_pledges and to material_receipts. Additive, nullable, with IF NOT
@@ -168,6 +177,16 @@ Declare like this, absolute:
 Still true: declare every path before the first Write, HANDOFF.md included.
 
 NEXT
-Maintainer decides the migration numbering, then: apply the migration
-against Neon direct, run deploy-backend.yml, grant the `campaign`
-capability, create the points and their stewards.
+Maintainer decides the migration numbering — now TWO files, 0010 and 0011.
+Then: apply both against Neon direct, run deploy-backend.yml, grant the
+`campaign` capability, create the points and their stewards.
+
+SMALL THING SEEN, NOT FIXED
+Every panel table prints `createdAt` as a raw epoch (1786914635951)
+instead of a date. It is not specific to the campaign; it hits every
+model. Nobody asked for it yet.
+
+LOCAL DATABASE AS LEFT, 2026-08-16 18:12
+Three DEMO points with their steward links, and TWO pledges from the
+maintainer's own walkthrough (`mallanet`, 50 bricks and 32 timber, both
+still `pledged`). Every row this agent created for testing is deleted.
