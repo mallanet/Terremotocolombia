@@ -78,6 +78,13 @@
       "when": 1786796545149,
       "tag": "0010_furry_marauders",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786903803495,
+      "tag": "0011_query_observability",
+      "breakpoints": true
     }
   ]
 }
