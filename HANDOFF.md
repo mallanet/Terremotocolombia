@@ -176,6 +176,15 @@ Declare like this, absolute:
   edit:/Users/christianmock/terremotocolombia/HANDOFF.md
 Still true: declare every path before the first Write, HANDOFF.md included.
 
+HARNESS NOTE: WRITE THE Done-when LIST EXACTLY ONCE
+The gate counts predicates across the WHOLE turn, and the roof is five.
+Listing them when the turn opens and again when it closes counts as ten,
+and it answers "got 10". State them once, at the close, as `- ` bullets on
+their own lines. Inline prose like "Done-when: (1) x (2) y" counts as zero
+predicates and triggers UNDER-SCOPE instead. Each bullet must be something
+a command can falsify — a test total, an HTTP code, a row count — not a
+sentence about the work being good.
+
 NEXT
 Maintainer decides the migration numbering — now TWO files, 0010 and 0011.
 Then: apply both against Neon direct, run deploy-backend.yml, grant the
