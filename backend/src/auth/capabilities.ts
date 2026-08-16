@@ -35,6 +35,11 @@ export const MODELS: { key: string; category: string; label: string }[] = [
   { key: "chat", category: "chat", label: "Mensajes de chat" },
   { key: "contact", category: "contact", label: "Mensajes de contacto" },
   { key: "volunteer", category: "volunteers", label: "Voluntarios" },
+  // Campaña de reconstrucción: puntos de recolección, responsables de punto,
+  // compromisos de donación y lotes de salida. Una sola capability para los
+  // cuatro recursos, igual que volunteer-tasks reutiliza `volunteer`: quien
+  // coordina la campaña necesita las cuatro cosas o ninguna.
+  { key: "campaign", category: "campaign", label: "Campaña de reconstrucción" },
 ];
 
 /**

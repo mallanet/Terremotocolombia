@@ -15,6 +15,7 @@ import {
   materialReceipts,
   type MaterialLine,
 } from "@/db/campaign-schema";
+import { receiptStatus } from "./receipt-status";
 
 export interface ReceiptInput {
   siteId: string;
@@ -27,23 +28,6 @@ export interface ReceiptInput {
 export type ReceiptOutcome =
   | { ok: true; receiptId: string; pledgeCode: string | null; status: string }
   | { ok: false; reason: "unknown_code" | "already_confirmed" };
-
-function totalsByMaterial(items: MaterialLine[]): Map<string, number> {
-  const totals = new Map<string, number>();
-  for (const item of items) {
-    totals.set(item.material, (totals.get(item.material) ?? 0) + Number(item.quantity ?? 0));
-  }
-  return totals;
-}
-
-/** Completo = se recibió al menos lo prometido de cada material prometido. */
-function isComplete(pledged: MaterialLine[], received: MaterialLine[]): boolean {
-  const got = totalsByMaterial(received);
-  for (const [material, quantity] of totalsByMaterial(pledged)) {
-    if ((got.get(material) ?? 0) < quantity) return false;
-  }
-  return true;
-}
 
 export async function registerReceipt(input: ReceiptInput): Promise<ReceiptOutcome> {
   const db = await getDb();
@@ -72,7 +56,7 @@ export async function registerReceipt(input: ReceiptInput): Promise<ReceiptOutco
   const pledge = existing[0];
   if (!pledge) return { ok: false, reason: "unknown_code" };
 
-  const status = isComplete(pledge.items ?? [], input.items) ? "received" : "partial";
+  const status = receiptStatus(pledge.items ?? [], input.items);
 
   const claimed = await db
     .update(materialPledges)

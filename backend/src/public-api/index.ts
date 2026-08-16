@@ -25,6 +25,10 @@ import { volunteersResource } from "@/public-api/resources/volunteers.resource";
 import { volunteerTasksResource } from "@/public-api/resources/volunteer-tasks.resource";
 import { volunteerCheckinsResource } from "@/public-api/resources/volunteer-checkins.resource";
 import { rolesResource } from "@/public-api/resources/roles.resource";
+import { campaignSitesResource } from "@/public-api/resources/campaign-sites.resource";
+import { campaignStewardsResource } from "@/public-api/resources/campaign-stewards.resource";
+import { campaignPledgesResource } from "@/public-api/resources/campaign-pledges.resource";
+import { campaignShipmentsResource } from "@/public-api/resources/campaign-shipments.resource";
 // Routers RBAC escritos a mano (verbos irregulares que no encajan en la fábrica).
 import { usersRouter } from "@/public-api/routers/users.router";
 import { grantsRouter } from "@/public-api/routers/grants.router";
@@ -64,6 +68,13 @@ export const PUBLIC_RESOURCES: Record<string, AnyResource> = {
   "volunteer-checkins": volunteerCheckinsResource as AnyResource,
   // RBAC: roles encaja en el cuarteto CRUD (read/create/edit/delete) → fábrica.
   roles: rolesResource as AnyResource,
+  // Campaña de reconstrucción. Los cuatro comparten la capability "campaign":
+  // quien coordina la campaña administra puntos, responsables, compromisos y
+  // lotes como una sola cosa, igual que volunteer-tasks reutiliza "volunteer".
+  "campaign-sites": campaignSitesResource as AnyResource,
+  "campaign-stewards": campaignStewardsResource as AnyResource,
+  "campaign-pledges": campaignPledgesResource as AnyResource,
+  "campaign-shipments": campaignShipmentsResource as AnyResource,
 };
 
 export function mountPublicApi(app: Express): void {

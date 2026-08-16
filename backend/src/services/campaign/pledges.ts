@@ -12,13 +12,8 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { materialPledges, type MaterialLine } from "@/db/campaign-schema";
 import { materialLabel, materialUnit } from "@/lib/campaign-materials";
+import { normalizePledgeCode, PLEDGE_CODE_LENGTH, randomPledgeCode } from "./pledge-code";
 
-/**
- * Alfabeto sin caracteres que se confunden al dictarlos por teléfono o al
- * copiarlos de una foto: nada de 0/O, 1/I/L.
- */
-const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-const CODE_LENGTH = 10;
 const CODE_MAX_ATTEMPTS = 5;
 
 export interface PledgeInput {
@@ -43,14 +38,6 @@ export interface PublicCertificate {
   siteId: string | null;
 }
 
-function randomCode(): string {
-  const bytes = new Uint8Array(CODE_LENGTH);
-  crypto.getRandomValues(bytes);
-  let out = "";
-  for (const byte of bytes) out += CODE_ALPHABET[byte % CODE_ALPHABET.length];
-  return out;
-}
-
 /**
  * El código es la credencial del certificado, así que su espacio (31^10) tiene
  * que hacer inviable adivinarlo. La colisión se comprueba igualmente, con el
@@ -59,7 +46,7 @@ function randomCode(): string {
 async function generateUniqueCode(): Promise<string> {
   const db = await getDb();
   for (let attempt = 0; attempt < CODE_MAX_ATTEMPTS; attempt += 1) {
-    const code = randomCode();
+    const code = randomPledgeCode();
     const clash = await db
       .select({ id: materialPledges.id })
       .from(materialPledges)
@@ -102,7 +89,7 @@ export async function createPledge(input: PledgeInput): Promise<{ id: string; co
  */
 export async function getCertificate(rawCode: string): Promise<PublicCertificate | null> {
   const code = normalizePledgeCode(rawCode);
-  if (code.length !== CODE_LENGTH) return null;
+  if (code.length !== PLEDGE_CODE_LENGTH) return null;
   const db = await getDb();
   const rows = await db
     .select({
@@ -135,8 +122,4 @@ export async function getCertificate(rawCode: string): Promise<PublicCertificate
   };
 }
 
-export function normalizePledgeCode(raw: string): string {
-  return raw.trim().toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, CODE_LENGTH);
-}
-
-export { CODE_LENGTH as PLEDGE_CODE_LENGTH };
+export { normalizePledgeCode, PLEDGE_CODE_LENGTH };
