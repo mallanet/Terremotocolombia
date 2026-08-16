@@ -94,14 +94,14 @@ against the accumulated total. That is a design change, and it needs its
 own tests.
 
 BANNER OF THE CAMPAIGN LANDING, 2026-08-16
-/reconstruccion now opens with the brand hero (components/features/
-campaign/CampaignHero.tsx), which reuses the .e-hero* classes of the home
-page. Those classes already carry the dark gradient and the veil over the
-background image, thus the campaign added NO new CSS and NO new asset.
-The background is still the site placeholder (public/hero-placeholder.svg
-at 0.16 opacity, set in styles/shell-layout.css). A photograph only for
-the campaign needs one modifier class there — today the two heroes share
-one image.
+/reconstruccion opens with CampaignHero.tsx: the frame of the home page
+hero (.e-hero*), but its own image, set inline in the component and not in
+styles/shell-layout.css — that file serves the whole house, and changing
+its background would change the home page too.
+The image is public/campana/hero.jpg: construction material, no people,
+generated for this banner and compressed to 246 KB at 1920 px. The veil is
+one flat layer, bg-slate-950/62. To show more or less of the photograph,
+change that one number.
 
 PHOTOGRAPH REFUSED, ON PURPOSE
 The maintainer sent a press photograph of the earthquake (file name matches
@@ -110,20 +110,33 @@ the repository, for two independent reasons: it shows identifiable affected
 people, which CLAUDE.md forbids without exception, and it is a third
 party's copyrighted work. Any replacement must clear BOTH bars.
 
-PHOTO UPLOAD IN THE DONATION FORM: ASKED FOR, NOT BUILT
-The maintainer wants donors to attach photos (and video) to their pledge.
-NOT started, on purpose — it needs a schema change and a decision.
-What already exists and must be reused: lib/r2.ts `persistPhotoDataUrl()`
-(data URL -> R2, falls back to base64 in the database when R2 is not
-configured) plus the form pattern of CheckinForm.tsx / MissingPersonForm.tsx.
-Accepted types there are jpeg, png and webp only.
-What is missing: a `photo` column on material_pledges (a migration, and the
-0010 numbering is already blocked), the moderation question (a public wall
-fed by uploads needs a human gate before anything shows), and EXIF, which
-the current pipeline does NOT strip.
-VIDEO IS A DIFFERENT PROBLEM: it does not fit the base64-through-JSON path
-that every current form uses. It needs a direct upload to R2 with a signed
-URL. Do not try to bolt it onto the pledge endpoint.
+PHOTO IN THE DONATION FORM AND IN THE DELIVERY: BUILT, ONE PIECE LEFT
+The maintainer chose: photo only (no video), and only the team sees it —
+no public wall, thus no moderation screen to build.
+Done: an optional photo on the pledge form (/reconstruccion) and on the
+point steward screen. Both reuse `persistPhotoDataUrl()` (R2 when
+configured, data URL in the column when not) and `usePhotoUpload()`, which
+redraws the image on a canvas — that re-encode DROPS THE EXIF, so the GPS
+coordinates of the phone never reach the server. No new code for that.
+Size ceiling is MAX_REPORT_PHOTO_CHARS, the same one the reports use.
+Verified against the local stack: a pledge with a photo stores it, and
+GET /api/campaign/certificado/<code> does NOT return it. The steward inbox
+does not return it either. Test rows deleted after.
+LEFT TO DO, ONE EDIT: the panel does not show the photo yet, because
+services/campaign/admin-pledges.ts needs `photo` in its columns and DTO,
+and campaign-models.ts needs the column. That file was outside the declared
+file map of the turn, so it was not touched.
+VIDEO STAYS OUT: it does not fit the base64-through-JSON path that every
+form here uses. It needs a direct upload to R2 with a signed URL.
+
+MIGRATION 0011, WRITTEN, NOT APPLIED OUTSIDE LOCAL
+infra/db/migrations/0011_campaign_photos.sql adds `photo` to
+material_pledges and to material_receipts. Additive, nullable, with IF NOT
+EXISTS: old code ignores the columns, so it can be applied BEFORE the code
+that uses them, which is the order AGENTS.md demands. Applied to the LOCAL
+database only. Neon staging and production are untouched.
+It sits on top of the 0010 numbering that is already in dispute — see the
+BLOCKER above. Same decision, now two files instead of one.
 
 OPEN
 docs/architecture.md is 663 lines and the local size gate refuses to grow

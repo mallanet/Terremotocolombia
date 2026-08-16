@@ -23,6 +23,8 @@ export interface PledgeInput {
   showInWall: boolean;
   items: PledgeItemInput[];
   note?: string;
+  /** Data-URL ya redimensionado por usePhotoUpload. Uso interno del equipo. */
+  photo?: string | null;
   source?: string;
   turnstileToken?: string;
 }
@@ -99,6 +101,7 @@ export interface ReceiptInput {
   pledgeCode?: string;
   items: PledgeItemInput[];
   note?: string;
+  photo?: string | null;
 }
 
 export function useStewardReceipt(token: string) {

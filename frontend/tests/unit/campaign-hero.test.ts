@@ -13,14 +13,18 @@ const page = readFileSync(
 );
 
 describe("banner de la campaña", () => {
-  it("usa el hero de marca, que ya trae el velo oscuro sobre la imagen", () => {
+  it("usa el marco del hero de marca", () => {
     expect(hero).toContain("e-hero__gradient");
-    expect(hero).toContain("e-hero__bg-image");
-    expect(hero).toContain("e-hero__bg-overlay");
+    expect(hero).toContain("e-hero__title");
   });
 
-  it("no trae una imagen propia: la foto se cambia en el CSS de marca", () => {
-    expect(hero).not.toMatch(/background-image|<img|next\/image/);
+  it("lleva su propia imagen y un velo encima, para que el texto se lea", () => {
+    expect(hero).toContain("/campana/hero.jpg");
+    expect(hero).toMatch(/bg-slate-950\/\d+/);
+  });
+
+  it("no toca el fondo compartido de la portada", () => {
+    expect(hero).not.toContain("e-hero__bg-image");
   });
 
   it("la landing lo monta y sus botones tienen destino", () => {

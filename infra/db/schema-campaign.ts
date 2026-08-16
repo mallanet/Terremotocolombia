@@ -85,6 +85,13 @@ export const materialPledges = pgTable(
     status: text("status").notNull().default("pledged"),
     expectedAt: epochMs("expected_at"),
     note: text("note").notNull().default(""),
+    /**
+     * Foto que adjunta quien dona. Uso INTERNO: no sale por ningún endpoint
+     * público, ni siquiera en el certificado. Guarda una URL del CDN cuando R2
+     * está configurado, y un data-URL cuando no (mismo trato que las demás
+     * fotos del proyecto, ver lib/r2.ts).
+     */
+    photo: text("photo"),
     source: text("source").notNull().default("web"),
     ipHash: text("ip_hash"),
     createdAt: epochMs("created_at").notNull(),
@@ -109,6 +116,8 @@ export const materialReceipts = pgTable(
     }),
     items: jsonb("items").$type<MaterialLine[]>().notNull(),
     note: text("note").notNull().default(""),
+    /** Foto del material al recibirlo. Uso interno, igual que en el compromiso. */
+    photo: text("photo"),
     receivedAt: epochMs("received_at").notNull(),
     createdAt: epochMs("created_at").notNull(),
   },

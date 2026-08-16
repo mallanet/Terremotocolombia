@@ -11,6 +11,7 @@
 import { useState } from "react";
 import MaterialLinesField, { type MaterialLineDraft } from "./MaterialLinesField";
 import { useStewardReceipt } from "@/hooks/campaign";
+import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 
 export default function ReceiptForm({ token }: { token: string }) {
   const [pledgeCode, setPledgeCode] = useState("");
@@ -22,6 +23,9 @@ export default function ReceiptForm({ token }: { token: string }) {
   const [done, setDone] = useState<string | null>(null);
 
   const receipt = useStewardReceipt(token);
+  const { fileRef, photo, processing, handleFile, clearPhoto } = usePhotoUpload({
+    onError: setError,
+  });
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -38,13 +42,14 @@ export default function ReceiptForm({ token }: { token: string }) {
     }
 
     receipt.mutate(
-      { pledgeCode: pledgeCode.trim() || undefined, items, note },
+      { pledgeCode: pledgeCode.trim() || undefined, items, note, photo },
       {
         onSuccess: (data) => {
           setDone(data.message ?? "Entrega confirmada.");
           setPledgeCode("");
           setNote("");
           setLines([{ material: "cemento", quantity: "" }]);
+          clearPhoto();
         },
         onError: (err) =>
           setError(err instanceof Error ? err.message : "No se pudo confirmar la entrega."),
@@ -93,6 +98,39 @@ export default function ReceiptForm({ token }: { token: string }) {
           placeholder="Ej.: llegó en camioneta, quedó en la bodega 2"
           className="e-input py-2.5"
         />
+      </div>
+
+      <div>
+        <p className="mb-1 block text-sm font-medium text-slate-700">
+          Foto del material recibido (opcional)
+        </p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          capture="environment"
+          onChange={handleFile}
+          aria-label="Foto del material recibido"
+          className="text-sm"
+        />
+        {processing && <p className="mt-1 text-xs text-slate-500">Procesando la foto…</p>}
+        {photo && (
+          <div className="mt-2 flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photo}
+              alt="Vista previa de la foto"
+              className="h-20 w-20 rounded-lg object-cover ring-1 ring-slate-200"
+            />
+            <button
+              type="button"
+              onClick={clearPhoto}
+              className="text-sm font-medium text-slate-600 underline"
+            >
+              Quitar
+            </button>
+          </div>
+        )}
       </div>
 
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}

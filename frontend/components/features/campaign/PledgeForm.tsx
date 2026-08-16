@@ -13,6 +13,7 @@ import LegalConsentNotice from "@/components/content/LegalConsentNotice";
 import MaterialLinesField, { type MaterialLineDraft } from "./MaterialLinesField";
 import PledgeSuccess from "./PledgeSuccess";
 import { useCampaignPledge } from "@/hooks/campaign";
+import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { usePrivacyConsent } from "@/components/layout/PrivacyConsentGate";
 import type { CampaignSite } from "@/lib/campaign-materials";
@@ -33,6 +34,11 @@ export default function PledgeForm({ sites }: { sites: CampaignSite[] }) {
 
   const pledgeMutation = useCampaignPledge();
   const { mountRef: turnstileMount, getToken: turnstileGetToken } = useTurnstile();
+  // El hook redibuja la imagen en un canvas antes de mandarla, lo que además
+  // borra el EXIF (las coordenadas de dónde se tomó la foto, entre otras cosas).
+  const { fileRef, photo, processing, handleFile, clearPhoto } = usePhotoUpload({
+    onError: setError,
+  });
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -58,6 +64,7 @@ export default function PledgeForm({ sites }: { sites: CampaignSite[] }) {
         publicAlias: showInWall ? publicAlias || donorName : undefined,
         items,
         note,
+        photo,
         turnstileToken,
       },
       {
@@ -139,6 +146,41 @@ export default function PledgeForm({ sites }: { sites: CampaignSite[] }) {
           placeholder="Ej.: lo llevo el sábado por la mañana, necesito ayuda para descargar…"
           className="e-input min-h-[80px] resize-y py-2.5"
         />
+      </div>
+
+      <div>
+        <p className="mb-1 block text-sm font-medium text-slate-700">
+          Foto del material (opcional)
+        </p>
+        <p className="mb-2 text-xs text-slate-500">
+          Solo la ve el equipo de la campaña. No se publica en ningún lado.
+        </p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handleFile}
+          aria-label="Foto del material que vas a donar"
+          className="text-sm"
+        />
+        {processing && <p className="mt-1 text-xs text-slate-500">Procesando la foto…</p>}
+        {photo && (
+          <div className="mt-2 flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photo}
+              alt="Vista previa de la foto"
+              className="h-20 w-20 rounded-lg object-cover ring-1 ring-slate-200"
+            />
+            <button
+              type="button"
+              onClick={clearPhoto}
+              className="text-sm font-medium text-slate-600 underline"
+            >
+              Quitar
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="rounded-[16px] bg-slate-50 p-4">

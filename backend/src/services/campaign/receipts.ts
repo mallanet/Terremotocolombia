@@ -15,6 +15,7 @@ import {
   materialReceipts,
   type MaterialLine,
 } from "@/db/campaign-schema";
+import { persistPhotoDataUrl } from "@/lib/r2";
 import { receiptStatus } from "./receipt-status";
 
 export interface ReceiptInput {
@@ -23,6 +24,7 @@ export interface ReceiptInput {
   pledgeCode: string | null;
   items: MaterialLine[];
   note: string;
+  photo: string | null;
 }
 
 export type ReceiptOutcome =
@@ -33,6 +35,9 @@ export async function registerReceipt(input: ReceiptInput): Promise<ReceiptOutco
   const db = await getDb();
   const now = Date.now();
   const receiptId = crypto.randomUUID();
+  const photo = input.photo
+    ? (await persistPhotoDataUrl(input.photo, "material_receipts", receiptId)).stored
+    : null;
 
   if (!input.pledgeCode) {
     await db.insert(materialReceipts).values({
@@ -42,6 +47,7 @@ export async function registerReceipt(input: ReceiptInput): Promise<ReceiptOutco
       stewardId: input.stewardId,
       items: input.items,
       note: input.note,
+      photo,
       receivedAt: now,
       createdAt: now,
     });
@@ -73,6 +79,7 @@ export async function registerReceipt(input: ReceiptInput): Promise<ReceiptOutco
       stewardId: input.stewardId,
       items: input.items,
       note: input.note,
+      photo,
       receivedAt: now,
       createdAt: now,
     });

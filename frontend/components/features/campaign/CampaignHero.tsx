@@ -1,13 +1,16 @@
 import { SITE_BRAND_NAME } from "@/lib/site";
 
 /**
- * Banner de la campaña. Reutiliza el hero de la portada (.e-hero*), que ya trae
- * el degradado oscuro y el velo sobre la imagen de fondo: la foto se cambia en
- * un solo sitio, styles/shell-layout.css, y cambia en toda la casa.
+ * Banner de la campaña. Reutiliza el marco del hero de la portada (.e-hero*)
+ * pero pone su propia imagen aquí, en línea, en vez de en shell-layout.css:
+ * ese archivo sirve a toda la casa y cambiar su fondo cambiaría también la
+ * portada.
  *
  * La imagen NO puede ser una foto de prensa ni mostrar personas afectadas
- * identificables (CLAUDE.md). Hoy es el placeholder de marca.
+ * identificables (CLAUDE.md). La actual es material de construcción, sin
+ * personas, generada para este banner.
  */
+const HERO_IMAGE = "/campana/hero.jpg";
 export default function CampaignHero({
   receivedLabel,
 }: {
@@ -16,8 +19,15 @@ export default function CampaignHero({
   return (
     <header className="e-hero">
       <div className="e-hero__gradient">
-        <div className="e-hero__bg-image" aria-hidden />
-        <div className="e-hero__bg-overlay" aria-hidden />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url('${HERO_IMAGE}')` }}
+        />
+        {/* Velo: sin él, el texto blanco se pierde sobre los sacos claros. Va
+            plano y no en degradado porque el titular está centrado, así que
+            oscurecer un solo lado no ayudaría. */}
+        <div aria-hidden className="absolute inset-0 bg-slate-950/62" />
 
         <div className="e-hero__inner">
           <p className="e-hero__eyebrow">

@@ -16,6 +16,7 @@ import { logDbFailure } from "@/lib/db-error";
 import { captureFailedSubmission } from "@/lib/failed-submission";
 import { serviceUnavailable } from "@/lib/errors";
 import { CAMPAIGN_MATERIALS, MATERIAL_KEYS } from "@/lib/campaign-materials";
+import { MAX_REPORT_PHOTO_CHARS } from "@/services/report-types";
 import { pledges } from "@/services/campaign";
 
 export const campaignPledgesRouter = Router();
@@ -35,6 +36,11 @@ const pledgeBody = z.object({
   items: z.array(itemSchema).min(1, "Indica al menos un material.").max(10),
   expectedAt: z.number().int().positive().optional(),
   note: z.string().trim().max(1000).optional().default(""),
+  photo: z
+    .string()
+    .max(MAX_REPORT_PHOTO_CHARS, "La foto es demasiado grande.")
+    .nullable()
+    .optional(),
   source: z.string().trim().max(500).optional(),
   turnstileToken: z.string().optional(),
 });
@@ -94,6 +100,7 @@ campaignPledgesRouter.post(
         })),
         expectedAt: body.expectedAt ?? null,
         note: body.note,
+        photo: body.photo ?? null,
         source: body.source ?? "web",
         ipHash: hashIp(req),
       });

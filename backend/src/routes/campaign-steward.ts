@@ -11,6 +11,7 @@ import { asyncHandler, rateLimit, validate } from "@/middleware";
 import { requireCampaignSteward } from "@/middleware/campaign-steward";
 import { badRequest } from "@/lib/errors";
 import { MATERIAL_KEYS } from "@/lib/campaign-materials";
+import { MAX_REPORT_PHOTO_CHARS } from "@/services/report-types";
 import { receipts } from "@/services/campaign";
 import { receiptMessage, type ReceiptKind } from "@/services/campaign/receipt-status";
 import type { StewardIdentity } from "@/services/campaign/stewards";
@@ -30,6 +31,11 @@ const receiptBody = z.object({
     .min(1, "Indica al menos un material recibido.")
     .max(10),
   note: z.string().trim().max(500).optional().default(""),
+  photo: z
+    .string()
+    .max(MAX_REPORT_PHOTO_CHARS, "La foto es demasiado grande.")
+    .nullable()
+    .optional(),
 });
 
 function stewardOf(res: { locals: Record<string, unknown> }): StewardIdentity {
@@ -99,6 +105,7 @@ campaignStewardRouter.post(
         unit: item.unit || "",
       })),
       note: body.note,
+      photo: body.photo ?? null,
     });
 
     if (!outcome.ok) {

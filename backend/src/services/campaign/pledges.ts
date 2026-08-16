@@ -12,6 +12,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { materialPledges, type MaterialLine } from "@/db/campaign-schema";
 import { materialLabel, materialUnit } from "@/lib/campaign-materials";
+import { persistPhotoDataUrl } from "@/lib/r2";
 import { normalizePledgeCode, PLEDGE_CODE_LENGTH, randomPledgeCode } from "./pledge-code";
 
 const CODE_MAX_ATTEMPTS = 5;
@@ -24,6 +25,7 @@ export interface PledgeInput {
   items: MaterialLine[];
   expectedAt: number | null;
   note: string;
+  photo: string | null;
   source: string;
   ipHash: string | null;
 }
@@ -62,6 +64,12 @@ export async function createPledge(input: PledgeInput): Promise<{ id: string; co
   const id = crypto.randomUUID();
   const code = await generateUniqueCode();
   const now = Date.now();
+  // La foto se sube ANTES del insert para que la fila nunca quede apuntando a
+  // un objeto que no existe. Si R2 no está configurado, esto devuelve el
+  // data-URL tal cual y se guarda en la columna (ver lib/r2.ts).
+  const photo = input.photo
+    ? (await persistPhotoDataUrl(input.photo, "material_pledges", id)).stored
+    : null;
   await db.insert(materialPledges).values({
     id,
     code,
@@ -73,6 +81,7 @@ export async function createPledge(input: PledgeInput): Promise<{ id: string; co
     status: "pledged",
     expectedAt: input.expectedAt,
     note: input.note,
+    photo,
     source: input.source,
     ipHash: input.ipHash,
     createdAt: now,
