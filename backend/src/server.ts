@@ -26,6 +26,8 @@ import { needsRouter } from "@/modules/needs";
 import { psychologyHelpRouter } from "@/routes/psychology-help";
 import { contactRouter } from "@/routes/contact";
 import { volunteersRouter } from "@/routes/volunteers";
+import { campaignRouter } from "@/routes/campaign";
+import { campaignStewardRouter } from "@/routes/campaign-steward";
 import { voluntariadoRouter } from "@/routes/voluntariado";
 import { dataDeletionRouter } from "@/routes/data-deletion";
 import { hubRouter } from "@/routes/hub";
@@ -201,6 +203,10 @@ if (env.ENABLE_RESPONSEGRID) {
 app.use("/api/stats/psychology-help", psychologyHelpRouter);
 app.use("/api/contact", contactRouter);
 app.use("/api/volunteers", volunteersRouter);
+// Campaña de reconstrucción. El router del responsable de punto se monta ANTES
+// del público para que "/punto" no lo capture "/certificado/:code".
+app.use("/api/campaign/punto", campaignStewardRouter);
+app.use("/api/campaign", campaignRouter);
 app.use("/api/voluntariado", voluntariadoRouter);
 app.use("/api/data-deletion", dataDeletionRouter);
 app.use("/api/hub", hubRouter);
