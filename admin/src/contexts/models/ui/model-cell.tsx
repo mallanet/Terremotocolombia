@@ -27,6 +27,27 @@ export function renderCell(value: unknown): string {
 }
 
 /**
+ * Contenido visible de una celda. Existe aparte de renderCell porque esa
+ * función devuelve texto y la fila usa su resultado como identificador
+ * (`const id = renderCell(row.id)`): si devolviera un nodo, el id se rompería.
+ */
+export function CellValue({ value }: { value: unknown }) {
+  if (typeof value === "string" && isPhotoValue(value)) {
+    return (
+      <a href={value} target="_blank" rel="noreferrer" title="Abrir la foto en grande">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={value}
+          alt="Foto adjunta al compromiso"
+          className="h-12 w-12 rounded object-cover ring-1 ring-gray-200"
+        />
+      </a>
+    );
+  }
+  return <>{renderCell(value)}</>;
+}
+
+/**
  * Rótulos en español + color para los estados conocidos (voluntarios, sus
  * tareas y la campaña). Así "¿ya se le envió?" se responde de un vistazo:
  * Pendiente = aún sin contactar; Contactado = ya se le envió correo.

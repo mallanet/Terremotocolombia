@@ -7,7 +7,7 @@
  */
 import { Fragment } from "react";
 import { Button } from "@/src/ui";
-import { renderCell, StatusCell } from "./model-cell";
+import { CellValue, renderCell, StatusCell } from "./model-cell";
 import { ModelForm } from "./model-form";
 import type { ModelColumn, ModelConfig } from "../model-registry";
 import type { ModelRow } from "../application/models-gateway";
@@ -44,7 +44,11 @@ function Cell({
   onStatus: (status: string) => void;
 }) {
   if (column.key !== "status") {
-    return <td className="px-3 py-2 align-top">{renderCell(row[column.key])}</td>;
+    return (
+      <td className="px-3 py-2 align-top">
+        <CellValue value={row[column.key]} />
+      </td>
+    );
   }
   return (
     <td className="px-3 py-2 align-top">
