@@ -29,6 +29,17 @@ afterAll(() => {
   if (prevDisabled !== undefined) process.env.RATE_LIMIT_DISABLED = prevDisabled;
 });
 
+/**
+ * Octetos distintos EN CADA EJECUCIÓN. El limitador vive en Valkey (helpers.ts
+ * apunta a redis://localhost:6379), así que su contador sobrevive al proceso:
+ * con una IP fija, dos corridas del suite dentro del mismo minuto se pisan y la
+ * segunda ve 429 desde la primera petición. Los dos rangos no se solapan, así
+ * que las dos IPs de este archivo nunca coinciden entre sí.
+ */
+const base = Math.floor(Math.random() * 127);
+const LIMITED_IP = `203.0.113.${base + 1}`;
+const OTHER_IP = `203.0.113.${base + 128}`;
+
 function syntheticMessage() {
   return {
     name: "Remitente Demo",
@@ -40,13 +51,12 @@ function syntheticMessage() {
 
 describe("rate-limit de POST /api/contact (limit 3/min)", () => {
   it("permite hasta el límite y luego responde 429 para la misma IP ficticia", async () => {
-    const ip = "203.0.113.7"; // TEST-NET-3: rango de documentación, claramente sintético
-
+    // TEST-NET-3: rango de documentación, claramente sintético.
     const statuses: number[] = [];
     for (let i = 0; i < 4; i++) {
       const res = await request(app)
         .post("/api/contact")
-        .set("cf-connecting-ip", ip)
+        .set("cf-connecting-ip", LIMITED_IP)
         .send(syntheticMessage());
       statuses.push(res.status);
     }
@@ -59,7 +69,7 @@ describe("rate-limit de POST /api/contact (limit 3/min)", () => {
   it("no penaliza a una IP ficticia distinta (clave de rate-limit independiente)", async () => {
     const res = await request(app)
       .post("/api/contact")
-      .set("cf-connecting-ip", "203.0.113.99")
+      .set("cf-connecting-ip", OTHER_IP)
       .send(syntheticMessage());
     expect(res.status).toBe(200);
   });
