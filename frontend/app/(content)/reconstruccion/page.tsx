@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/metadata";
 import SubPageShell from "@/components/layout/SubPageShell";
+import CampaignHero from "@/components/features/campaign/CampaignHero";
 import BalanceBoard from "@/components/features/campaign/BalanceBoard";
 import SiteList from "@/components/features/campaign/SiteList";
 import PledgeForm from "@/components/features/campaign/PledgeForm";
@@ -34,22 +35,26 @@ async function loadCampaign(): Promise<{
   };
 }
 
+/**
+ * Titular del banner: solo material CONFIRMADO. Lo prometido no se anuncia
+ * arriba, por la misma razón por la que el tablero separa las tres cifras.
+ */
+function receivedLabel(balance: CampaignBalance | undefined): string | undefined {
+  const top = balance?.received?.[0];
+  if (!top || top.quantity <= 0) return undefined;
+  const donations = balance?.confirmedDonations ?? 0;
+  const people = donations === 1 ? "1 persona" : `${donations} personas`;
+  return `Ya entregaron ${people}: ${top.quantity} ${top.unitLabel} de ${top.label.toLowerCase()} y más.`;
+}
+
 export default async function ReconstruccionPage() {
   const { sites, balance } = await loadCampaign();
 
   return (
     <SubPageShell breadcrumb="Reconstrucción" path="/reconstruccion">
-      <section className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6">
-        <h1 className="mb-2 text-[28px] font-bold text-slate-900 sm:text-[32px]">
-          Campaña de reconstrucción
-        </h1>
-        <p className="mb-8 max-w-[720px] text-[15px] text-slate-600 sm:text-base">
-          Recogemos materiales de construcción en varias ciudades del país y los
-          llevamos a las familias del Chocó que perdieron su vivienda. Registra
-          aquí lo que vas a donar, entrégalo en el punto de tu ciudad y sigue en
-          esta misma página cuánto se ha recogido y qué ya salió en camión.
-        </p>
+      <CampaignHero receivedLabel={receivedLabel(balance)} />
 
+      <section className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6">
         <div className="mb-12 rounded-[24px] bg-slate-50 p-6 sm:p-7">
           <h2 className="mb-4 text-xl font-bold text-slate-900">
             Cómo va la campaña
@@ -57,7 +62,7 @@ export default async function ReconstruccionPage() {
           <BalanceBoard initial={balance} />
         </div>
 
-        <div className="mb-12">
+        <div id="registrar" className="mb-12 scroll-mt-24">
           <h2 className="mb-2 text-xl font-bold text-slate-900">
             Registra tu donación
           </h2>
@@ -71,7 +76,7 @@ export default async function ReconstruccionPage() {
           </div>
         </div>
 
-        <div className="mb-12">
+        <div id="puntos" className="mb-12 scroll-mt-24">
           <h2 className="mb-2 text-xl font-bold text-slate-900">
             Puntos de recolección
           </h2>

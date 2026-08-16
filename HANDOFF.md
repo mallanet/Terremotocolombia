@@ -93,6 +93,38 @@ because receiptStatus compares the pledge against ONE delivery, not
 against the accumulated total. That is a design change, and it needs its
 own tests.
 
+BANNER OF THE CAMPAIGN LANDING, 2026-08-16
+/reconstruccion now opens with the brand hero (components/features/
+campaign/CampaignHero.tsx), which reuses the .e-hero* classes of the home
+page. Those classes already carry the dark gradient and the veil over the
+background image, thus the campaign added NO new CSS and NO new asset.
+The background is still the site placeholder (public/hero-placeholder.svg
+at 0.16 opacity, set in styles/shell-layout.css). A photograph only for
+the campaign needs one modifier class there — today the two heroes share
+one image.
+
+PHOTOGRAPH REFUSED, ON PURPOSE
+The maintainer sent a press photograph of the earthquake (file name matches
+the New York Times asset pattern) to use as the banner. It did NOT enter
+the repository, for two independent reasons: it shows identifiable affected
+people, which CLAUDE.md forbids without exception, and it is a third
+party's copyrighted work. Any replacement must clear BOTH bars.
+
+PHOTO UPLOAD IN THE DONATION FORM: ASKED FOR, NOT BUILT
+The maintainer wants donors to attach photos (and video) to their pledge.
+NOT started, on purpose — it needs a schema change and a decision.
+What already exists and must be reused: lib/r2.ts `persistPhotoDataUrl()`
+(data URL -> R2, falls back to base64 in the database when R2 is not
+configured) plus the form pattern of CheckinForm.tsx / MissingPersonForm.tsx.
+Accepted types there are jpeg, png and webp only.
+What is missing: a `photo` column on material_pledges (a migration, and the
+0010 numbering is already blocked), the moderation question (a public wall
+fed by uploads needs a human gate before anything shows), and EXIF, which
+the current pipeline does NOT strip.
+VIDEO IS A DIFFERENT PROBLEM: it does not fit the base64-through-JSON path
+that every current form uses. It needs a direct upload to R2 with a signed
+URL. Do not try to bolt it onto the pledge endpoint.
+
 OPEN
 docs/architecture.md is 663 lines and the local size gate refuses to grow
 it, so neither the ficha nor the campaign is linked from it. Maintainer
