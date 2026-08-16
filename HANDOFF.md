@@ -59,6 +59,37 @@ DONE EARLIER, NOW ON MAIN
 Volunteer ficha in the admin panel (PR #44, commit 4e826bf). The BFF sends
 the wider volunteer field set. Doc: docs/admin-volunteer-ficha.md.
 
+WORKERS AUDIT OF THE CAMPAIGN CODE, 2026-08-16: CLEAN
+The failure that broke roles.ts in production (an interactive
+db.transaction, which compiles, passes locally under node-postgres, and
+fails only in Workers) is not present. No `db.transaction(` call exists in
+backend/src/**; only comments mention it.
+registerReceipt claims the pledge with one atomic conditional UPDATE
+(WHERE id = ... AND status = 'pledged' ... RETURNING) and compensates if
+the receipt insert fails after it. That is the required idiom.
+No campaign path is in lib/json-edge-cache.ts, thus no authenticated
+response can enter the edge cache.
+
+KNOWN LIMITATION, MAINTAINER DECIDES
+A pledge is claimable only from status 'pledged'. If a person brings one
+half today and the other half tomorrow, the first delivery moves the
+pledge to 'partial' and the second delivery with the same code is refused
+with "already confirmed". No material is lost: the steward records the
+second half without a code, and it counts in the totals. Only that
+person's certificate stays partial.
+Reproduced locally 2026-08-16: pledge of 10 cement bags, deliver 4 ->
+status partial; deliver the other 6 with the same code -> "Ese compromiso
+ya se confirmó antes." Test rows deleted after.
+SMALL BUG FOUND IN THE SAME RUN, NOT FIXED YET: on a partial delivery the
+steward screen answers "El certificado de esa persona ya es válido",
+which is false — the certificate stays partial. The message must branch on
+outcome.status, the same way the walk_in case already does
+(backend/src/routes/campaign-steward.ts).
+To make 'partial' claimable again needs the sum of the previous receipts,
+because receiptStatus compares the pledge against ONE delivery, not
+against the accumulated total. That is a design change, and it needs its
+own tests.
+
 OPEN
 docs/architecture.md is 663 lines and the local size gate refuses to grow
 it, so neither the ficha nor the campaign is linked from it. Maintainer
