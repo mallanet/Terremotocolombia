@@ -12,6 +12,7 @@ import { requireCampaignSteward } from "@/middleware/campaign-steward";
 import { badRequest } from "@/lib/errors";
 import { MATERIAL_KEYS } from "@/lib/campaign-materials";
 import { receipts } from "@/services/campaign";
+import { receiptMessage, type ReceiptKind } from "@/services/campaign/receipt-status";
 import type { StewardIdentity } from "@/services/campaign/stewards";
 
 export const campaignStewardRouter = Router();
@@ -112,10 +113,7 @@ campaignStewardRouter.post(
       ok: true,
       receiptId: outcome.receiptId,
       status: outcome.status,
-      message:
-        outcome.status === "walk_in"
-          ? "Entrega anotada. Sumó al total del punto."
-          : "Entrega confirmada. El certificado de esa persona ya es válido.",
+      message: receiptMessage(outcome.status as ReceiptKind),
     });
   }),
 );

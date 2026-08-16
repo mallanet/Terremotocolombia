@@ -45,6 +45,9 @@ Local admin password was set by hand: admin@example.org /
 localadminpass123. The seeded user did not match docker-compose.yml. Local
 database only.
 PENDING: delete the DEMO rows (prefix `DEMO`) when the walkthrough ends.
+CAREFUL: the local database also holds one pledge from the maintainer's
+own walkthrough (50 bricks, still `pledged`). It carries no `DEMO` prefix.
+Do NOT delete it without asking.
 
 PANEL AUTH, DO NOT CONFUSE THE TWO
 ADMIN_PASSWORD is the legacy x-admin-token header for src/routes/admin.ts
@@ -80,11 +83,11 @@ person's certificate stays partial.
 Reproduced locally 2026-08-16: pledge of 10 cement bags, deliver 4 ->
 status partial; deliver the other 6 with the same code -> "Ese compromiso
 ya se confirmó antes." Test rows deleted after.
-SMALL BUG FOUND IN THE SAME RUN, NOT FIXED YET: on a partial delivery the
-steward screen answers "El certificado de esa persona ya es válido",
-which is false — the certificate stays partial. The message must branch on
-outcome.status, the same way the walk_in case already does
-(backend/src/routes/campaign-steward.ts).
+FIXED 2026-08-16: on a partial delivery the steward screen used to answer
+"El certificado de esa persona ya es válido", which was false. The text now
+comes from receiptMessage() in services/campaign/receipt-status.ts, a pure
+function with a test per status. The route only calls it. Confirmed
+against the live local stack, not only in tests.
 To make 'partial' claimable again needs the sum of the previous receipts,
 because receiptStatus compares the pledge against ONE delivery, not
 against the accumulated total. That is a design change, and it needs its

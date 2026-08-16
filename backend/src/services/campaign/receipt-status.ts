@@ -28,3 +28,26 @@ export function receiptStatus(
   }
   return "received";
 }
+
+export type ReceiptKind = "received" | "partial" | "walk_in";
+
+/**
+ * Lo que lee quien acaba de recibir el material. Va aquí, y no en la ruta,
+ * para poder probar los tres casos sin base de datos: el texto es la única
+ * señal que tiene el responsable de si el certificado quedó cerrado, y
+ * decirle que sí cuando llegó la mitad es mentirle a él y al donante.
+ */
+export function receiptMessage(kind: ReceiptKind): string {
+  switch (kind) {
+    case "received":
+      return "Entrega confirmada. El certificado de esa persona ya es válido.";
+    case "partial":
+      return "Anotado, pero llegó menos de lo prometido. El certificado queda a medias hasta que traiga el resto.";
+    case "walk_in":
+      return "Entrega anotada. Sumó al total del punto.";
+    default: {
+      const exhaustive: never = kind;
+      return exhaustive;
+    }
+  }
+}

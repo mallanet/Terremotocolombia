@@ -3,7 +3,11 @@
  * entrega cierra el compromiso y cómo se normaliza el código del certificado.
  */
 import { describe, expect, it } from "vitest";
-import { receiptStatus, totalsByMaterial } from "@/services/campaign/receipt-status";
+import {
+  receiptMessage,
+  receiptStatus,
+  totalsByMaterial,
+} from "@/services/campaign/receipt-status";
 import {
   CODE_ALPHABET,
   normalizePledgeCode,
@@ -47,6 +51,24 @@ describe("receiptStatus", () => {
 
   it("un compromiso vacío no puede quedar parcial", () => {
     expect(receiptStatus([], [])).toBe("received");
+  });
+});
+
+describe("receiptMessage", () => {
+  it("una entrega parcial NO dice que el certificado ya es válido", () => {
+    const partial = receiptMessage("partial");
+    expect(partial).not.toContain("ya es válido");
+    expect(partial).toContain("a medias");
+  });
+
+  it("una entrega completa sí cierra el certificado", () => {
+    expect(receiptMessage("received")).toContain("ya es válido");
+  });
+
+  it("una entrega sin código no promete certificado alguno", () => {
+    const walkIn = receiptMessage("walk_in");
+    expect(walkIn).not.toContain("certificado");
+    expect(walkIn).toContain("total del punto");
   });
 });
 
