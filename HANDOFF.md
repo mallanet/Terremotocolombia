@@ -63,8 +63,6 @@ OPEN
 docs/architecture.md is 663 lines and the local size gate refuses to grow
 it, so neither the ficha nor the campaign is linked from it. Maintainer
 decides.
-docs/campaign-reconstruccion.md is written in Spanish. AGENTS.md asks for
-English (ASD-STE100) in docs/. It needs a translation pass.
 No automatic email with the donation code: the code shows on screen only.
 Shipments (material_shipments) are created by hand in the panel; there is
 no public tracking screen.
