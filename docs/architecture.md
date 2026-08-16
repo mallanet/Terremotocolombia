@@ -177,8 +177,18 @@ require human review before any deployment.
   not share these JSON entries.
 - The API creates an `X-Request-Id` for every request. It returns this ID to
   the browser and includes it in structured server logs. Routine access logs
-  use a one-percent sample. Every 5xx access log is kept. Logs contain the
-  salted IP hash and never the raw client IP.
+  use a one-percent sample. The API keeps every 5xx response, request over
+  500 ms, database path over 250 ms, database retry, and database failure.
+  Each retained access record includes the database round-trip count and
+  cumulative database time. Logs contain the salted IP hash and never the raw
+  client IP, SQL text, SQL parameters, request bodies, or record identifiers.
+- `pg_stat_statements` supplies normalized query-level totals. Migration
+  `0011_query_observability` enables it. The read-only
+  `npm run observe:db` report omits SQL text by default. Cron and Queue handlers
+  emit bounded structured duration records without message bodies or IDs. A
+  one-percent sample of anonymous JSON edge-cache decisions records only the
+  resource family and hit/miss outcome. See `docs/database-observability.md`
+  for the rollout, queries, and alert policy.
 - Workers Logs persist console events but disable automatic invocation logs.
   This keeps application errors while it avoids one extra log event for every
   successful poll.

@@ -67,5 +67,19 @@ export async function dispatchCron(
     );
     return;
   }
-  await handler(now);
+  const startedAt = performance.now();
+  let outcome: "ok" | "error" = "ok";
+  try {
+    await handler(now);
+  } catch (error) {
+    outcome = "error";
+    throw error;
+  } finally {
+    console.log({
+      t: "cron_run",
+      cron,
+      outcome,
+      dur_ms: Math.round(performance.now() - startedAt),
+    });
+  }
 }
