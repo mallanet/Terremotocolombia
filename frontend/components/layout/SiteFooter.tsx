@@ -89,6 +89,8 @@ export default function SiteFooter() {
             emergencia oficiales (línea 123).
           </p>
           <div className="e-footer__legal-meta">
+            <Link href="/reconstruccion">Campaña de reconstrucción</Link>
+            <span aria-hidden>·</span>
             <Link href="/riesgo-sismico">Riesgo sísmico</Link>
             <span aria-hidden>·</span>
             <a

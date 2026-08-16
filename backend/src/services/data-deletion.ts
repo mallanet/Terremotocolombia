@@ -8,6 +8,7 @@ import { desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { logDbFailure } from "@/lib/db-error";
 import { purgeFailedSubmissionsByEmail } from "@/services/failed-submissions";
+import { anonymizePledgesByContact } from "@/services/campaign/anonymize";
 
 const { dataDeletionRequests } = schema;
 
@@ -115,6 +116,13 @@ export async function updateDeletionRequestStatus(
       // Best-effort: la resolución ya está escrita y no se revierte. La
       // retención (cron) acaba purgando estas filas aunque esto falle.
       logDbFailure("data-deletion.purge-failed-submissions", err);
+    }
+    try {
+      // Los compromisos de la campaña se anonimizan, no se borran: la cifra
+      // pública ya contó ese material (ver services/campaign/anonymize.ts).
+      await anonymizePledgesByContact(row.email);
+    } catch (err) {
+      logDbFailure("data-deletion.anonymize-pledges", err);
     }
   }
 

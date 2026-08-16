@@ -36,6 +36,9 @@ const STATIC_PATHS = [
   { path: "/donaciones", changeFrequency: "monthly" as const, priority: 0.6 },
   { path: "/voluntario", changeFrequency: "monthly" as const, priority: 0.6 },
   { path: "/apoyo-disponible", changeFrequency: "weekly" as const, priority: 0.7 },
+  // Campaña de reconstrucción. Se indexa la landing; NO las URL con token del
+  // responsable de punto ni los certificados, que llevan su propio noindex.
+  { path: "/reconstruccion", changeFrequency: "daily" as const, priority: 0.8 },
 ] as const;
 
 const API_TIMEOUT_MS = 5_000;
