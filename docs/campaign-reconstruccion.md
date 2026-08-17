@@ -85,6 +85,35 @@ at the next request.
 No deployment does these steps for you, and an agent does not do them on its
 own initiative (see `CLAUDE.md`).
 
+## Staging status, 2026-08-17
+
+Steps 1 and 2 are done in staging. Migrations `0012` and `0013` are applied to
+the Neon `staging` branch through the direct endpoint, `check:schema-drift`
+answers clean, and run `32059821930` of `deploy-staging.yml` is green for the
+API, the panel and the frontend. Do not migrate staging again: both files are
+recorded in the journal and a second run changes nothing.
+
+Step 3 is done too. `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` are set in
+Doppler `stg`, the seed reported `superadmin … creado (activo)`, and a login
+against `POST /api/public/auth/login` on the staging API answers `200`. Read
+the password back at login time; both variables can go once you no longer need
+to recreate the account.
+
+```bash
+doppler secrets get SEED_ADMIN_PASSWORD -p terremotocolombia-web -c stg --plain --no-check-version
+```
+
+Steps 4 and 5 are open. The campaign holds no data yet —
+`/api/campaign/puntos` answers `{"sites":[]}` — so the landing page shows the
+form and no place to deliver. Make the points in the panel first, then one
+steward per point.
+
+Two traps on the way. `-c stg` is the flag to get right, because `prd` is
+production. And `--no-check-version` is not optional on a machine without
+`gpg`: without it the CLI tries to update itself, fails the signature check,
+and exits `3` **before running your command**, which reads like a permission
+error and is not one.
+
 ## Personal data
 
 - The donor contact (`donor_contact`) is private. It goes to no public
