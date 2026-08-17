@@ -127,19 +127,19 @@ lines and the size gate refuses any edit that does not shrink it. The CTA
 sits first on /donaciones so a phone reaches Stripe with one more tap.
 Splitting that file is the pending fix.
 
-CONTENT AUDIT: buy.stripe.com VETO RETIRED, MAINTAINER'S CALL 2026-08-17
-Merging PR #50 turned CI red on main with one finding:
-[hard-banned] ./config/deployment.config.json — buy.stripe.com. The pattern
-exists so the public template never ships a payment link pointing at one
-account. These links are Mallanet's own and live in the deployment identity
-file as optional https-only keys, so the maintainer retired the pattern with
-the precedent already set for discord.gg/ and chat.whatsapp.com
-(PR #51, on main and cherry-picked here as b7608af).
-DO NOT put it back. The rest of the list stays banned, and that is the point
-of the rule: the two crowdfunding domains, the PayPal payment path and the
-WhatsApp shortener. Read them in scripts/content-audit/banned-patterns.txt —
-spelling them here makes the audit fail on its own notes.
-The frontend deploy was never affected: it went green and shipped.
+HOME HERO BACKGROUND, 2026-08-17
+/portada/hero.jpg (192 KB) under the blue veil, replacing a placeholder SVG
+at 0.16 opacity that read as a flat gradient. Generated illustration: no
+people, no press photo, same bar as /apoyanos and the campaign.
+MEASURED, do not "fix" it blind: in portrait the vertical focal point does
+NOTHING. At 390x844 the layer is 390x536 and the painted image 804x536, so
+the vertical slack is 0 px and only WIDTH gets cropped. It looks small on a
+phone because the whole height is squeezed into a narrow box, not because of
+`background-position`. The real fix is art direction, a portrait crop by
+media query, and that needs shell-layout.css (3.199 lines, shrink-only under
+the gate) split first.
+TWO SESSIONS BUILT THIS AT ONCE: mine generated public/hero/home.jpg, found
+the CSS pointing elsewhere, deleted it. Assets do not merge — check first.
 
 CURRENT WORK
 Reconstruction campaign: collect construction material at points in

@@ -71,6 +71,21 @@ column.
 VIDEO STAYS OUT: it does not fit the base64-through-JSON path that every
 form here uses. It needs a direct upload to R2 with a signed URL.
 
+## Content audit: the buy.stripe.com veto was retired (2026-08-17, SETTLED)
+
+Merging PR #50 turned CI red on main with one finding:
+[hard-banned] ./config/deployment.config.json — buy.stripe.com. The pattern
+exists so the public template never ships a payment link pointing at one
+account. These links are Mallanet's own and live in the deployment identity
+file as optional https-only keys, so the maintainer retired the pattern with
+the precedent already set for discord.gg/ and chat.whatsapp.com
+(PR #51, on main and cherry-picked here as b7608af).
+DO NOT put it back. The rest of the list stays banned, and that is the point
+of the rule: the two crowdfunding domains, the PayPal payment path and the
+WhatsApp shortener. Read them in scripts/content-audit/banned-patterns.txt —
+spelling them here makes the audit fail on its own notes.
+The frontend deploy was never affected: it went green and shipped.
+
 ## Money donations through payment links (2026-08-17, SUPERSEDED)
 
 Two Stripe payment links now exist, both declared in
