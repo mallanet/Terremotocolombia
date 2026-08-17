@@ -29,6 +29,7 @@
  * Vive en su propio modulo (y no dentro de db/index.ts) para poder testear la
  * politica sin arrastrar el driver, el esquema ni config/env.
  */
+import { recordDatabaseCall } from "@/lib/request-context";
 
 /** Espera entre el intento fallido y el reintento. */
 export const RETRY_BACKOFF_MS = 150;
@@ -84,19 +85,36 @@ export async function retryingFetch(
   init?: FetchInit,
   doFetch: typeof fetch = fetch,
 ): Promise<Response> {
+  const startedAt = performance.now();
+  let attempts = 0;
+  let failed = true;
   // Se calcula UNA vez: el body no cambia entre intentos.
   const retryOnThrow = isProvablyReadOnly(init?.body);
   try {
+    attempts += 1;
     const res = await doFetch(input, init);
     if (res.status >= 500 && retryOnThrow) {
       await sleep(RETRY_BACKOFF_MS);
-      return await doFetch(input, init);
+      attempts += 1;
+      const retried = await doFetch(input, init);
+      failed = !retried.ok;
+      return retried;
     }
+    failed = !res.ok;
     return res;
   } catch (err) {
     // Sin respuesta: no sabemos si la sentencia corrio. Solo lecturas.
     if (!retryOnThrow) throw err;
     await sleep(RETRY_BACKOFF_MS);
-    return await doFetch(input, init);
+    attempts += 1;
+    const retried = await doFetch(input, init);
+    failed = !retried.ok;
+    return retried;
+  } finally {
+    recordDatabaseCall({
+      durationMs: performance.now() - startedAt,
+      retries: Math.max(0, attempts - 1),
+      failed,
+    });
   }
 }

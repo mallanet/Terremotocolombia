@@ -12,6 +12,7 @@ import { isR2Configured } from "@/lib/r2";
 import { mountPublicApi } from "@/public-api";
 import { buildOpenApiSpec } from "@/lib/swagger";
 import { missingRouter } from "@/routes/missing";
+import { officialDeceasedRouter } from "@/routes/official-deceased";
 import { petsRouter } from "@/routes/pets";
 import { reportsRouter } from "@/routes/reports";
 import { chatRouter } from "@/routes/chat";
@@ -94,6 +95,7 @@ const LARGE_BODY_POST_PATHS = [
   "/api/missing", // foto base64
   "/api/reports", // foto base64
   "/api/public/patient-imports", // lote de ingesta (hasta 2000 filas)
+  "/api/public/deceased-imports", // lista oficial CSV/XLSX (hasta 2000 filas)
 ];
 const globalJson = express.json({ limit: "256kb" });
 app.use((req, res, next) => {
@@ -178,6 +180,7 @@ mountPublicApi(app);
 
 // Rutas. (Reference endpoint ahora; el resto las añade el workflow de port.)
 app.use("/api/missing", missingRouter);
+app.use("/api/deceased", officialDeceasedRouter);
 // Mascotas. Tabla y consultas PROPIAS (missing_pets): montar esto no puede
 // alterar el conteo ni el listado de personas desaparecidas. Ver services/pets.ts.
 app.use("/api/pets", petsRouter);

@@ -255,6 +255,9 @@ export default {
     bridgeEnv(env);
     registerJobBindings(env);
     const kind = classifyQueue(batch.queue);
+    const startedAt = performance.now();
+    let outcome: "ok" | "error" = "ok";
+    try {
     if (kind === "needs") {
       await consumeNeedsBatch(batch, {
         publish: async (job) => {
@@ -315,5 +318,19 @@ export default {
     // criterio que dispatchCron con una expresion no reconocida.
     console.warn(`[queue] cola no reconocida: "${batch.queue}" — se hace ack sin procesar.`);
     for (const message of batch.messages) message.ack();
+    } catch (error) {
+      outcome = "error";
+      throw error;
+    } finally {
+      // No incluye IDs ni bodies: solo dimensiones de transporte seguras y
+      // acotadas para correlacionar picos de DB/CPU con trabajo asíncrono.
+      console.log({
+        t: "queue_batch",
+        queue_kind: kind,
+        outcome,
+        messages: batch.messages.length,
+        dur_ms: Math.round(performance.now() - startedAt),
+      });
+    }
   },
 };

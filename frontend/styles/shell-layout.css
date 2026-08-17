@@ -2643,6 +2643,16 @@
 	color: var(--m-blue-800);
 }
 
+.e-m-person-card--deceased {
+	border-color: #94a3b8;
+	cursor: default;
+}
+
+.e-m-person-card__badge--deceased {
+	background: #334155;
+	color: #fff;
+}
+
 .e-m-person-card__photo {
 	display: block;
 	width: 100%;

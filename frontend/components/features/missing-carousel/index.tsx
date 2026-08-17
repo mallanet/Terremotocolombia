@@ -13,6 +13,7 @@ import type { PetPayload } from "@/components/features/pets/types";
 import { PersonsTab, type PersonsTabHandle } from "./PersonsTab";
 import { PetsTab, type PetsTabHandle } from "./PetsTab";
 import { HospitalsTab } from "./HospitalsTab";
+import { DeceasedTab } from "./DeceasedTab";
 
 // Forms de reporte: code-split (pesados, solo al pulsar "Reportar").
 const MissingPersonForm = dynamic(
@@ -23,7 +24,7 @@ const PetForm = dynamic(() => import("@/components/features/pets/PetForm"), {
   ssr: false,
 });
 
-type DirectoryTab = "personas" | "mascotas" | "hospitales";
+type DirectoryTab = "personas" | "mascotas" | "fallecidos" | "hospitales";
 
 const TABS: ReadonlyArray<TabDef<DirectoryTab>> = [
   {
@@ -39,6 +40,12 @@ const TABS: ReadonlyArray<TabDef<DirectoryTab>> = [
     panelId: "panel-mascotas",
   },
   {
+    id: "fallecidos",
+    label: "Fallecidos",
+    tabId: "tab-fallecidos",
+    panelId: "panel-fallecidos",
+  },
+  {
     id: "hospitales",
     label: "Hospitales",
     tabId: "tab-hospitales",
@@ -49,6 +56,7 @@ const TABS: ReadonlyArray<TabDef<DirectoryTab>> = [
 function tabFromHash(hash: string): DirectoryTab | null {
   const id = hash.replace("#", "");
   if (id === "hospitales") return "hospitales";
+  if (id === "fallecidos") return "fallecidos";
   if (id === "mascotas" || id === "perdidas") return "mascotas";
   if (
     id === "personas" ||
@@ -64,6 +72,7 @@ function tabFromHash(hash: string): DirectoryTab | null {
 
 function hashForTab(tab: DirectoryTab): string {
   if (tab === "hospitales") return "#hospitales";
+  if (tab === "fallecidos") return "#fallecidos";
   if (tab === "mascotas") return "#mascotas";
   return "#e-directory";
 }
@@ -143,6 +152,11 @@ export default function MissingCarousel() {
   return (
     <section id="e-directory" className="e-m-section scroll-mt-20 relative">
       <span
+        id="fallecidos"
+        className="pointer-events-none absolute -top-24"
+        aria-hidden
+      />
+      <span
         id="hospitales"
         className="pointer-events-none absolute -top-24"
         aria-hidden
@@ -160,11 +174,11 @@ export default function MissingCarousel() {
       <div className="e-m-section__inner">
         <header className="e-m-section__head">
           <span className="e-m-kicker">Directorio humanitario</span>
-          <h2 className="e-m-section__title">Personas, mascotas y hospitales</h2>
+          <h2 className="e-m-section__title">Personas, mascotas, fallecidos y hospitales</h2>
           <hr className="e-m-section__rule" />
           <p className="e-m-section__sub">
             Consulta reportes de personas desaparecidas, localizadas, mascotas
-            perdidas y registros hospitalarios.
+            perdidas, listas oficiales de fallecidos y registros hospitalarios.
           </p>
         </header>
 
@@ -187,7 +201,7 @@ export default function MissingCarousel() {
             >
               Reportar mascota
             </button>
-          ) : (
+          ) : activeTab !== "fallecidos" ? (
             <button
               type="button"
               onClick={() => openReportForm("missing")}
@@ -195,7 +209,7 @@ export default function MissingCarousel() {
             >
               Reportar persona
             </button>
-          )}
+          ) : null}
         </div>
 
         {activeTab === "personas" && (
@@ -216,6 +230,16 @@ export default function MissingCarousel() {
             className="e-m-directory__panel"
           >
             <PetsTab ref={mascotasRef} />
+          </div>
+        )}
+        {activeTab === "fallecidos" && (
+          <div
+            role="tabpanel"
+            id="panel-fallecidos"
+            aria-labelledby="tab-fallecidos"
+            className="e-m-directory__panel"
+          >
+            <DeceasedTab />
           </div>
         )}
         {activeTab === "hospitales" && (

@@ -64,6 +64,13 @@ const CASES: Case[] = [
     cap: "patient:import",
     body: { rows: [{ name: "Demo Anon", hospital: "Hospital Demo" }] },
   },
+  {
+    label: "official deceased import",
+    method: "post",
+    path: "/api/public/deceased-imports",
+    cap: "missing:create",
+    body: {},
+  },
   { label: "patient-import detail", method: "get", path: "/api/public/patient-imports/none", cap: "patient:import" },
   { label: "patient-import rows", method: "get", path: "/api/public/patient-imports/none/rows", cap: "patient:import" },
   { label: "patient-import retry", method: "post", path: "/api/public/patient-imports/none/retry", cap: "patient:import" },

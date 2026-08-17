@@ -157,6 +157,51 @@ export const missingPersonSuppressions = pgTable(
   ],
 );
 
+/* ------------------------------------------------ official_deceased_lists */
+/**
+ * Official lists of confirmed deceased people are separate from hospitals and
+ * from citizen missing-person reports. This separation prevents a forensic
+ * source from increasing hospital patient counts or missing-person totals.
+ *
+ * The source URL is the stable import identity. The application derives the
+ * row IDs from this list ID and the normalized row content, so a retry is
+ * idempotent without an interactive transaction.
+ */
+export const officialDeceasedLists = pgTable(
+  "official_deceased_lists",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    sourceName: text("source_name").notNull(),
+    sourceUrl: text("source_url").notNull(),
+    publishedAt: epochMs("published_at"),
+    createdBy: text("created_by"),
+    createdAt: epochMs("created_at").notNull(),
+    updatedAt: epochMs("updated_at").notNull(),
+  },
+  (t) => [uniqueIndex("idx_official_deceased_lists_source_url").on(t.sourceUrl)],
+);
+
+export const officialDeceasedRecords = pgTable(
+  "official_deceased_records",
+  {
+    id: text("id").primaryKey(),
+    listId: text("list_id")
+      .notNull()
+      .references(() => officialDeceasedLists.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    age: integer("age"),
+    location: text("location").notNull().default(""),
+    description: text("description").notNull().default(""),
+    createdAt: epochMs("created_at").notNull(),
+    updatedAt: epochMs("updated_at").notNull(),
+  },
+  (t) => [
+    index("idx_official_deceased_records_list").on(t.listId, t.createdAt.desc()),
+    index("idx_official_deceased_records_name").on(t.name),
+  ],
+);
+
 /* -------------------------------------------------------------- missing_pets */
 /**
  * Mascotas desaparecidas o encontradas. TABLA APARTE de `missing_persons`, no una
