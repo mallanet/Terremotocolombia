@@ -91,11 +91,21 @@ const mapQuery = z.object({
   limit: z.coerce.number().int().min(1).max(2000).optional(),
 });
 
-// Cache headers (idénticos al endpoint previo).
-const LIST_CACHE = { "Cache-Control": "public, max-age=0, s-maxage=2, stale-while-revalidate=15" };
+// Keep origin and edge cache windows aligned with the browser poll cadence.
+const POLLED_CACHE_MS = 8_000;
+const POLLED_CACHE_SECONDS = POLLED_CACHE_MS / 1_000;
+const STATS_CACHE_MS = 15_000;
+const STATS_CACHE_SECONDS = STATS_CACHE_MS / 1_000;
+const LIST_CACHE = {
+  "Cache-Control": `public, max-age=0, s-maxage=${POLLED_CACHE_SECONDS}, stale-while-revalidate=30`,
+};
 const SEARCH_CACHE = { "Cache-Control": "public, max-age=0, s-maxage=30, stale-while-revalidate=120" };
-const MAP_CACHE = { "Cache-Control": "public, max-age=0, s-maxage=3, stale-while-revalidate=15" };
-const STATS_CACHE = { "Cache-Control": "public, max-age=0, s-maxage=5, stale-while-revalidate=30" };
+const MAP_CACHE = {
+  "Cache-Control": `public, max-age=0, s-maxage=${POLLED_CACHE_SECONDS}, stale-while-revalidate=30`,
+};
+const STATS_CACHE = {
+  "Cache-Control": `public, max-age=0, s-maxage=${STATS_CACHE_SECONDS}, stale-while-revalidate=30`,
+};
 
 // Parser de body para los endpoints que aceptan foto en base64 (~1.4 MB). El
 // parser global del server (256kb) es muy chico para estos; lo subimos solo
@@ -115,7 +125,7 @@ missingRouter.get(
     // trata como listado normal (TTL corto). Mismo criterio que el Next previo.
     const hasSearch = (search ?? "").trim().length >= MIN_SEARCH_LEN;
     const key = `missing:${status}:${page}:${pageSize}:${search ?? ""}`;
-    const result = await cached(key, hasSearch ? 30_000 : 2_000, () =>
+    const result = await cached(key, hasSearch ? 30_000 : POLLED_CACHE_MS, () =>
       service.listMissingPage({ status, page, pageSize, search }),
     );
     jsonWithEtag(
@@ -199,7 +209,7 @@ missingRouter.get(
     const limit = limitRaw ?? 500;
     // Clave por viewport: el caso sin viewport (vista completa) cachea perfecto.
     const key = `missing-map:${north ?? ""}:${south ?? ""}:${east ?? ""}:${west ?? ""}:${limit}`;
-    const markers = await cached(key, 3_000, () =>
+    const markers = await cached(key, POLLED_CACHE_MS, () =>
       service.listMissingMapMarkers({ north, south, east, west, limit }),
     );
     jsonWithEtag(req, res, { markers }, MAP_CACHE);
@@ -211,7 +221,7 @@ missingRouter.get(
   "/stats",
   rateLimit({ scope: "missing:stats", limit: 120 }),
   asyncHandler(async (req, res) => {
-    const stats = await cached("missing:stats", 5_000, () => service.countMissingStats());
+    const stats = await cached("missing:stats", STATS_CACHE_MS, () => service.countMissingStats());
     jsonWithEtag(req, res, { stats }, STATS_CACHE);
   }),
 );

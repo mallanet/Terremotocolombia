@@ -77,6 +77,20 @@ describe("POST /api/reports", () => {
 });
 
 describe("GET /api/reports", () => {
+  it("conserva el total cuando se solicita una página fuera de rango", async () => {
+    const { invalidate } = await import("@/lib/cache");
+    invalidate();
+
+    const res = await request(app)
+      .get("/api/reports")
+      .query({ page: 999_999, pageSize: 500 });
+    expect(res.status).toBe(200);
+    expect(res.headers["cache-control"]).toContain("s-maxage=8");
+    expect(res.body.reports).toEqual([]);
+    expect(res.body.total).toBeGreaterThan(0);
+    expect(res.body.totalPages).toBeGreaterThanOrEqual(1);
+  });
+
   it("pagina sin truncar el acceso después de 500 reportes", async () => {
     const { getDb, schema } = await import("@/db");
     const { invalidate } = await import("@/lib/cache");

@@ -1,3 +1,28 @@
+main MERGED INTO THE CAMPAIGN BRANCH, 2026-08-17
+Local only, NOT pushed. Ten conflicted files, all resolved.
+- deployment config, site.ts, deployment-config.ts + its test: same
+  evolution both sides (main had one payment link, we generalised the
+  validator to a loop). Kept the general version.
+- admin model UI: NOT one file with edits, two independent implementations.
+  main splits it into row-actions / status-cell / status-badges /
+  table-parts and is in production, so main's won whole. Re-grafted the one
+  campaign bit: <RevealOnce fields={model.revealOnCreate}> after create
+  (steward token). route.ts took the UNION: ficha fields + revealOnCreate.
+- Deleted ui/model-cell.tsx: it landed beside main's model-cell.ts,
+  TypeScript resolves .ts first, so it was unreachable.
+MIGRATIONS: both branches used 0010 and 0011 for different things. main's
+numbering untouched; ours moved to 0012_campaign_reconstruccion and
+0013_campaign_photos. Safe: both idempotent (IF NOT EXISTS), never run
+outside a local database.
+WATCH THIS: campaign tables live in infra/db/schema-campaign.ts, which
+drizzle.config.ts does NOT read. The branch carried a 0010 snapshot that
+DID contain them, so `db:generate` there would have proposed DROPPING every
+campaign table. main's chain fixes it. Campaign DDL is hand-managed.
+Green after merging: admin build, frontend 169 tests, backend 750, audit.
+test/official-deceased-import.test.ts (main's) fails without DATABASE_URL —
+a unit test that transitively imports src/db. Pre-existing, not ours.
+THIS FILE IS AT ITS 300-LINE CEILING. Archive the oldest blocks next.
+
 ON-SITE DONATION FORM, 2026-08-17
 /apoyanos no longer sends people to a closed payment link to pick a figure.
 The page owns the choice (monthly/one-off, $5/$15/$30/other) and the backend
@@ -222,14 +247,9 @@ One pledge with a photo, then four requests against the running stack:
 Repeat this check if you ever add a field to those projections. Test row
 deleted after.
 
-MIGRATION 0011, WRITTEN, NOT APPLIED OUTSIDE LOCAL
-infra/db/migrations/0011_campaign_photos.sql adds `photo` to
-material_pledges and to material_receipts. Additive, nullable, with IF NOT
-EXISTS: old code ignores the columns, so it can be applied BEFORE the code
-that uses them, which is the order AGENTS.md demands. Applied to the LOCAL
-database only. Neon staging and production are untouched.
-It sits on top of the 0010 numbering that is already in dispute — see the
-BLOCKER above. Same decision, now two files instead of one.
+MIGRATION NUMBERING: SETTLED, see the merge entry at the top
+Both campaign migrations are renumbered (0012, 0013) and applied to the
+LOCAL database only. Neon staging and production are untouched.
 
 OPEN
 docs/architecture.md is 663 lines and the local size gate refuses to grow
@@ -266,8 +286,7 @@ a command can falsify — a test total, an HTTP code, a row count — not a
 sentence about the work being good.
 
 NEXT
-Maintainer decides the migration numbering — now TWO files, 0010 and 0011.
-Then: apply both against Neon direct, run deploy-backend.yml, grant the
+Apply 0012 and 0013 against Neon direct, run deploy-backend.yml, grant the
 `campaign` capability, create the points and their stewards.
 
 SMALL THING SEEN, NOT FIXED

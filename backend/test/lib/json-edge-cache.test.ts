@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   isCacheablePublicJsonPath,
   servePublicJsonCached,
 } from "@/lib/json-edge-cache";
 import type { EdgeCache } from "@/lib/photo-edge-cache";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function fakeCache(initial?: Response) {
   let stored = initial;
@@ -23,8 +27,36 @@ function fakeCache(initial?: Response) {
 }
 
 describe("public JSON edge cache", () => {
+  it("samples a bounded outcome without URL or cache-key data", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { cache } = fakeCache(
+      new Response('{"cached":true}', {
+        headers: { "Cache-Control": "public, s-maxage=5" },
+      }),
+    );
+
+    await servePublicJsonCached({
+      request: new Request("https://api.example.org/api/reports/private-id?contact=hidden"),
+      cache,
+      fetchOrigin: async () => new Response("{}"),
+      waitUntil: () => {},
+    });
+
+    expect(log).toHaveBeenCalledWith({
+      t: "edge_cache",
+      cache: "json",
+      family: "reports",
+      outcome: "hit",
+      status: 200,
+    });
+    expect(JSON.stringify(log.mock.calls)).not.toContain("private-id");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("contact");
+  });
+
   it("allows hot public reads and rejects private/large binary paths", () => {
     expect(isCacheablePublicJsonPath("/api/missing/stats")).toBe(true);
+    expect(isCacheablePublicJsonPath("/api/deceased")).toBe(true);
     expect(isCacheablePublicJsonPath("/api/hospitals/demo/supply")).toBe(true);
     expect(isCacheablePublicJsonPath("/api/public/users")).toBe(false);
     expect(isCacheablePublicJsonPath("/api/geocode")).toBe(false);

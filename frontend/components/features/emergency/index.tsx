@@ -54,8 +54,8 @@ const AFFECTED_CENTER: { lat: number; lng: number } = {
   lat: DEFAULT_MAP_CENTER[0],
   lng: DEFAULT_MAP_CENTER[1],
 };
-const POLL_INTERVAL_MS = 5000;
-const LOW_BANDWIDTH_POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL_MS = 10_000;
+const LOW_BANDWIDTH_POLL_INTERVAL_MS = 45_000;
 const ADMIN_STORAGE_KEY = "emergency:adminToken";
 // Debounce de bounds del mapa: evita un request por cada frame de pan/zoom.
 const MAP_BOUNDS_DEBOUNCE_MS = 350;

@@ -11,7 +11,7 @@ import { registerReportEdit } from "@/routes/reports-edit";
 export const reportsRouter = Router();
 
 const LIST_CACHE = {
-  "Cache-Control": "public, max-age=0, s-maxage=4, stale-while-revalidate=30",
+  "Cache-Control": `public, max-age=0, s-maxage=${service.REPORT_LIST_CACHE_SECONDS}, stale-while-revalidate=30`,
 };
 
 const idParam = z.object({ id: z.string().min(1, "Falta el id") });

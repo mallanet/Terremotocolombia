@@ -16,7 +16,7 @@ import client, { Counter, Histogram, Registry, collectDefaultMetrics } from "pro
 import type { Request, Response, NextFunction } from "express";
 import { env } from "@/config/env";
 import { hashIp } from "@/lib/client-ip";
-import { requestId } from "@/lib/request-context";
+import { databaseTelemetry, requestId } from "@/lib/request-context";
 
 export const register = new Registry();
 
@@ -42,6 +42,8 @@ try {
 
 const LABELS = ["method", "route", "status_code"] as const;
 const ACCESS_LOG_SAMPLE_RATE = 0.01;
+const SLOW_REQUEST_SECONDS = 0.5;
+const SLOW_DATABASE_MS = 250;
 
 export const httpRequestsTotal = new Counter({
   name: "http_requests_total",
@@ -63,6 +65,22 @@ export const httpErrorsTotal = new Counter({
   name: "http_errors_total",
   help: "Total de respuestas HTTP de error (4xx + 5xx)",
   labelNames: LABELS,
+  registers: [register],
+});
+
+export const httpDatabaseDuration = new Histogram({
+  name: "http_database_duration_seconds",
+  help: "Tiempo acumulado en Postgres por request HTTP",
+  labelNames: LABELS,
+  buckets: [0.005, 0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5],
+  registers: [register],
+});
+
+export const httpDatabaseQueries = new Histogram({
+  name: "http_database_queries",
+  help: "Cantidad de round trips a Postgres por request HTTP",
+  labelNames: LABELS,
+  buckets: [0, 1, 2, 4, 8, 16, 32, 64],
   registers: [register],
 });
 
@@ -91,27 +109,38 @@ export function metricsMiddleware(req: Request, res: Response, next: NextFunctio
     const durationS = Number(process.hrtime.bigint() - start) / 1e9;
     const route = normalizeRoute(req);
     const labels = { method: req.method, route, status_code: String(res.statusCode) };
+    const db = databaseTelemetry();
     httpRequestsTotal.inc(labels);
     httpRequestDuration.observe(labels, durationS);
+    httpDatabaseDuration.observe(labels, db.dbDurationMs / 1000);
+    httpDatabaseQueries.observe(labels, db.dbQueries);
     if (res.statusCode >= 400) httpErrorsTotal.inc(labels);
 
     // Keep every 5xx and sample routine traffic. Logs contain only the salted IP
     // hash, never the raw address. Cloudflare edge tooling remains the place to
     // block abusive IPs; application logs are for trends and correlation.
-    if (res.statusCode < 500 && Math.random() >= ACCESS_LOG_SAMPLE_RATE) return;
+    const mustLog =
+      res.statusCode >= 500 ||
+      durationS >= SLOW_REQUEST_SECONDS ||
+      db.dbDurationMs >= SLOW_DATABASE_MS ||
+      db.dbRetries > 0 ||
+      db.dbFailures > 0;
+    if (!mustLog && Math.random() >= ACCESS_LOG_SAMPLE_RATE) return;
     try {
-      console.log(
-        JSON.stringify({
-          t: "access",
-          request_id: requestId(req),
-          cf_ray: typeof req.headers["cf-ray"] === "string" ? req.headers["cf-ray"] : undefined,
-          method: req.method,
-          route,
-          status: res.statusCode,
-          dur_ms: Math.round(durationS * 1000),
-          ip_hash: hashIp(req),
-        }),
-      );
+      console.log({
+        t: "access",
+        request_id: requestId(req),
+        cf_ray: typeof req.headers["cf-ray"] === "string" ? req.headers["cf-ray"] : undefined,
+        method: req.method,
+        route,
+        status: res.statusCode,
+        dur_ms: Math.round(durationS * 1000),
+        db_queries: db.dbQueries,
+        db_ms: Math.round(db.dbDurationMs),
+        db_retries: db.dbRetries,
+        db_failures: db.dbFailures,
+        ip_hash: hashIp(req),
+      });
     } catch {
       // Nunca dejar que el logging tumbe la request.
     }

@@ -107,9 +107,7 @@ export function ModelForm({
             key={field.key}
             field={field}
             value={renderCell(values[field.key]).replace("—", "")}
-            onChange={(next) =>
-              setValues((current) => ({ ...current, [field.key]: next }))
-            }
+            onChange={(next) => setValues((current) => ({ ...current, [field.key]: next }))}
           />
         ) : (
           <Input

@@ -60,19 +60,16 @@ function randomCode(): string {
   return String(n).padStart(CODE_DIGITS, "0");
 }
 
-/** Código de 6 dígitos único (reintenta ante colisión; sin transacción). */
-async function generateUniqueCode(): Promise<string> {
-  const db = await getDb();
-  for (let attempt = 0; attempt < CODE_MAX_ATTEMPTS; attempt += 1) {
-    const code = randomCode();
-    const clash = await db
-      .select({ id: volunteers.id })
-      .from(volunteers)
-      .where(eq(volunteers.code, code))
-      .limit(1);
-    if (clash.length === 0) return code;
+function isVolunteerCodeCollision(err: unknown): boolean {
+  let current: unknown = err;
+  for (let depth = 0; depth < 4 && typeof current === "object" && current !== null; depth++) {
+    const pgError = current as { code?: string; constraint?: string; cause?: unknown };
+    if (pgError.code === "23505" && pgError.constraint === "volunteers_code_unique") {
+      return true;
+    }
+    current = pgError.cause;
   }
-  throw new Error("volunteers: no se pudo generar un código único");
+  return false;
 }
 
 /** Normaliza lo que escribe la persona: "483 920" → "483920". */
@@ -113,30 +110,39 @@ export async function createVolunteer(input: {
 }): Promise<{ id: string; code: string }> {
   const id = crypto.randomUUID();
   const db = await getDb();
-  const code = await generateUniqueCode();
   const now = Date.now();
-  await db.insert(volunteers).values({
-    id,
-    name: input.name,
-    contact: input.contact,
-    code,
-    offer: input.offer,
-    zone: input.zone,
-    availability: input.availability,
-    offerTypes: input.offerTypes,
-    digitalSkills: input.digitalSkills ?? null,
-    crisisExperience: input.crisisExperience ?? null,
-    fieldCity: input.fieldCity ?? null,
-    rescueTraining: input.rescueTraining ?? null,
-    fieldRole: input.fieldRole ?? null,
-    ownVehicle: input.ownVehicle ?? null,
-    source: input.source ?? null,
-    status: "pending",
-    ipHash: input.ipHash ?? null,
-    createdAt: now,
-    updatedAt: now,
-  });
-  return { id, code };
+  for (let attempt = 0; attempt < CODE_MAX_ATTEMPTS; attempt += 1) {
+    const code = randomCode();
+    try {
+      await db.insert(volunteers).values({
+        id,
+        name: input.name,
+        contact: input.contact,
+        code,
+        offer: input.offer,
+        zone: input.zone,
+        availability: input.availability,
+        offerTypes: input.offerTypes,
+        digitalSkills: input.digitalSkills ?? null,
+        crisisExperience: input.crisisExperience ?? null,
+        fieldCity: input.fieldCity ?? null,
+        rescueTraining: input.rescueTraining ?? null,
+        fieldRole: input.fieldRole ?? null,
+        ownVehicle: input.ownVehicle ?? null,
+        source: input.source ?? null,
+        status: "pending",
+        ipHash: input.ipHash ?? null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      return { id, code };
+    } catch (err) {
+      // The unique index is the race-safe arbiter. Retry only a code collision;
+      // connection errors and all other constraints must remain visible.
+      if (!isVolunteerCodeCollision(err)) throw err;
+    }
+  }
+  throw new Error("volunteers: no se pudo generar un código único");
 }
 
 /** Lista de voluntarios para el panel admin (DTO allowlist, sin ip_hash). */
