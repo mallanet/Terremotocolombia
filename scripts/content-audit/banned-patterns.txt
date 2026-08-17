@@ -104,7 +104,16 @@
 #   en el JSON-LD del sitio.
 gofund\.me/
 gofundme\.com/
-buy\.stripe\.com/[A-Za-z0-9]
+# (retirado) buy\.stripe\.com/[A-Za-z0-9]
+#   Los enlaces de pago de buy.stripe.com/… son los de Mallanet, el operador
+#   de este despliegue, y viven en config/deployment.config.json como claves
+#   OPCIONALES (donationUrl, donationMonthlyUrl) que el validador exige que
+#   sean https. Un fork sin pasarela no los declara, no hereda ninguno y sus
+#   botones vuelven a /donaciones. Mismo precedente que discord.gg/ y
+#   chat.whatsapp.com: identidad propia del despliegue, no un destino ajeno
+#   heredado de la plantilla.
+#   Lo que motivo el veto sigue vetado abajo: GoFundMe, el checkout de PayPal
+#   y wa.me, que si apuntarian a un recaudador o a un telefono concreto.
 paypal\.com/ncp/payment/
 wa\.me/[A-Za-z0-9]+
 # (retirado) chat\.whatsapp\.com
