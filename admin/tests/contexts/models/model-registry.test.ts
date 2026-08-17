@@ -17,6 +17,10 @@ describe("model-registry", () => {
         "volunteers",
         "volunteer-checkins",
         "volunteer-tasks",
+        "campaign-sites",
+        "campaign-stewards",
+        "campaign-pledges",
+        "campaign-shipments",
       ].sort(),
     );
   });
@@ -56,6 +60,12 @@ function capabilityRoot(path: string): string {
     volunteers: "volunteer",
     "volunteer-checkins": "volunteer",
     "volunteer-tasks": "volunteer",
+    // Los cuatro recursos de la campaña comparten `campaign:*`, por el mismo
+    // motivo que volunteer-tasks reutiliza `volunteer:*`.
+    "campaign-sites": "campaign",
+    "campaign-stewards": "campaign",
+    "campaign-pledges": "campaign",
+    "campaign-shipments": "campaign",
   };
   return map[path] ?? path;
 }

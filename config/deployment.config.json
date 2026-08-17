@@ -13,6 +13,7 @@
   "contactEmail": "info@mallanet.org",
   "communityWhatsappUrl": "https://chat.whatsapp.com/DR0kbPPw8TnL2FOJ09pwGH",
   "donationUrl": "https://buy.stripe.com/aFa3cv0PYfNY79d8nWawo00",
+  "donationMonthlyUrl": "https://buy.stripe.com/eVq8wPbuCbxI0KPaw4awo01",
   "domains": {
     "web": "terremotocolombia.co",
     "api": "api.terremotocolombia.co",

@@ -27,6 +27,9 @@ import { needsRouter } from "@/modules/needs";
 import { psychologyHelpRouter } from "@/routes/psychology-help";
 import { contactRouter } from "@/routes/contact";
 import { volunteersRouter } from "@/routes/volunteers";
+import { createDonationsRouter } from "@/modules/donations";
+import { campaignRouter } from "@/routes/campaign";
+import { campaignStewardRouter } from "@/routes/campaign-steward";
 import { voluntariadoRouter } from "@/routes/voluntariado";
 import { dataDeletionRouter } from "@/routes/data-deletion";
 import { hubRouter } from "@/routes/hub";
@@ -74,7 +77,11 @@ app.use((req, res, next) => {
       // o el preflight no autoriza el POST y lo bloquea (TypeError: Failed to fetch)
       // → analítica sin eventos. El SDK envía siempre client-id + sdk-name +
       // sdk-version (y opcionalmente client-secret/pending-revenues). Ver routes/op.ts.
+      // x-campaign-steward-token: la pantalla del responsable de punto llama al
+      // API desde el navegador con esa cabecera. Sin ella aquí, el preflight no
+      // autoriza la petición y la pantalla solo dice "Failed to fetch".
       "Content-Type, If-None-Match, x-admin-token, cf-turnstile-token, authorization, " +
+        "x-campaign-steward-token, " +
         "openpanel-client-id, openpanel-client-secret, openpanel-sdk-name, " +
         "openpanel-sdk-version, openpanel-pending-revenues",
     );
@@ -204,6 +211,11 @@ if (env.ENABLE_RESPONSEGRID) {
 app.use("/api/stats/psychology-help", psychologyHelpRouter);
 app.use("/api/contact", contactRouter);
 app.use("/api/volunteers", volunteersRouter);
+// Campaña de reconstrucción. El router del responsable de punto se monta ANTES
+// del público para que "/punto" no lo capture "/certificado/:code".
+app.use("/api/campaign/punto", campaignStewardRouter);
+app.use("/api/campaign", campaignRouter);
+app.use("/api/donaciones", createDonationsRouter());
 app.use("/api/voluntariado", voluntariadoRouter);
 app.use("/api/data-deletion", dataDeletionRouter);
 app.use("/api/hub", hubRouter);

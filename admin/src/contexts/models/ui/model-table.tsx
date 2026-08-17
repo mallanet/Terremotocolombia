@@ -7,6 +7,7 @@ import { useAdminSessionContext } from "../../../shared/auth/admin-session-conte
 import { VolunteerMessageForm } from "../../volunteers/volunteer-message-form";
 import { AssignTaskForm } from "../../volunteers/assign-task-form";
 import { ModelRowView } from "./model-row";
+import { RevealOnce } from "./reveal-once";
 import { ModelForm, STATUS_OPTIONS, matchesQuery, renderCell } from "./table-parts";
 import type { ModelConfig, ModelRow } from "./table-parts";
 
@@ -97,6 +98,7 @@ export function ModelTable({ model }: { model: ModelConfig }) {
         />
       ) : null}
       {mutation.error ? <p className="text-sm text-red-600">{mutation.error.message}</p> : null}
+      <RevealOnce fields={model.revealOnCreate} data={mutation.data} />
 
       <div className="overflow-x-auto rounded-2xl border border-border-soft bg-white shadow-sm">
         <table className="w-full border-collapse text-sm">

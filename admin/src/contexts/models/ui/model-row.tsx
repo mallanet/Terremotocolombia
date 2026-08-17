@@ -5,6 +5,7 @@ import { RowActions, type RowActionHandlers } from "./row-actions";
 import { StatusCell } from "./status-cell";
 import { ModelForm } from "./model-form";
 import { renderCell } from "./model-cell";
+import { isPhotoValue, PhotoCell } from "./photo-cell";
 import { VolunteerFicha } from "../../volunteers/volunteer-ficha";
 import type { ModelConfig } from "../model-registry";
 import type { ModelRow } from "../application/models-gateway";
@@ -43,7 +44,12 @@ function RowCell(props: {
   onStatus: (status: string) => void;
 }) {
   if (props.colKey !== "status") {
-    return <td className="px-3 py-2 align-top">{renderCell(props.row[props.colKey])}</td>;
+    const value = props.row[props.colKey];
+    return (
+      <td className="px-3 py-2 align-top">
+        {isPhotoValue(value) ? <PhotoCell value={value} /> : renderCell(value)}
+      </td>
+    );
   }
   return (
     <td className="px-3 py-2 align-top">

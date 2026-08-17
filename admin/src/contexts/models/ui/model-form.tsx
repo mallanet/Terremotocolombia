@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Formulario genérico de alta y edición de un modelo, y el <select> que se
+ * puebla con las filas de otro modelo del registro. Extraído de
+ * model-table.tsx.
+ */
 import { useState, type FormEvent } from "react";
 import { Button, Input } from "@/src/ui";
 import { useModelList } from "./use-model-list";
@@ -7,6 +12,11 @@ import { parseFieldValue, renderCell } from "./model-cell";
 import type { ModelField } from "../model-registry";
 import type { ModelRow } from "../application/models-gateway";
 
+/**
+ * <select> poblado con las filas de otro modelo del registro. Componente
+ * propio para poder usar el hook de lista por instancia (uno por campo).
+ * El value que viaja al backend es el `id`; la persona ve el nombre.
+ */
 function SelectModelField({
   field,
   value,
@@ -19,6 +29,9 @@ function SelectModelField({
   const { data, isLoading, isError } = useModelList(field.optionsModel ?? "");
   const labelKey = field.optionLabelKey ?? "name";
 
+  // Si las opciones no cargan (p.ej. un rol con patient:create pero sin
+  // hospital:read), degradar a entrada manual del ID: peor UX, pero el flujo
+  // no queda BLOQUEADO. El backend valida el ID igual.
   if (isError) {
     return (
       <Input
@@ -30,6 +43,8 @@ function SelectModelField({
     );
   }
 
+  // NUNCA disabled: un control deshabilitado queda FUERA de la validación
+  // required de HTML5 y el submit pasaría con el campo vacío mientras carga.
   return (
     <label className="text-sm">
       <span className="mb-1 block font-medium">{field.label}</span>

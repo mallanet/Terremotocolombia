@@ -51,6 +51,9 @@ export async function POST(
   const client = createAuthedEmergencyClient(request);
   if (!client) return unauthorized();
   const result = await createHttpModelsGateway(client).create(path, await request.json());
-  const fields = listedFields(path, model.columns.map((column) => column.key));
+  const fields = [
+    ...listedFields(path, model.columns.map((column) => column.key)),
+    ...(model.revealOnCreate ?? []),
+  ];
   return result.ok ? json(displayedRow(result.value, fields), 201) : mapApiError(result.error);
 }
