@@ -70,3 +70,68 @@ column.
 
 VIDEO STAYS OUT: it does not fit the base64-through-JSON path that every
 form here uses. It needs a direct upload to R2 with a signed URL.
+
+## Money donations through payment links (2026-08-17, SUPERSEDED)
+
+Two Stripe payment links now exist, both declared in
+config/deployment.config.json as OPTIONAL https-only keys (`donationUrl`,
+`donationMonthlyUrl`). The validator was a closed key set, so it grew an
+OPTIONAL_KEYS list: a fork with no payment processor still boots and its
+buttons fall back to /donaciones.
+- Nav button "Donar a Mallanet" -> one-off link. Merged to main in PR #50
+  (commit 08b3041), production frontend deployed on its own.
+- New landing /apoyanos, UNICEF-style: monthly support first, one-off
+  second. Lives on THIS branch, ships with the campaign PR.
+No invented impact equivalences ("your X buys Y"): we have no such figure,
+and a false number on a page that asks for money is not a copy problem.
+The amount is chosen on Stripe's page — payment links are closed products,
+one link per frequency.
+
+> Superseded 2026-08-17: /apoyanos owns the choice of amount and frequency,
+> and the backend opens a Stripe Checkout session. The nav button points at
+> /apoyanos, not at a payment link. The links survive under "otras formas de
+> aportar" as a fallback. See the on-site donation form block in `HANDOFF.md`.
+
+## PR #47 reported no checks (2026-08-17, SETTLED)
+
+It targets main, it is open and not a draft, and CI triggers on
+pull_request to main — yet `gh pr checks 47` says "no checks reported" after
+two pushes. The Actions API also answered 504 around that time, so a GitHub
+hiccup is the likeliest cause. Do NOT read the absence of a red mark as a
+green build: verify locally (frontend 162 tests, content audit) or re-push
+to force a run before merging this PR.
+
+> Settled: CI runs on every push again. Both the `staging` branch and the PR
+> report their checks.
+
+## Merging main into this branch conflicted (2026-08-17, SETTLED)
+
+Tried, aborted, nothing touched. main now carries PR #49 (staging) and the
+volunteer ficha, so the conflicts are: infra/db/migrations/meta/_journal.json,
+meta/0010_snapshot.json, and four admin model UI files
+(route.ts, model-form.tsx, model-row.tsx, model-table.tsx — add/add, both
+sides created them). The donate commit was cherry-picked here instead
+(ef5da46) so /apoyanos could build. That cherry-pick is identical content
+to main's, so it should merge as a no-op.
+
+> Settled: the merge is done. See the merge block in `HANDOFF.md`.
+
+## Harness note: some paths could not be declared at all (2026-08-17, FIXED)
+
+TAG_RE in ~/.cursor/hooks/lib/stop_rules.sh is
+  (edit|NEW):[A-Za-z0-9_./+=-]+
+That character class has no parentheses and no brackets, so a tag stops at
+the first one. `edit:.../frontend/app/(content)/apoyanos/page.tsx` is
+captured as `.../frontend/app/`, which then fails the grep -qxF against the
+recorded writes and reports TOPOLOGY VIOLATION every single time. Same for
+`admin/app/api/models/[path]/route.ts`. Next.js route groups and dynamic
+segments are everywhere here, so this fires on ordinary work and no amount
+of care in the declaration avoids it. Fixing it means editing the hook:
+add ()[] to the class and strip trailing punctuation.
+The class DOES include the dot, so a tag that ends a sentence swallows the
+full stop and stops matching. Never put a tag at the end of a sentence.
+
+> Fixed 2026-08-17: the hook now carries `[]A-Za-z0-9_./+=()[-]` and strips
+> trailing punctuation with `sed 's/[.,;:]*$//'`. Route groups and dynamic
+> segments declare correctly. The rule about not ending a sentence with a
+> tag is no longer needed, but it costs nothing to keep the habit.

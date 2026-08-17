@@ -1,3 +1,44 @@
+CI WAS RED FOR TWO COMMITS: THE SNAPSHOTS THE RENUMBERING LOST, 2026-08-17
+Renumbering the campaign migrations to 0012/0013 left both entries in the
+journal with NO snapshot in meta/, and check:migration-journal gates every
+PR, so nothing could merge to main. Staging was never affected: the tables
+were already applied there.
+The fix is not the obvious one. schema.ts does not import schema-campaign.ts,
+so drizzle-kit never saw the campaign tables and both migrations are
+hand-written. A snapshot that DID declare them would make the next
+db:generate propose DROPPING every one. So 0012 and 0013 carry 0011's
+content — the state of schema.ts, which neither migration changed — each with
+its own id and prevId chained to the one before. Proof it is right:
+`npm run db:generate` answers "No schema changes".
+Written up in docs/campaign-reconstruccion.md so nobody regenerates them
+against the wrong schema. The gate refuses to edit a 6.360-line JSON by
+hand, which is correct: those files are generated, so generate them.
+
+SEO/GEO OF /apoyanos AND /reconstruccion, 2026-08-17
+/reconstruccion emitted no page-level markup at all — only the breadcrumb and
+the global organisation. Both pages now carry WebPage + FAQPage, and the
+campaign also an ItemList of collection points with address, coordinates and
+accepted material (lib/jsonld-campaign.ts).
+Two rules that hold for anything added later:
+- The FAQ text shown and the FAQ text marked up come from ONE array. A
+  FAQPage that does not match the visible page is deceptive markup.
+- Only OPEN points enter the ItemList. Structured data outlives its cache,
+  and sending someone with a load of cement to a closed door is worse than
+  saying nothing.
+llms.txt mentioned neither page; it now lists both plus a five-line summary
+of the campaign. Answers promise no impact equivalence and no tax benefit,
+and a test blocks reintroducing either.
+Already fine, do not "fix": robots.ts blocks AI TRAINING bots and allows the
+live retrieval ones, /construccion 308-redirects to /reconstruccion, and the
+certificate and steward screens are noindex.
+STILL GENERIC: both pages share og-v2.jpg as their social card.
+
+DONATION CARD FOLLOWS THE CHOSEN FREQUENCY, 2026-08-17
+The heading promised a monthly commitment even to someone who had picked a
+one-off gift, because it lived in SupportDonateCard (server) while the choice
+lives in DonateForm (client). The heading moved into the form and each
+frequency has its own wording in donate-copy.ts. Button says "Dona ahora".
+
 REGRESSION THE MERGE CAUSED, CAUGHT AND FIXED, 2026-08-17
 Taking main's admin row UI whole removed our CellValue, and with it the
 photo rendering. The Compromisos table has a "Foto" column, so it would
@@ -78,32 +119,13 @@ The /apoyanos H1 was unreadable: globals.css declares `h1 { color: var(--etext) 
 and an element selector beats the colour inherited from a `text-white` parent.
 The class now sits on the h1 itself. Any white heading over a photo needs it.
 
-MONEY DONATIONS, 2026-08-17
-Two Stripe payment links now exist, both declared in
-config/deployment.config.json as OPTIONAL https-only keys (`donationUrl`,
-`donationMonthlyUrl`). The validator was a closed key set, so it grew an
-OPTIONAL_KEYS list: a fork with no payment processor still boots and its
-buttons fall back to /donaciones.
-- Nav button "Donar a Mallanet" -> one-off link. Merged to main in PR #50
-  (commit 08b3041), production frontend deployed on its own.
-- New landing /apoyanos, UNICEF-style: monthly support first, one-off
-  second. Lives on THIS branch, ships with the campaign PR.
-No invented impact equivalences ("your X buys Y"): we have no such figure,
-and a false number on a page that asks for money is not a copy problem.
-The amount is chosen on Stripe's page — payment links are closed products,
-one link per frequency.
+MOBILE DONATION CTA, PENDING
+The payment-link history is in docs/handoff-archive.md; the live path is the
+on-site form below.
 The MOBILE sheet still points to /donaciones: MobileStickyNav.tsx is 402
 lines and the size gate refuses any edit that does not shrink it. The CTA
 sits first on /donaciones so a phone reaches Stripe with one more tap.
 Splitting that file is the pending fix.
-
-PR #47 REPORTS NO CHECKS, 2026-08-17
-It targets main, it is open and not a draft, and CI triggers on
-pull_request to main — yet `gh pr checks 47` says "no checks reported" after
-two pushes. The Actions API also answered 504 around that time, so a GitHub
-hiccup is the likeliest cause. Do NOT read the absence of a red mark as a
-green build: verify locally (frontend 162 tests, content audit) or re-push
-to force a run before merging this PR.
 
 CONTENT AUDIT: buy.stripe.com VETO RETIRED, MAINTAINER'S CALL 2026-08-17
 Merging PR #50 turned CI red on main with one finding:
@@ -118,15 +140,6 @@ of the rule: the two crowdfunding domains, the PayPal payment path and the
 WhatsApp shortener. Read them in scripts/content-audit/banned-patterns.txt —
 spelling them here makes the audit fail on its own notes.
 The frontend deploy was never affected: it went green and shipped.
-
-MERGING main INTO THIS BRANCH CONFLICTS, 2026-08-17
-Tried, aborted, nothing touched. main now carries PR #49 (staging) and the
-volunteer ficha, so the conflicts are: infra/db/migrations/meta/_journal.json,
-meta/0010_snapshot.json, and four admin model UI files
-(route.ts, model-form.tsx, model-row.tsx, model-table.tsx — add/add, both
-sides created them). The donate commit was cherry-picked here instead
-(ef5da46) so /apoyanos could build. That cherry-pick is identical content
-to main's, so it should merge as a no-op.
 
 CURRENT WORK
 Reconstruction campaign: collect construction material at points in
@@ -153,19 +166,16 @@ Fixed on this branch with a regression test
 (backend/test/middleware-continues.test.ts). It reaches production only
 when a human runs deploy-backend.yml.
 
-LOCAL ENVIRONMENT AS LEFT
-docker compose up, five services. The local database has migration 0010
-applied and DEMO data to walk the flow: three points (Bogotá, Medellín,
-Cali), each with its steward link.
-Landing http://localhost:3000/reconstruccion · Panel http://localhost:3001
-· API http://localhost:8080
-Local admin password was set by hand: admin@example.org /
-localadminpass123. The seeded user did not match docker-compose.yml. Local
-database only.
-PENDING: delete the DEMO rows (prefix `DEMO`) when the walkthrough ends.
-CAREFUL: the local database also holds one pledge from the maintainer's
-own walkthrough (50 bricks, still `pledged`). It carries no `DEMO` prefix.
-Do NOT delete it without asking.
+LOCAL ENVIRONMENT AND DATABASE AS LEFT
+docker compose up, five services. Landing localhost:3000/reconstruccion ·
+Panel localhost:3001 · API localhost:8080. Local admin set by hand:
+admin@example.org / localadminpass123 (the seeded user did not match
+docker-compose.yml). Local database only.
+It holds 0012 and 0013 applied, three DEMO points with their steward links,
+and TWO pledges from the maintainer's own walkthrough (`mallanet`, 50 bricks
+and 32 timber, both still `pledged`). Those two carry no `DEMO` prefix: do
+NOT delete them without asking. Every row this agent created is deleted.
+PENDING: delete the DEMO rows when the walkthrough ends.
 
 PANEL AUTH, DO NOT CONFUSE THE TWO
 ADMIN_PASSWORD is the legacy x-admin-token header for src/routes/admin.ts
@@ -223,9 +233,9 @@ One pledge with a photo, then four requests against the running stack:
 Repeat this check if you ever add a field to those projections. Test row
 deleted after.
 
-MIGRATION NUMBERING: SETTLED, see the merge entry at the top
-Both campaign migrations are renumbered (0012, 0013) and applied to the
-LOCAL database only. Neon staging and production are untouched.
+MIGRATION NUMBERING: SETTLED, see the snapshot entry at the top
+0012 and 0013 are applied to the LOCAL database and to the Neon STAGING
+branch, through the direct endpoint. Production is untouched.
 
 OPEN
 docs/architecture.md is 663 lines and the local size gate refuses to grow
@@ -252,19 +262,11 @@ Declare like this, absolute:
   edit:/Users/christianmock/terremotocolombia/HANDOFF.md
 Still true: declare every path before the first Write, HANDOFF.md included.
 
-HARNESS NOTE: SOME PATHS CANNOT BE DECLARED AT ALL
-TAG_RE in ~/.cursor/hooks/lib/stop_rules.sh is
-  (edit|NEW):[A-Za-z0-9_./+=-]+
-That character class has no parentheses and no brackets, so a tag stops at
-the first one. `edit:.../frontend/app/(content)/apoyanos/page.tsx` is
-captured as `.../frontend/app/`, which then fails the grep -qxF against the
-recorded writes and reports TOPOLOGY VIOLATION every single time. Same for
-`admin/app/api/models/[path]/route.ts`. Next.js route groups and dynamic
-segments are everywhere here, so this fires on ordinary work and no amount
-of care in the declaration avoids it. Fixing it means editing the hook:
-add ()[] to the class and strip trailing punctuation.
-The class DOES include the dot, so a tag that ends a sentence swallows the
-full stop and stops matching. Never put a tag at the end of a sentence.
+HARNESS NOTE: THE ROUTE-GROUP TAG BUG IS FIXED
+TAG_RE in ~/.cursor/hooks/lib/stop_rules.sh stopped at the first parenthesis
+or bracket, so `(content)` and `[path]` paths could never be declared. The
+class now carries ()[] and trailing punctuation is stripped. Full history in
+docs/handoff-archive.md.
 
 HARNESS NOTE: WRITE THE Done-when LIST EXACTLY ONCE
 The gate counts predicates across the WHOLE turn, and the roof is five.
@@ -276,15 +278,23 @@ a command can falsify — a test total, an HTTP code, a row count — not a
 sentence about the work being good.
 
 NEXT
-Apply 0012 and 0013 against Neon direct, run deploy-backend.yml, grant the
-`campaign` capability, create the points and their stewards.
+Staging is complete and green: migrations applied, superadmin seeded, Stripe
+on a test key. Create the points and their stewards in the panel — with none,
+/api/campaign/puntos answers {"sites":[]}, the landing shows no place to
+deliver and the ItemList stays out of the markup.
+For PRODUCTION, in this order: migrate Neon direct, run deploy-backend.yml,
+put the live Stripe key in Doppler prd, grant the `campaign` capability.
+NO STRIPE WEBHOOK EXISTS: nothing records a completed charge on our side.
+Decide before the live key — build it, or account for the money outside.
 
 SMALL THING SEEN, NOT FIXED
 Every panel table prints `createdAt` as a raw epoch (1786914635951)
 instead of a date. It is not specific to the campaign; it hits every
 model. Nobody asked for it yet.
 
-LOCAL DATABASE AS LEFT, 2026-08-16 18:12
-Three DEMO points with their steward links, and TWO pledges from the
-maintainer's own walkthrough (`mallanet`, 50 bricks and 32 timber, both
-still `pledged`). Every row this agent created for testing is deleted.
+STRIPE IN STAGING, AS LEFT
+Test key only (sk_test_), set with `wrangler secret put` on
+terremotocolombia-api-staging and mirrored in Doppler stg. The flag lives in
+backend/wrangler.jsonc under env.staging.vars, because ENABLE_STRIPE_DONATIONS
+parses with z.coerce.boolean(): the string "false" would read as TRUE, so to
+turn it off you REMOVE the variable, never set it to false.
