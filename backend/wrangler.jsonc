@@ -192,7 +192,8 @@
         "APP_BASE_URL": "https://staging.terremotocolombia.co",
         "ADMIN_BASE_URL": "https://admin-staging.terremotocolombia.co",
         "CORS_ORIGINS": "https://staging.terremotocolombia.co",
-        "TRUSTED_IP_HEADER": "cf-connecting-ip"
+        "TRUSTED_IP_HEADER": "cf-connecting-ip",
+        "ENABLE_STRIPE_DONATIONS": "true"
       },
       "observability": {
         "enabled": true,
