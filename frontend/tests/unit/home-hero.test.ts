@@ -26,4 +26,14 @@ describe("banner de la portada", () => {
   it("stays light enough for a phone on a bad connection", () => {
     expect(statSync(IMAGE).size).toBeLessThan(MAX_IMAGE_BYTES);
   });
+
+  it("keeps the image behind the veil, never at full strength", () => {
+    // El arreglo tentador cuando alguien dice "no se ve la foto" es subir esto
+    // a 1. Ahí el titular blanco compite con el escombro y deja de leerse.
+    const opacity = Number(
+      CSS.match(/\.e-hero__bg-image\s*\{[\s\S]*?opacity:\s*([\d.]+)/)?.[1],
+    );
+    expect(opacity).toBeGreaterThan(0.2);
+    expect(opacity).toBeLessThanOrEqual(0.6);
+  });
 });
