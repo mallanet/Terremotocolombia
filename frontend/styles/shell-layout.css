@@ -95,15 +95,14 @@
 .e-hero__bg-image {
 	position: absolute;
 	inset: 0;
-	background-image: url("/hero-placeholder.svg");
+	/* Daño estructural, sin personas ni foto de prensa (CLAUDE.md). El velo de
+	   .e-hero__bg-overlay se pinta ENCIMA: la imagen queda de fondo y el
+	   titular blanco sigue legible. Portrait encuadra el tercio superior, que
+	   es donde está el daño; desktop vuelve a center en la media query. */
+	background-image: url("/portada/hero.jpg");
 	background-size: cover;
-	/* Focal point en el tercio superior para portrait: en fotos de terremoto
-	   suele ser la zona más dramática (edificios, горизónte). Desktop vuelve
-	   a center via media query abajo. */
 	background-position: center 30%;
-	opacity: 0.16;
-	/* Punch sutil para que la imagen aporta peso emocional sin dominar el
-	   texto blanco del hero (que sigue siendo el flujo principal). */
+	opacity: 0.45;
 	filter: saturate(1.08) contrast(1.04);
 }
 
