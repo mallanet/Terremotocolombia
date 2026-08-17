@@ -13,6 +13,7 @@
  */
 import { useState } from "react";
 import DonateAmountField from "./DonateAmountField";
+import { DONATE_COPY } from "./donate-copy";
 import { useDonationCheckout } from "@/hooks/donations";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import {
@@ -71,8 +72,20 @@ export default function DonateForm() {
     );
   }
 
+  const copy = DONATE_COPY[interval];
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <header>
+        <p className="text-[13px] font-semibold uppercase tracking-wide text-[var(--brand-blue)]">
+          {copy.eyebrow}
+        </p>
+        <h2 className="mt-1 text-[22px] font-bold leading-snug text-slate-900">
+          {copy.title}
+        </h2>
+        <p className="mt-2 text-sm text-slate-600">{copy.text}</p>
+      </header>
+
       <div className="grid grid-cols-2 gap-2" role="group" aria-label="Frecuencia del aporte">
         {DONATION_INTERVALS.map((option) => (
           <button
@@ -111,7 +124,7 @@ export default function DonateForm() {
         disabled={checkout.isPending}
         className="w-full rounded-full bg-[var(--brand-blue)] px-6 py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[var(--brand-blue-dark)] disabled:opacity-60"
       >
-        {checkout.isPending ? "Abriendo el pago…" : "Continuar al pago"}
+        {checkout.isPending ? "Abriendo el pago…" : "Dona ahora"}
       </button>
 
       <p className="text-center text-xs text-slate-500">

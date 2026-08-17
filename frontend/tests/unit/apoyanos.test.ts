@@ -72,6 +72,33 @@ describe("formulario de aporte", () => {
     expect(FORM).toContain("useDonationCheckout");
     expect(FORM).not.toContain("fetch(");
   });
+
+  it("calls the user to donate on the submit button", () => {
+    expect(FORM).toContain('"Dona ahora"');
+    expect(FORM).not.toContain("Continuar al pago");
+  });
+});
+
+const COPY = readFileSync(
+  join(ROOT, "components/features/support/donate-copy.ts"),
+  "utf8",
+);
+
+describe("encabezado de la tarjeta de aporte", () => {
+  it("has its own wording for each frequency", () => {
+    expect(COPY).toContain("monthly:");
+    expect(COPY).toContain("once:");
+    expect(COPY).toContain("Aporte único");
+  });
+
+  it("follows the chosen frequency, so the card cannot go stale", () => {
+    expect(FORM).toContain("DONATE_COPY[interval]");
+    expect(CARD).not.toContain("Apoyo recurrente");
+  });
+
+  it("promises no impact equivalence we cannot back with data", () => {
+    expect(COPY).not.toMatch(/\d+ (familias|personas|comidas|casas)/i);
+  });
 });
 
 const SITE = readFileSync(join(ROOT, "lib/site.ts"), "utf8");

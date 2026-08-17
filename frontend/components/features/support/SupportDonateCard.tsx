@@ -58,21 +58,7 @@ function OneOffOption() {
 export default function SupportDonateCard() {
   return (
     <div className="w-full rounded-[24px] bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.25)] sm:p-7">
-      <p className="text-[13px] font-semibold uppercase tracking-wide text-[var(--brand-blue)]">
-        Apoyo recurrente
-      </p>
-      <h2 className="mt-1 text-[22px] font-bold leading-snug text-slate-900">
-        Un aporte cada mes mantiene la plataforma en pie
-      </h2>
-      <p className="mt-2 text-sm text-slate-600">
-        La emergencia dura meses, no un fin de semana. Un aporte que se repite
-        es lo que permite sostener el sistema sin depender de una campaña
-        puntual.
-      </p>
-
-      <div className="mt-5">
-        <DonateForm />
-      </div>
+      <DonateForm />
 
       <details className="mt-4">
         <summary className="cursor-pointer text-center text-xs text-slate-500">
