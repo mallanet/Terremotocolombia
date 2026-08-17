@@ -74,6 +74,25 @@ describe("formulario de aporte", () => {
   });
 });
 
+const SITE = readFileSync(join(ROOT, "lib/site.ts"), "utf8");
+const HEADER_LINKS = readFileSync(
+  join(ROOT, "components/layout/DesktopHeaderLinks.tsx"),
+  "utf8",
+);
+
+describe("barra de navegación", () => {
+  it("sends the donate button to our own page, not straight to the gateway", () => {
+    expect(SITE).toContain('SUPPORT_PATH = "/apoyanos"');
+    expect(SITE).toMatch(/DONATE_LINK = \{\s*href: SUPPORT_PATH/);
+  });
+
+  it("lists the reconstruction campaign and drops the retired entries", () => {
+    expect(HEADER_LINKS).toContain('href: "/reconstruccion"');
+    expect(HEADER_LINKS).not.toContain('href: "/mascotas"');
+    expect(HEADER_LINKS).not.toContain('href: "/guia"');
+  });
+});
+
 describe("página de gracias", () => {
   it("stays out of the index and claims no confirmed payment", () => {
     // Sin los comentarios: ahí se explica justamente por qué no se afirma el

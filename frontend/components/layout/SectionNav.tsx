@@ -10,7 +10,7 @@ import {
   SUPPORT_DIRECTORY_PATH,
 } from "@/lib/section-nav";
 import { DesktopHeaderLinks, scrollToSection } from "./DesktopHeaderLinks";
-import { DONATE_LINK, DONATION_URL } from "@/lib/site";
+import { DONATE_LINK } from "@/lib/site";
 import { Badge } from "@/components/ui/badge";
 
 export { MobileStickyNav } from "./MobileStickyNav";
@@ -61,36 +61,17 @@ function HelpNavLink() {
   );
 }
 
-function DonatePaymentLink() {
+function DonateNavLink() {
   return (
-    <a
+    <Link
       href={DONATE_LINK.href}
-      target={DONATE_LINK.target}
-      rel={DONATE_LINK.rel}
       className="e-nav__donate"
       aria-label={DONATE_LINK.aria}
     >
       <HandCoins aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
       {DONATE_LINK.label}
-    </a>
-  );
-}
-
-function DonateSiteLink() {
-  return (
-    <Link
-      href="/donaciones"
-      className="e-nav__donate"
-      aria-label="Ver formas de donar"
-    >
-      <HandCoins aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
-      Donar
     </Link>
   );
-}
-
-function DonateNavLink() {
-  return DONATION_URL ? <DonatePaymentLink /> : <DonateSiteLink />;
 }
 
 export function HeroDesktopNav() {

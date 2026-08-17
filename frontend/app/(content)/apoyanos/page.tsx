@@ -28,11 +28,11 @@ function HeroCopy() {
       <p className="text-[13px] font-semibold uppercase tracking-wide text-white/80">
         Apóyanos · {SITE_BRAND_NAME}
       </p>
-      {/* El blanco va en el h1, no solo heredado del contenedor: globals.css
-          declara `h1 { color: var(--etext) }`, y un selector de elemento gana
-          sobre el color heredado. Sin esto el titular sale oscuro sobre la
-          foto y no se lee. */}
-      <h1 className="mt-2 text-[30px] font-bold leading-tight text-white sm:text-[38px]">
+      {/* El `!` no es pereza: globals.css declara `h1 { color: var(--etext) }`
+          FUERA de toda capa, y en Tailwind v4 lo no-encapsulado gana a las
+          utilidades por orden de capas, da igual la especificidad. Sin la
+          marca de prioridad el titular sale oscuro sobre la foto. */}
+      <h1 className="mt-2 text-[30px] font-bold leading-tight text-white! sm:text-[38px]">
         El software que busca personas no se sostiene solo
       </h1>
       <p className="mt-4 max-w-[520px] text-[15px] leading-relaxed text-white/90 sm:text-base">

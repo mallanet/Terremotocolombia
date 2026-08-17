@@ -20,16 +20,14 @@ function MallanetDonateCta() {
   if (!DONATION_URL) return null;
 
   return (
-    <a
+    <Link
       href={DONATE_LINK.href}
-      target={DONATE_LINK.target}
-      rel={DONATE_LINK.rel}
       aria-label={DONATE_LINK.aria}
       className="mb-6 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--brand-blue)] px-6 py-3 text-[15px] font-bold text-white transition-colors hover:bg-[var(--brand-blue-dark)] sm:w-auto"
     >
       <HandCoins size={18} aria-hidden />
       {DONATE_LINK.label}
-    </a>
+    </Link>
   );
 }
 

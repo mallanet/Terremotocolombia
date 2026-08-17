@@ -54,15 +54,18 @@ export const DONATION_CTA_LABEL = DONATION_URL
  */
 export const DONATION_MONTHLY_URL = deploymentConfig.donationMonthlyUrl ?? "";
 
-/** Destino ya resuelto del botón de donar, para no repetir el ternario en cada barra. */
+/** Página propia donde se elige importe y frecuencia antes de ir a la pasarela. */
+export const SUPPORT_PATH = "/apoyanos";
+
+/**
+ * Destino del botón de donar. Apunta a nuestra página, no a la pasarela: el
+ * importe se elige aquí. Saltar directo a Stripe desde la barra dejaba esa
+ * decisión en manos de un formulario ajeno.
+ */
 export const DONATE_LINK = {
-  href: DONATION_URL || "/donaciones",
+  href: SUPPORT_PATH,
   label: DONATION_CTA_LABEL,
-  target: DONATION_URL ? "_blank" : undefined,
-  rel: DONATION_URL ? "noopener noreferrer" : undefined,
-  aria: DONATION_URL
-    ? `${DONATION_CTA_LABEL} (se abre en una pestaña nueva)`
-    : "Ver formas de donar",
+  aria: `${DONATION_CTA_LABEL}: elige el importe`,
 } as const;
 
 export function contactMailto(subject?: string): string {

@@ -15,9 +15,12 @@ const DESKTOP_HEADER_LINKS = [
   { href: "/mapa-de-rescate", label: "Rescate", title: "Mapa de rescate" },
   { href: "#mapa", label: "Suministros", title: "Mapa de suministro" },
   { href: "#e-directory", label: "Personas", title: "Personas" },
-  { href: "/mascotas", label: "Mascotas", title: "Mascotas" },
   { href: "/acopio", label: "Acopio", title: "Acopio" },
-  { href: "/guia", label: "Guía", title: "Guía" },
+  {
+    href: "/reconstruccion",
+    label: "Reconstrucción",
+    title: "Campaña de reconstrucción",
+  },
 ] as const;
 
 type HeaderLink = (typeof DESKTOP_HEADER_LINKS)[number];

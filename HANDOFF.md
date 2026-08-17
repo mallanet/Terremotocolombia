@@ -252,6 +252,20 @@ Declare like this, absolute:
   edit:/Users/christianmock/terremotocolombia/HANDOFF.md
 Still true: declare every path before the first Write, HANDOFF.md included.
 
+HARNESS NOTE: SOME PATHS CANNOT BE DECLARED AT ALL
+TAG_RE in ~/.cursor/hooks/lib/stop_rules.sh is
+  (edit|NEW):[A-Za-z0-9_./+=-]+
+That character class has no parentheses and no brackets, so a tag stops at
+the first one. `edit:.../frontend/app/(content)/apoyanos/page.tsx` is
+captured as `.../frontend/app/`, which then fails the grep -qxF against the
+recorded writes and reports TOPOLOGY VIOLATION every single time. Same for
+`admin/app/api/models/[path]/route.ts`. Next.js route groups and dynamic
+segments are everywhere here, so this fires on ordinary work and no amount
+of care in the declaration avoids it. Fixing it means editing the hook:
+add ()[] to the class and strip trailing punctuation.
+The class DOES include the dot, so a tag that ends a sentence swallows the
+full stop and stops matching. Never put a tag at the end of a sentence.
+
 HARNESS NOTE: WRITE THE Done-when LIST EXACTLY ONCE
 The gate counts predicates across the WHOLE turn, and the roof is five.
 Listing them when the turn opens and again when it closes counts as ten,
