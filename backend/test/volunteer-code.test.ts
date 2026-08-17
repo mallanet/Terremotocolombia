@@ -34,6 +34,8 @@ beforeEach(() => {
   dbMocks.volunteers = [{ ...VOLUNTEER }];
   dbMocks.checkins = [];
   dbMocks.reports = [];
+  dbMocks.volunteerInsertErrors = [];
+  dbMocks.selectCalls = 0;
 });
 
 describe("código único en el registro (service)", () => {
@@ -52,6 +54,53 @@ describe("código único en el registro (service)", () => {
 
     expect(created.code).toMatch(/^\d{6}$/);
     expect(dbMocks.volunteers[0]?.code).toBe(created.code);
+    expect(dbMocks.selectCalls).toBe(0);
+  });
+
+  it("reintenta solo cuando el índice único detecta una colisión de código", async () => {
+    dbMocks.volunteers = [];
+    dbMocks.volunteerInsertErrors = [
+      Object.assign(new Error("collision"), {
+        code: "23505",
+        constraint: "volunteers_code_unique",
+      }),
+    ];
+    const { createVolunteer } = await import("@/services/volunteers");
+
+    const created = await createVolunteer({
+      name: "DEMO-Reintento",
+      contact: "DEMO-301",
+      offer: "",
+      zone: "DEMO-Pereira",
+      availability: "DEMO-mañana",
+      offerTypes: ["persona"],
+    });
+
+    expect(created.code).toMatch(/^\d{6}$/);
+    expect(dbMocks.volunteers).toHaveLength(1);
+    expect(dbMocks.selectCalls).toBe(0);
+  });
+
+  it("propaga otros errores de unicidad sin ocultarlos", async () => {
+    dbMocks.volunteers = [];
+    const idCollision = Object.assign(new Error("id collision"), {
+      code: "23505",
+      constraint: "volunteers_pkey",
+    });
+    dbMocks.volunteerInsertErrors = [idCollision];
+    const { createVolunteer } = await import("@/services/volunteers");
+
+    await expect(
+      createVolunteer({
+        name: "DEMO-Error",
+        contact: "DEMO-302",
+        offer: "",
+        zone: "DEMO-Pereira",
+        availability: "DEMO-tarde",
+        offerTypes: ["persona"],
+      }),
+    ).rejects.toBe(idCollision);
+    expect(dbMocks.volunteers).toHaveLength(0);
   });
 });
 

@@ -2,6 +2,8 @@ export type VolunteerCodeDbMocks = {
   volunteers: Array<Record<string, unknown>>;
   checkins: Array<Record<string, unknown>>;
   reports: Array<Record<string, unknown>>;
+  volunteerInsertErrors?: unknown[];
+  selectCalls?: number;
 };
 
 type DbModule = typeof import("@/db");
@@ -35,6 +37,9 @@ export function volunteerCodeDbMock(
   }
 
   function insertValues(table: unknown, row: Record<string, unknown>) {
+    if (table === actual.schema.volunteers && dbMocks.volunteerInsertErrors?.length) {
+      return Promise.reject(dbMocks.volunteerInsertErrors.shift());
+    }
     rowsFor(table).push(row);
     return Promise.resolve();
   }
@@ -60,7 +65,10 @@ export function volunteerCodeDbMock(
   return {
     ...actual,
     getDb: () => ({
-      select: () => chain(),
+      select: () => {
+        dbMocks.selectCalls = (dbMocks.selectCalls ?? 0) + 1;
+        return chain();
+      },
       insert: makeInsert,
       update: makeUpdate,
     }),

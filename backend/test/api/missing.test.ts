@@ -152,6 +152,7 @@ describe("GET /api/missing/map", () => {
   it("devuelve marcadores ligeros sin foto cruda ni contacto", async () => {
     const res = await request(app).get("/api/missing/map");
     expect(res.status).toBe(200);
+    expect(res.headers["cache-control"]).toContain("s-maxage=8");
     expect(Array.isArray(res.body.markers)).toBe(true);
     for (const m of res.body.markers) {
       expect(m).not.toHaveProperty("photo");
