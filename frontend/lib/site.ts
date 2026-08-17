@@ -34,6 +34,31 @@ export const COMMUNITY_WHATSAPP_URL = deploymentConfig.communityWhatsappUrl;
 export const COMMUNITY_CTA_LABEL =
   "¿Quieres ser voluntario? Únete a nuestra comunidad de WhatsApp";
 
+/**
+ * Pasarela de pago externa para donar dinero. Vacía cuando el despliegue no
+ * declara `donationUrl`: entonces el botón sigue llevando a /donaciones, la
+ * página que lista las formas de ayudar.
+ */
+export const DONATION_URL = deploymentConfig.donationUrl ?? "";
+
+/** Sin el TLD: "Donar a Mallanet" cabe en la barra, "Donar a Mallanet.org" no. */
+const DONATION_ORG = SITE_BRAND_NAME.replace(/\.[a-z]+$/i, "");
+
+export const DONATION_CTA_LABEL = DONATION_URL
+  ? `Donar a ${DONATION_ORG}`
+  : "Donar";
+
+/** Destino ya resuelto del botón de donar, para no repetir el ternario en cada barra. */
+export const DONATE_LINK = {
+  href: DONATION_URL || "/donaciones",
+  label: DONATION_CTA_LABEL,
+  target: DONATION_URL ? "_blank" : undefined,
+  rel: DONATION_URL ? "noopener noreferrer" : undefined,
+  aria: DONATION_URL
+    ? `${DONATION_CTA_LABEL} (se abre en una pestaña nueva)`
+    : "Ver formas de donar",
+} as const;
+
 export function contactMailto(subject?: string): string {
   if (!subject) return `mailto:${CONTACT_EMAIL}`;
   return `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}`;

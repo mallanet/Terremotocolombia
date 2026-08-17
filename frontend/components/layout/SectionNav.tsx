@@ -9,39 +9,14 @@ import {
   PRIMARY_MAP_LINK,
   SUPPORT_DIRECTORY_PATH,
 } from "@/lib/section-nav";
+import { DesktopHeaderLinks, scrollToSection } from "./DesktopHeaderLinks";
+import { DONATE_LINK, DONATION_URL } from "@/lib/site";
 import { Badge } from "@/components/ui/badge";
 
 export { MobileStickyNav } from "./MobileStickyNav";
 
-// Lista PROPIA del header de escritorio, deliberadamente mas corta que
-// SECTION_LINKS (que alimenta la hoja del menu movil): aqui solo caben los
-// destinos de primer nivel. Si añades uno, añádelo también a SECTION_LINKS o
-// quedara fuera del menu movil.
-const DESKTOP_HEADER_LINKS = [
-  { href: "/mapa-de-rescate", label: "Rescate", title: "Mapa de rescate" },
-  { href: "#mapa", label: "Suministros", title: "Mapa de suministro" },
-  { href: "#e-directory", label: "Personas", title: "Personas" },
-  { href: "/mascotas", label: "Mascotas", title: "Mascotas" },
-  { href: "/acopio", label: "Acopio", title: "Acopio" },
-  { href: "/guia", label: "Guía", title: "Guía" },
-] as const;
-
-function isAnchor(href: string): boolean {
-  return href.startsWith("#");
-}
-
-function scrollToSection(href: string) {
-  const id = href.replace(/^#/, "");
-  if (!id) return;
-
-  const target = document.getElementById(id);
-  if (target) {
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
-    window.history.replaceState(null, "", `#${id}`);
-    return;
-  }
-
-  window.location.hash = id;
+function scrollToMain() {
+  scrollToSection("main");
 }
 
 function NavHeaderActions() {
@@ -86,7 +61,22 @@ function HelpNavLink() {
   );
 }
 
-function DonateNavLink() {
+function DonatePaymentLink() {
+  return (
+    <a
+      href={DONATE_LINK.href}
+      target={DONATE_LINK.target}
+      rel={DONATE_LINK.rel}
+      className="e-nav__donate"
+      aria-label={DONATE_LINK.aria}
+    >
+      <HandCoins aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+      {DONATE_LINK.label}
+    </a>
+  );
+}
+
+function DonateSiteLink() {
   return (
     <Link
       href="/donaciones"
@@ -99,45 +89,21 @@ function DonateNavLink() {
   );
 }
 
+function DonateNavLink() {
+  return DONATION_URL ? <DonatePaymentLink /> : <DonateSiteLink />;
+}
+
 export function HeroDesktopNav() {
   const pathname = usePathname();
   const onHome = pathname === "/";
+  const brandClick = onHome ? scrollToMain : undefined;
 
   return (
     <header className="e-nav">
       <div className="e-nav__inner">
-        <SiteBrand
-          onClick={onHome ? () => scrollToSection("main") : undefined}
-        />
+        <SiteBrand onClick={brandClick} />
         <nav aria-label="Secciones principales" className="e-nav__menu">
-          <div className="e-nav__links">
-            {DESKTOP_HEADER_LINKS.filter(
-              (link) =>
-                !(
-                  pathname === "/mapa-de-rescate" &&
-                  link.href === pathname
-                ),
-            ).map((link) => {
-              const anchor = isAnchor(link.href);
-              const href = anchor && !onHome ? `/${link.href}` : link.href;
-              return (
-                <a
-                  key={link.href}
-                  href={href}
-                  title={link.title}
-                  aria-label={link.title}
-                  aria-current={!anchor && pathname === link.href ? "page" : undefined}
-                  onClick={(event) => {
-                    if (!anchor || !onHome) return;
-                    event.preventDefault();
-                    scrollToSection(link.href);
-                  }}
-                >
-                  {link.label}
-                </a>
-              );
-            })}
-          </div>
+          <DesktopHeaderLinks pathname={pathname} onHome={onHome} />
           <NavHeaderActions />
         </nav>
       </div>

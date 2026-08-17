@@ -50,4 +50,19 @@ describe("validateDeploymentConfig (CC-1)", () => {
       validateDeploymentConfig(validConfig({ inventado: "no" })),
     ).toThrow(/Unknown key/);
   });
+
+  it("accepts a config without donationUrl (optional key)", () => {
+    expect(validateDeploymentConfig(validConfig()).donationUrl).toBeUndefined();
+  });
+
+  it("accepts an https donationUrl", () => {
+    const url = "https://buy.example.org/abc123";
+    expect(validateDeploymentConfig(validConfig({ donationUrl: url })).donationUrl).toBe(url);
+  });
+
+  it("rejects a donationUrl that is not https", () => {
+    expect(() =>
+      validateDeploymentConfig(validConfig({ donationUrl: "http://buy.example.org/abc" })),
+    ).toThrow(/donationUrl/);
+  });
 });

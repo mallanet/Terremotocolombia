@@ -41,6 +41,12 @@ export interface DeploymentConfig {
   contactEmail: string;
   /** Public Mallanet WhatsApp community invite (not donate ResponseGrid WA). */
   communityWhatsappUrl: string;
+  /**
+   * Optional external payment page for money donations (Stripe payment link
+   * today). Optional on purpose: a fork with no payment processor must still
+   * boot, and the donate button falls back to the in-site /donaciones page.
+   */
+  donationUrl?: string;
   domains: DeploymentDomains;
 }
 
@@ -57,6 +63,9 @@ const REQUIRED_KEYS = [
   "communityWhatsappUrl",
   "domains",
 ] as const;
+
+/** Allowed but not required. Absent = the feature stays off, never a build error. */
+const OPTIONAL_KEYS = ["donationUrl"] as const;
 
 const REQUIRED_DOMAIN_KEYS = ["web", "api", "admin"] as const;
 
@@ -80,13 +89,12 @@ export function validateDeploymentConfig(value: unknown): DeploymentConfig {
   }
 
   const keys = Object.keys(value);
-  const unknownKeys = keys.filter(
-    (key) => !REQUIRED_KEYS.includes(key as (typeof REQUIRED_KEYS)[number]),
-  );
+  const allowedKeys: readonly string[] = [...REQUIRED_KEYS, ...OPTIONAL_KEYS];
+  const unknownKeys = keys.filter((key) => !allowedKeys.includes(key));
   if (unknownKeys.length > 0) {
     fail(
       `Unknown key(s) in config/deployment.config.json: ${unknownKeys.join(", ")}. ` +
-        `Allowed keys are: ${REQUIRED_KEYS.join(", ")}.`,
+        `Allowed keys are: ${allowedKeys.join(", ")}.`,
     );
   }
   const missingKeys = REQUIRED_KEYS.filter((key) => !(key in value));
@@ -109,6 +117,15 @@ export function validateDeploymentConfig(value: unknown): DeploymentConfig {
   for (const field of stringFields) {
     if (typeof value[field] !== "string" || value[field] === "") {
       fail(`"${field}" must be a non-empty string.`);
+    }
+  }
+
+  // Solo https: este enlace se abre desde una barra de navegación pública y
+  // termina en una pasarela de pago. Un http:// aquí sería un downgrade
+  // silencioso, y un javascript: un vector de inyección.
+  if (value.donationUrl !== undefined) {
+    if (typeof value.donationUrl !== "string" || !value.donationUrl.startsWith("https://")) {
+      fail('"donationUrl" must be an https:// URL when present.');
     }
   }
 
