@@ -26,6 +26,7 @@ import { needsRouter } from "@/modules/needs";
 import { psychologyHelpRouter } from "@/routes/psychology-help";
 import { contactRouter } from "@/routes/contact";
 import { volunteersRouter } from "@/routes/volunteers";
+import { createDonationsRouter } from "@/modules/donations";
 import { campaignRouter } from "@/routes/campaign";
 import { campaignStewardRouter } from "@/routes/campaign-steward";
 import { voluntariadoRouter } from "@/routes/voluntariado";
@@ -211,6 +212,7 @@ app.use("/api/volunteers", volunteersRouter);
 // del público para que "/punto" no lo capture "/certificado/:code".
 app.use("/api/campaign/punto", campaignStewardRouter);
 app.use("/api/campaign", campaignRouter);
+app.use("/api/donaciones", createDonationsRouter());
 app.use("/api/voluntariado", voluntariadoRouter);
 app.use("/api/data-deletion", dataDeletionRouter);
 app.use("/api/hub", hubRouter);

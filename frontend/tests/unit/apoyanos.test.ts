@@ -40,3 +40,46 @@ describe("/apoyanos", () => {
     expect(PAGE).not.toContain("index: false");
   });
 });
+
+const FORM = readFileSync(
+  join(ROOT, "components/features/support/DonateForm.tsx"),
+  "utf8",
+);
+const THANKS = readFileSync(
+  join(ROOT, "app/(content)/apoyanos/gracias/page.tsx"),
+  "utf8",
+);
+
+describe("formulario de aporte", () => {
+  it("sends a fresh Turnstile token per submit", () => {
+    expect(FORM).toContain("useTurnstile");
+    expect(FORM).toContain("await turnstileGetToken()");
+    expect(FORM).toContain("turnstileToken");
+  });
+
+  it("asks for no personal data: Stripe collects what it needs", () => {
+    expect(FORM).not.toMatch(/type="email"/);
+    expect(FORM).not.toMatch(/name="(nombre|name|email|telefono|phone)"/i);
+  });
+
+  it("takes the amounts from the shared catalog, not from literals", () => {
+    expect(FORM).toContain("SUGGESTED_AMOUNTS_CENTS");
+    expect(FORM).toContain("MIN_DONATION_CENTS");
+    expect(FORM).toContain("MAX_DONATION_CENTS");
+  });
+
+  it("goes through the hook, never a raw fetch", () => {
+    expect(FORM).toContain("useDonationCheckout");
+    expect(FORM).not.toContain("fetch(");
+  });
+});
+
+describe("página de gracias", () => {
+  it("stays out of the index and claims no confirmed payment", () => {
+    // Sin los comentarios: ahí se explica justamente por qué no se afirma el
+    // cobro, y la frase citada haría fallar la comprobación.
+    const rendered = THANKS.replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(THANKS).toContain("index: false");
+    expect(rendered).not.toMatch(/pago (se )?complet/i);
+  });
+});

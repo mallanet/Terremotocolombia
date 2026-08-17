@@ -1,5 +1,6 @@
 import { HeartHandshake, Repeat, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import DonateForm from "./DonateForm";
 import {
   CONTACT_EMAIL,
   DONATION_MONTHLY_URL,
@@ -69,14 +70,23 @@ export default function SupportDonateCard() {
         puntual.
       </p>
 
-      <div className="mt-5 space-y-3">
-        {DONATION_MONTHLY_URL && <MonthlyOption />}
-        {DONATION_URL && <OneOffOption />}
+      <div className="mt-5">
+        <DonateForm />
       </div>
 
+      <details className="mt-4">
+        <summary className="cursor-pointer text-center text-xs text-slate-500">
+          ¿Problemas con el formulario? Otras formas de aportar
+        </summary>
+        <div className="mt-3 space-y-3">
+          {DONATION_MONTHLY_URL && <MonthlyOption />}
+          {DONATION_URL && <OneOffOption />}
+        </div>
+      </details>
+
       <p className="mt-3 text-center text-xs text-slate-500">
-        Eliges el importe en la página de pago. Puedes cancelar el aporte
-        mensual cuando quieras escribiendo a {CONTACT_EMAIL}.
+        Puedes cancelar el aporte mensual cuando quieras escribiendo a{" "}
+        {CONTACT_EMAIL}.
       </p>
 
       <ul className="mt-5 space-y-2 border-t border-slate-200 pt-5 text-sm text-slate-700">
