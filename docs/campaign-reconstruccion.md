@@ -114,6 +114,41 @@ production. And `--no-check-version` is not optional on a machine without
 and exits `3` **before running your command**, which reads like a permission
 error and is not one.
 
+## Production status, 2026-08-17
+
+The campaign is live on terremotocolombia.co. Migrations `0012` and `0013` are
+applied to the Neon `production` branch through the direct endpoint
+(`ep-super-haze-…`, no `-pooler`), `check:schema-drift` answers clean, and the
+five tables exist with `photo` on `material_pledges` and `material_receipts`.
+PR #47 merged as `375d5b4`, and the three deploy workflows are green: frontend
+and panel on their own, the API through a manual dispatch of
+`deploy-backend.yml`. `/api/campaign/puntos` and `/api/campaign/balance` answer
+`200` against production, both empty.
+
+Card contributions are ON with a **live** Stripe key. Two parts make that
+true, and each one alone does nothing: `ENABLE_STRIPE_DONATIONS` in the
+top-level `vars` of `backend/wrangler.jsonc`, and the `STRIPE_SECRET_KEY`
+secret on the `terremotocolombia-api` Worker. Version `ae372fbe` carries both.
+Doppler `prd` keeps a copy of the key for the record, but **no workflow pushes
+Doppler onto a Worker**: a change there reaches nothing until somebody runs
+`wrangler secret put`.
+
+Set that value with care. The first attempt stored the key with a newline
+inside it, because the closing quote sat on the next line of the shell. It was
+harmless that day, since the Worker copy was typed at the prompt, and it was
+rewritten clean. A newline inside an HTTP header breaks the call, so the check
+is `doppler secrets get … --plain | wc -l`, which must answer `1`.
+
+**No Stripe webhook exists.** Charges, and monthly renewals, leave no record in
+our database: the Stripe dashboard is the only ledger, and a cancellation
+asked by email is done there by hand. This is a deliberate choice, taken to
+launch. Building the webhook is what closes it.
+
+Open: make the collection points and one steward per point in the panel
+(capability `campaign`, already on the `admin` role). Roll the live key in
+Stripe once the flow is verified — it was printed in plain text on the
+maintainer's terminal while it was being set.
+
 ## Personal data
 
 - The donor contact (`donor_contact`) is private. It goes to no public
