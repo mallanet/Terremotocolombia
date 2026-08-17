@@ -3,7 +3,8 @@ import Link from "next/link";
 import { pageMetadata } from "@/lib/metadata";
 import SubPageShell from "@/components/layout/SubPageShell";
 import SupportDonateCard from "@/components/features/support/SupportDonateCard";
-import { webPageSchema } from "@/lib/jsonld";
+import SupportFaq, { SUPPORT_FAQS } from "@/components/features/support/SupportFaq";
+import { faqSchema, webPageSchema } from "@/lib/jsonld";
 import { SITE_BRAND_NAME } from "@/lib/site";
 
 const APOYANOS_DESC =
@@ -57,6 +58,7 @@ export default function ApoyanosPage() {
           name: "Apóyanos",
           description: APOYANOS_DESC,
         }),
+        faqSchema(SUPPORT_FAQS),
       ]}
     >
       <section className="relative isolate overflow-hidden">
@@ -95,6 +97,8 @@ export default function ApoyanosPage() {
           aporte va directo a cada organización.
         </p>
       </section>
+
+      <SupportFaq />
     </SubPageShell>
   );
 }

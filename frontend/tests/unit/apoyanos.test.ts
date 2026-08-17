@@ -101,6 +101,25 @@ describe("encabezado de la tarjeta de aporte", () => {
   });
 });
 
+const SUPPORT_FAQ = readFileSync(
+  join(ROOT, "components/features/support/SupportFaq.tsx"),
+  "utf8",
+);
+
+describe("preguntas frecuentes de /apoyanos", () => {
+  it("marks up the same questions the page shows", () => {
+    expect(PAGE).toContain("faqSchema(SUPPORT_FAQS)");
+    expect(PAGE).toContain("<SupportFaq />");
+    expect(SUPPORT_FAQ).toContain("SUPPORT_FAQS.map");
+  });
+
+  it("says who charges and how to cancel, and promises no tax benefit", () => {
+    expect(SUPPORT_FAQ).toContain("Stripe");
+    expect(SUPPORT_FAQ).toContain("CONTACT_EMAIL");
+    expect(SUPPORT_FAQ).not.toMatch(/deducible|deducción|exento de impuestos/i);
+  });
+});
+
 const SITE = readFileSync(join(ROOT, "lib/site.ts"), "utf8");
 const HEADER_LINKS = readFileSync(
   join(ROOT, "components/layout/DesktopHeaderLinks.tsx"),

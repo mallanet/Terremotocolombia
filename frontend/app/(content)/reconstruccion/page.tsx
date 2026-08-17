@@ -6,13 +6,20 @@ import BalanceBoard from "@/components/features/campaign/BalanceBoard";
 import SiteList from "@/components/features/campaign/SiteList";
 import PledgeForm from "@/components/features/campaign/PledgeForm";
 import DonorWall from "@/components/features/campaign/DonorWall";
+import CampaignFaq, {
+  CAMPAIGN_FAQS,
+} from "@/components/features/campaign/CampaignFaq";
 import { serverApiGetCached } from "@/lib/server-api";
 import type { CampaignBalance, CampaignSite } from "@/lib/campaign-materials";
+import { faqSchema, webPageSchema, type JsonLdNode } from "@/lib/jsonld";
+import { collectionPointsSchema } from "@/lib/jsonld-campaign";
+
+const CAMPAIGN_DESC =
+  "Campaña de recolección de materiales de construcción para las familias afectadas por el terremoto. Registra tu donación, entrégala en el punto de tu ciudad y sigue en tiempo real cuánto se ha recogido y qué ya salió hacia el Chocó.";
 
 export const metadata: Metadata = pageMetadata({
   title: "Campaña de reconstrucción",
-  description:
-    "Campaña de recolección de materiales de construcción para las familias afectadas por el terremoto. Registra tu donación, entrégala en el punto de tu ciudad y sigue en tiempo real cuánto se ha recogido y qué ya salió hacia el Chocó.",
+  description: CAMPAIGN_DESC,
   path: "/reconstruccion",
 });
 
@@ -47,11 +54,30 @@ function receivedLabel(balance: CampaignBalance | undefined): string | undefined
   return `Ya entregaron ${people}: ${top.quantity} ${top.unitLabel} de ${top.label.toLowerCase()} y más.`;
 }
 
+/** Los puntos solo entran en el marcado si el backend los sirvió. */
+function campaignSchema(sites: CampaignSite[]): JsonLdNode[] {
+  const nodes: JsonLdNode[] = [
+    webPageSchema({
+      path: "/reconstruccion",
+      name: "Campaña de reconstrucción",
+      description: CAMPAIGN_DESC,
+    }),
+    faqSchema(CAMPAIGN_FAQS),
+  ];
+  const points = collectionPointsSchema(sites);
+  if (points) nodes.push(points);
+  return nodes;
+}
+
 export default async function ReconstruccionPage() {
   const { sites, balance } = await loadCampaign();
 
   return (
-    <SubPageShell breadcrumb="Reconstrucción" path="/reconstruccion">
+    <SubPageShell
+      breadcrumb="Reconstrucción"
+      path="/reconstruccion"
+      extraSchema={campaignSchema(sites)}
+    >
       <CampaignHero receivedLabel={receivedLabel(balance)} />
 
       <section className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6">
@@ -86,6 +112,8 @@ export default async function ReconstruccionPage() {
           </p>
           <SiteList sites={sites} />
         </div>
+
+        <CampaignFaq />
 
         <DonorWall names={balance?.donorWall ?? []} />
       </section>

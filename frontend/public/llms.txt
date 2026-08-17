@@ -21,9 +21,28 @@
 - Survival guide: https://terremotocolombia.co/guia
 - Hospitals: https://terremotocolombia.co/hospitales
 - Collection centers: https://terremotocolombia.co/acopio
+- Rescue map: https://terremotocolombia.co/mapa-de-rescate
+- Reconstruction campaign (construction material: collection points, live balance, delivery certificate): https://terremotocolombia.co/reconstruccion
+- Verified donation channels of official organizations: https://terremotocolombia.co/donaciones
+- Support the platform (monthly or one-off contribution to the software itself): https://terremotocolombia.co/apoyanos
+- Volunteer sign-up: https://terremotocolombia.co/voluntario
+- Psychosocial and legal support available: https://terremotocolombia.co/apoyo-disponible
 - Privacy: https://terremotocolombia.co/privacidad
 - Contact: https://terremotocolombia.co/contacto
 - Seismic risk methodology: https://terremotocolombia.co/riesgo-sismico
+
+## Reconstruction campaign, in short
+
+- What it collects: cement (50 kg bags), rebar, brick or block, sand or
+  gravel, roof tiles, timber, tools.
+- How it works: the donor registers the donation and gets a ten-character
+  code, delivers the material at a collection point, and a team member
+  confirms the delivery there.
+- Three figures, never added together: received (confirmed by a team member),
+  pledged (not delivered yet), in transit (already on its way).
+- Destination: families in Chocó that lost their home.
+- A certificate reads "verified" only after a person at the point confirms
+  the delivery.
 
 ## Optional
 
