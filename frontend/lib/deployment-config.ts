@@ -47,6 +47,8 @@ export interface DeploymentConfig {
    * boot, and the donate button falls back to the in-site /donaciones page.
    */
   donationUrl?: string;
+  /** Optional recurring counterpart of `donationUrl` (monthly support). */
+  donationMonthlyUrl?: string;
   domains: DeploymentDomains;
 }
 
@@ -65,7 +67,7 @@ const REQUIRED_KEYS = [
 ] as const;
 
 /** Allowed but not required. Absent = the feature stays off, never a build error. */
-const OPTIONAL_KEYS = ["donationUrl"] as const;
+const OPTIONAL_KEYS = ["donationUrl", "donationMonthlyUrl"] as const;
 
 const REQUIRED_DOMAIN_KEYS = ["web", "api", "admin"] as const;
 
@@ -120,12 +122,14 @@ export function validateDeploymentConfig(value: unknown): DeploymentConfig {
     }
   }
 
-  // Solo https: este enlace se abre desde una barra de navegación pública y
-  // termina en una pasarela de pago. Un http:// aquí sería un downgrade
-  // silencioso, y un javascript: un vector de inyección.
-  if (value.donationUrl !== undefined) {
-    if (typeof value.donationUrl !== "string" || !value.donationUrl.startsWith("https://")) {
-      fail('"donationUrl" must be an https:// URL when present.');
+  // Solo https: estos enlaces se abren desde botones públicos y terminan en una
+  // pasarela de pago. Un http:// aquí sería un downgrade silencioso, y un
+  // javascript: un vector de inyección.
+  for (const key of OPTIONAL_KEYS) {
+    const url = value[key];
+    if (url === undefined) continue;
+    if (typeof url !== "string" || !url.startsWith("https://")) {
+      fail(`"${key}" must be an https:// URL when present.`);
     }
   }
 

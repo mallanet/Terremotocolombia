@@ -48,6 +48,12 @@ export const DONATION_CTA_LABEL = DONATION_URL
   ? `Donar a ${DONATION_ORG}`
   : "Donar";
 
+/**
+ * Aporte recurrente. Es un enlace de pago distinto, no el mismo con un
+ * parámetro: en Stripe, único y suscripción son productos separados.
+ */
+export const DONATION_MONTHLY_URL = deploymentConfig.donationMonthlyUrl ?? "";
+
 /** Destino ya resuelto del botón de donar, para no repetir el ternario en cada barra. */
 export const DONATE_LINK = {
   href: DONATION_URL || "/donaciones",

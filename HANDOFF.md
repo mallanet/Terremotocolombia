@@ -1,3 +1,31 @@
+MONEY DONATIONS, 2026-08-17
+Two Stripe payment links now exist, both declared in
+config/deployment.config.json as OPTIONAL https-only keys (`donationUrl`,
+`donationMonthlyUrl`). The validator was a closed key set, so it grew an
+OPTIONAL_KEYS list: a fork with no payment processor still boots and its
+buttons fall back to /donaciones.
+- Nav button "Donar a Mallanet" -> one-off link. Merged to main in PR #50
+  (commit 08b3041), production frontend deployed on its own.
+- New landing /apoyanos, UNICEF-style: monthly support first, one-off
+  second. Lives on THIS branch, ships with the campaign PR.
+No invented impact equivalences ("your X buys Y"): we have no such figure,
+and a false number on a page that asks for money is not a copy problem.
+The amount is chosen on Stripe's page — payment links are closed products,
+one link per frequency.
+The MOBILE sheet still points to /donaciones: MobileStickyNav.tsx is 402
+lines and the size gate refuses any edit that does not shrink it. The CTA
+sits first on /donaciones so a phone reaches Stripe with one more tap.
+Splitting that file is the pending fix.
+
+MERGING main INTO THIS BRANCH CONFLICTS, 2026-08-17
+Tried, aborted, nothing touched. main now carries PR #49 (staging) and the
+volunteer ficha, so the conflicts are: infra/db/migrations/meta/_journal.json,
+meta/0010_snapshot.json, and four admin model UI files
+(route.ts, model-form.tsx, model-row.tsx, model-table.tsx — add/add, both
+sides created them). The donate commit was cherry-picked here instead
+(ef5da46) so /apoyanos could build. That cherry-pick is identical content
+to main's, so it should merge as a no-op.
+
 CURRENT WORK
 Reconstruction campaign: collect construction material at points in
 several cities, send it to Chocó. Branch feat/campana-reconstruccion,

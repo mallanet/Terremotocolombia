@@ -65,4 +65,16 @@ describe("validateDeploymentConfig (CC-1)", () => {
       validateDeploymentConfig(validConfig({ donationUrl: "http://buy.example.org/abc" })),
     ).toThrow(/donationUrl/);
   });
+
+  it("accepts an https donationMonthlyUrl", () => {
+    const url = "https://buy.example.org/monthly";
+    const result = validateDeploymentConfig(validConfig({ donationMonthlyUrl: url }));
+    expect(result.donationMonthlyUrl).toBe(url);
+  });
+
+  it("rejects a donationMonthlyUrl that is not https", () => {
+    expect(() =>
+      validateDeploymentConfig(validConfig({ donationMonthlyUrl: "http://buy.example.org/m" })),
+    ).toThrow(/donationMonthlyUrl/);
+  });
 });
