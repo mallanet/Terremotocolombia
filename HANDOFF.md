@@ -17,6 +17,18 @@ lines and the size gate refuses any edit that does not shrink it. The CTA
 sits first on /donaciones so a phone reaches Stripe with one more tap.
 Splitting that file is the pending fix.
 
+CONTENT AUDIT: buy.stripe.com VETO RETIRED, MAINTAINER'S CALL 2026-08-17
+Merging PR #50 turned CI red on main with one finding:
+[hard-banned] ./config/deployment.config.json — buy.stripe.com. The pattern
+exists so the public template never ships a payment link pointing at one
+account. These links are Mallanet's own and live in the deployment identity
+file as optional https-only keys, so the maintainer retired the pattern with
+the precedent already set for discord.gg/ and chat.whatsapp.com
+(PR #51, on main and cherry-picked here as b7608af).
+DO NOT put it back. Still banned, and that is the point of the rule:
+gofund.me, gofundme.com, paypal.com/ncp/payment/ and wa.me.
+The frontend deploy was never affected: it went green and shipped.
+
 MERGING main INTO THIS BRANCH CONFLICTS, 2026-08-17
 Tried, aborted, nothing touched. main now carries PR #49 (staging) and the
 volunteer ficha, so the conflicts are: infra/db/migrations/meta/_journal.json,
