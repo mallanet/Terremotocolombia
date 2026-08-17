@@ -2,18 +2,36 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { pageMetadata } from "@/lib/metadata";
 import SubPageShell from "@/components/layout/SubPageShell";
-import { Info, LifeBuoy } from "lucide-react";
+import { HandCoins, Info, LifeBuoy } from "lucide-react";
 import OfertasList from "./OfertasList";
 import { webPageSchema } from "@/lib/jsonld";
+import { DONATE_LINK, DONATION_URL, SITE_BRAND_NAME } from "@/lib/site";
 
 const DONACIONES_DESC =
-  "Canales oficiales de instituciones verificadas (Cruz Roja, ABACO, bancos de sangre). Este sitio no recauda donaciones.";
+  "Dona a Mallanet.org, la organización que sostiene este sitio, o usa los canales oficiales de instituciones verificadas (Cruz Roja, ABACO, bancos de sangre).";
 
 export const metadata: Metadata = pageMetadata({
   title: "Donaciones",
   description: DONACIONES_DESC,
   path: "/donaciones",
 });
+
+function MallanetDonateCta() {
+  if (!DONATION_URL) return null;
+
+  return (
+    <a
+      href={DONATE_LINK.href}
+      target={DONATE_LINK.target}
+      rel={DONATE_LINK.rel}
+      aria-label={DONATE_LINK.aria}
+      className="mb-6 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--brand-blue)] px-6 py-3 text-[15px] font-bold text-white transition-colors hover:bg-[var(--brand-blue-dark)] sm:w-auto"
+    >
+      <HandCoins size={18} aria-hidden />
+      {DONATE_LINK.label}
+    </a>
+  );
+}
 
 export default function DonacionesPage() {
   return (
@@ -31,10 +49,13 @@ export default function DonacionesPage() {
       <section className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6">
         <h1 className="mb-2 text-[28px] font-bold text-slate-900 sm:text-[32px]">Donaciones</h1>
         <p className="mb-4 text-[15px] text-slate-600 sm:text-base">
-          Enlaces a canales oficiales de instituciones verificadas. Este sitio no
-          recauda donaciones: confirma siempre la emergencia activa en el sitio
-          de cada organización antes de aportar.
+          Puedes aportar a {SITE_BRAND_NAME}, la organización que sostiene este
+          sitio, o ir directo a los canales oficiales de instituciones
+          verificadas. En esos canales no intermediamos: confirma siempre la
+          emergencia activa en el sitio de cada organización antes de aportar.
         </p>
+
+        <MallanetDonateCta />
 
         {/* Acceso directo para quien llega buscando ayuda y no a donar:
             lleva al directorio de apoyo mapeado (/apoyo-disponible).
