@@ -65,10 +65,15 @@ at the next request.
 
 ## Before the first deployment
 
-1. **Apply migration `0010`** against Neon **direct** (not `-pooler`), as its
-   own step, before the backend deployment. It makes five new tables and
-   changes no existing table. Without it, all of `/api/campaign/*` answers
-   `503`, and the remainder of the site continues to operate.
+1. **Apply migrations `0012` and `0013`** against Neon **direct** (not
+   `-pooler`), as their own step, before the backend deployment. `0012` makes
+   five new tables and `0013` adds two nullable `photo` columns; neither one
+   changes an existing table. The campaign branch numbered these `0010` and
+   `0011` until the merge with `main`, which already held those numbers.
+   Without them, all of `/api/campaign/*` answers `503`, and the remainder of
+   the site continues to operate. In `stg` no direct variable exists, so
+   derive it:
+   `doppler run --project terremotocolombia-web --config stg --command 'bash scripts/migrate-direct.sh DATABASE_URL'`
 2. **Deploy the backend by hand** (`deploy-backend.yml`). The schema-drift
    gate passes when the migration is applied.
 3. **Grant the `campaign` capability** to the role that operates the campaign.
