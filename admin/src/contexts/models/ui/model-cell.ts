@@ -1,11 +1,13 @@
 import type { ModelField } from "../model-registry";
 import type { ModelRow } from "../application/models-gateway";
 import { statusBadge } from "./status-badges";
+import { isPhotoValue, PHOTO_PLACEHOLDER } from "./photo-cell";
 
 export function renderCell(value: unknown): string {
   if (value === null || value === undefined) return "—";
   if (typeof value === "boolean") return value ? "sí" : "—";
   if (typeof value === "object") return JSON.stringify(value);
+  if (isPhotoValue(value)) return PHOTO_PLACEHOLDER;
   return String(value);
 }
 

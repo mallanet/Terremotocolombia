@@ -1,3 +1,28 @@
+REGRESSION THE MERGE CAUSED, CAUGHT AND FIXED, 2026-08-17
+Taking main's admin row UI whole removed our CellValue, and with it the
+photo rendering. The Compromisos table has a "Foto" column, so it would
+have printed the raw value: a CDN URL, or — with no R2 configured — a
+data URL of hundreds of thousands of characters inside one cell.
+Restored as ui/photo-cell.tsx (isPhotoValue + PhotoCell), used by
+model-row.tsx, with renderCell collapsing a photo to "📷 Foto adjunta" so
+the row id keeps being a short string. Regression test:
+tests/contexts/models/photo-cell.test.tsx (4 tests) — the collapse
+assertion fails against main's renderCell, which is the point.
+LESSON: resolving a conflict by taking one side WHOLE is not a merge, it is
+a replacement. List what the discarded side did that the kept side does
+not, before trusting a green typecheck. Types pass happily while a column
+degrades from an image to a string.
+Also: `git checkout --theirs` is an edit the harness never sees. Resolve
+with Write/StrReplace, or declare it as an edit.
+
+HANDOFF ARCHIVED, 2026-08-17
+This file hit its 300-line ceiling, which would have blocked the next
+session from writing to it at all. Four settled blocks moved verbatim to
+docs/handoff-archive.md: the staging/main schema blocker, the Workers audit
+of the campaign code, the campaign banner, and the photo feature detail.
+Nothing was deleted. Archive the oldest blocks again when this file nears
+280 lines.
+
 main MERGED INTO THE CAMPAIGN BRANCH, 2026-08-17
 Local only, NOT pushed. Ten conflicted files, all resolved.
 - deployment config, site.ts, deployment-config.ts + its test: same
@@ -117,18 +142,6 @@ Verified end to end on the compose stack: register a donation, confirm it
 from the point steward screen, watch the certificate turn verified and the
 figures move. Green: backend 731, frontend 162, admin 164.
 
-BLOCKER: staging and main hold different schemas
-staging is ahead of main by two migrations that never reached production:
-0010_furry_marauders (official deceased lists) and 0011_query_observability
-(PR #45). The campaign migration is also 0010 (0010_wide_lionheart),
-because this branch starts from main. Merging into staging conflicts in
-_journal.json and meta/0010_snapshot.json. The merge was aborted, nothing
-was touched.
-The number is not the real problem: any numbering bets on merge order.
-Rebasing on staging would drag those two unrelated features into the PR to
-main. Maintainer decides. Recommended: land what staging already has on
-main first, then renumber the campaign one.
-
 PRODUCTION BUG FOUND, FIX NOT DEPLOYED
 requireSupplyWrite (backend/src/middleware/supply-auth.ts) was written with
 asyncHandler, which only forwards the error and never calls next() on
@@ -167,17 +180,6 @@ DONE EARLIER, NOW ON MAIN
 Volunteer ficha in the admin panel (PR #44, commit 4e826bf). The BFF sends
 the wider volunteer field set. Doc: docs/admin-volunteer-ficha.md.
 
-WORKERS AUDIT OF THE CAMPAIGN CODE, 2026-08-16: CLEAN
-The failure that broke roles.ts in production (an interactive
-db.transaction, which compiles, passes locally under node-postgres, and
-fails only in Workers) is not present. No `db.transaction(` call exists in
-backend/src/**; only comments mention it.
-registerReceipt claims the pledge with one atomic conditional UPDATE
-(WHERE id = ... AND status = 'pledged' ... RETURNING) and compensates if
-the receipt insert fails after it. That is the required idiom.
-No campaign path is in lib/json-edge-cache.ts, thus no authenticated
-response can enter the edge cache.
-
 KNOWN LIMITATION, MAINTAINER DECIDES
 A pledge is claimable only from status 'pledged'. If a person brings one
 half today and the other half tomorrow, the first delivery moves the
@@ -198,16 +200,6 @@ because receiptStatus compares the pledge against ONE delivery, not
 against the accumulated total. That is a design change, and it needs its
 own tests.
 
-BANNER OF THE CAMPAIGN LANDING, 2026-08-16
-/reconstruccion opens with CampaignHero.tsx: the frame of the home page
-hero (.e-hero*), but its own image, set inline in the component and not in
-styles/shell-layout.css — that file serves the whole house, and changing
-its background would change the home page too.
-The image is public/campana/hero.jpg: construction material, no people,
-generated for this banner and compressed to 246 KB at 1920 px. The veil is
-one flat layer, bg-slate-950/62. To show more or less of the photograph,
-change that one number.
-
 PHOTOGRAPH REFUSED, ON PURPOSE
 The maintainer sent a press photograph of the earthquake (file name matches
 the New York Times asset pattern) to use as the banner. It did NOT enter
@@ -215,28 +207,12 @@ the repository, for two independent reasons: it shows identifiable affected
 people, which CLAUDE.md forbids without exception, and it is a third
 party's copyrighted work. Any replacement must clear BOTH bars.
 
-PHOTO IN THE DONATION FORM AND IN THE DELIVERY: BUILT, ONE PIECE LEFT
-The maintainer chose: photo only (no video), and only the team sees it —
-no public wall, thus no moderation screen to build.
-Done: an optional photo on the pledge form (/reconstruccion) and on the
-point steward screen. Both reuse `persistPhotoDataUrl()` (R2 when
-configured, data URL in the column when not) and `usePhotoUpload()`, which
-redraws the image on a canvas — that re-encode DROPS THE EXIF, so the GPS
-coordinates of the phone never reach the server. No new code for that.
-Size ceiling is MAX_REPORT_PHOTO_CHARS, the same one the reports use.
-Verified against the local stack: a pledge with a photo stores it, and
-GET /api/campaign/certificado/<code> does NOT return it. The steward inbox
-does not return it either. Test rows deleted after.
-The panel reads the photo: admin-pledges.ts carries it in its columns and
-DTO, the resource schema exposes it, and the Compromisos table has a "Foto"
-column. Verified with a real request to /api/public/campaign-pledges.
-The table shows the photo as a 48px thumbnail that opens full size in a new
-tab. `renderCell()` still returns a string, because model-row.tsx uses its
-result as the row id (`const id = renderCell(row.id)`); the image comes
-from a separate `CellValue` component in model-cell.tsx. Verified in the
-browser against the local panel.
-VIDEO STAYS OUT: it does not fit the base64-through-JSON path that every
-form here uses. It needs a direct upload to R2 with a signed URL.
+PHOTO IN THE PLEDGE AND IN THE DELIVERY: BUILT
+Photo only, team-visible only, no public wall. EXIF is dropped by the
+canvas re-encode in usePhotoUpload(). It never appears in the certificate,
+the steward inbox or the balance — measured, see the privacy block below.
+Full detail: docs/handoff-archive.md. Video stays out: it does not fit the
+base64-through-JSON path and needs a signed direct upload to R2.
 
 PRIVACY OF THE PHOTO, MEASURED 2026-08-16 (not reasoned, measured)
 One pledge with a photo, then four requests against the running stack:
