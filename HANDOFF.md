@@ -17,6 +17,14 @@ lines and the size gate refuses any edit that does not shrink it. The CTA
 sits first on /donaciones so a phone reaches Stripe with one more tap.
 Splitting that file is the pending fix.
 
+PR #47 REPORTS NO CHECKS, 2026-08-17
+It targets main, it is open and not a draft, and CI triggers on
+pull_request to main — yet `gh pr checks 47` says "no checks reported" after
+two pushes. The Actions API also answered 504 around that time, so a GitHub
+hiccup is the likeliest cause. Do NOT read the absence of a red mark as a
+green build: verify locally (frontend 162 tests, content audit) or re-push
+to force a run before merging this PR.
+
 CONTENT AUDIT: buy.stripe.com VETO RETIRED, MAINTAINER'S CALL 2026-08-17
 Merging PR #50 turned CI red on main with one finding:
 [hard-banned] ./config/deployment.config.json — buy.stripe.com. The pattern
