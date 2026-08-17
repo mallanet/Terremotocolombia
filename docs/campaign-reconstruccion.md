@@ -129,11 +129,32 @@ error and is not one.
 - If the pledge write fails, the system captures it in `failed_submissions`
   before it answers `503`. Drain that table by hand — see `AGENTS.md`.
 
+## Why snapshots 0012 and 0013 repeat 0011
+
+`drizzle.config.ts` reads `schema.ts`, and `schema.ts` does not import
+`schema-campaign.ts`. Thus drizzle-kit never sees the campaign tables, and the
+two campaign migrations are hand-written. This is deliberate: a snapshot that
+declared those tables would make the next `db:generate` propose to DROP each of
+them, because the schema drizzle reads does not have them.
+
+But `check:migration-journal` asks for one snapshot per journal entry, and with
+good reason: a missing snapshot makes the next generated migration repeat
+changes that are already applied. So `0012` and `0013` hold the same content as
+`0011` — the state of `schema.ts`, which those two migrations did not change —
+with their own `id` and a correct `prevId` chain. The proof that this is right:
+`npm run db:generate` answers "No schema changes".
+
+Do not regenerate these two files against a schema that includes the campaign
+tables. If those tables must come under drizzle-kit one day, the step is to
+import them in `schema.ts` and generate a new migration, never to edit a
+snapshot that is already in the chain.
+
 ## Files
 
 ```text
 infra/db/schema-campaign.ts        The five tables
-infra/db/migrations/0010_*.sql     Migration (additive)
+infra/db/migrations/0012_*.sql     Campaign tables (hand-written, additive)
+infra/db/migrations/0013_*.sql     Photo columns (hand-written, additive)
 backend/src/lib/campaign-materials.ts   Material catalog
 backend/src/services/campaign/     Services (public, steward and panel)
 backend/src/routes/campaign*.ts    Public and steward routes
