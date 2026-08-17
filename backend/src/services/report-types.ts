@@ -14,6 +14,8 @@ export type ReportType = (typeof REPORT_TYPE_KEYS)[number];
 export const MAX_REPORT_PHOTO_CHARS = 1_400_000;
 export const DEFAULT_REPORT_PAGE_SIZE = 500;
 export const MAX_REPORT_PAGE_SIZE = 500;
+export const REPORT_LIST_CACHE_MS = 8_000;
+export const REPORT_LIST_CACHE_SECONDS = REPORT_LIST_CACHE_MS / 1_000;
 
 export interface ReportDTO {
   id: string;
