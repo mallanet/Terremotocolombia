@@ -58,7 +58,7 @@ panel (4 CRUD resources under the new `campaign` capability), middleware
 fix, handoff, rate-limit test fix.
 Verified end to end on the compose stack: register a donation, confirm it
 from the point steward screen, watch the certificate turn verified and the
-figures move. Green: backend 731, frontend 148, admin 164.
+figures move. Green: backend 731, frontend 162, admin 164.
 
 BLOCKER: staging and main hold different schemas
 staging is ahead of main by two migrations that never reached production:
