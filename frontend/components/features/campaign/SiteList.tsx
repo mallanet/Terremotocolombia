@@ -3,6 +3,7 @@ import {
   materialLabel,
   type CampaignSite,
 } from "@/lib/campaign-materials";
+import CampaignIcon from "./CampaignIcon";
 
 const STATUS_CLASS: Record<string, string> = {
   active: "bg-emerald-50 text-emerald-700",
@@ -34,17 +35,29 @@ function SiteCard({ site }: { site: CampaignSite }) {
         </span>
       </div>
 
-      {site.address && <p className="text-sm text-slate-600">{site.address}</p>}
+      {site.address && (
+        <p className="mt-1 flex items-start gap-2 text-sm text-slate-600">
+          <CampaignIcon name="punto" size={16} />
+          <span>{site.address}</span>
+        </p>
+      )}
       {site.schedule && (
-        <p className="mt-1 text-sm text-slate-500">Horario: {site.schedule}</p>
+        <p className="mt-1 flex items-start gap-2 text-sm text-slate-500">
+          <CampaignIcon name="horario" size={16} />
+          <span>{site.schedule}</span>
+        </p>
       )}
       {site.contact && (
-        <p className="mt-1 text-sm text-slate-500">Contacto: {site.contact}</p>
+        <p className="mt-1 flex items-start gap-2 text-sm text-slate-500">
+          <CampaignIcon name="contacto" size={16} />
+          <span>{site.contact}</span>
+        </p>
       )}
 
       {site.accepts.length > 0 && (
-        <p className="mt-3 text-xs text-slate-500">
-          Recibe: {site.accepts.map(materialLabel).join(", ")}
+        <p className="mt-3 flex items-start gap-2 text-xs text-slate-500">
+          <CampaignIcon name="material" size={16} />
+          <span>Recibe: {site.accepts.map(materialLabel).join(", ")}</span>
         </p>
       )}
 
