@@ -20,7 +20,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = "https://platform.higgsfield.ai"
-DEFAULT_MODEL = "higgsfield-ai/soul/standard"
+# Soul/standard is weak for civic graphic cards. Prefer HTML→PNG export
+# (docs/campaigns/generated/x/frames-export.html). If you must use HF API:
+# popcorn/auto @ 1600p is the strongest image model on this account's catalog.
+DEFAULT_MODEL = "higgsfield-ai/popcorn/auto"
 
 
 def load_dotenv(path: Path) -> None:
@@ -59,7 +62,7 @@ def request(method: str, url: str, body: dict | None = None) -> dict:
             "Accept": "application/json",
             "Content-Type": "application/json",
             # Cloudflare on platform.higgsfield.ai bans the default Python-urllib UA.
-            "User-Agent": "TerremotoColombiaCampaign/1.0 (+https://terremotocolombia.com)",
+            "User-Agent": "TerremotoColombiaCampaign/1.0 (+https://terremotocolombia.co)",
         },
     )
     try:
@@ -170,7 +173,7 @@ def main() -> int:
     p_gen.add_argument("--prompt", default="")
     p_gen.add_argument("--prompt-file", default="")
     p_gen.add_argument("--aspect-ratio", default="16:9")
-    p_gen.add_argument("--resolution", default="720p")
+    p_gen.add_argument("--resolution", default="1600p")
     p_gen.add_argument("--model", default=DEFAULT_MODEL)
     p_gen.add_argument(
         "--out-dir",

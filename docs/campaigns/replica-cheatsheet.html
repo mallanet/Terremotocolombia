@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es-ES">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cheatsheet réplica X · Terremoto Colombia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #fff;
+      --fg: #0f2154;
+      --muted: oklch(45% 0.03 260);
+      --border: oklch(90% 0.02 267);
+      --accent: #4080f2;
+      --ink: #0f2154;
+      --mist: #e1eaff;
+      --crisis: #CE1126;
+      --font-d: "Sora", system-ui, sans-serif;
+      --font-b: "IBM Plex Sans", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font-b);
+      color: var(--fg);
+      background: var(--bg);
+      padding: 28px 20px 64px;
+      max-width: 720px;
+      margin-inline: auto;
+      line-height: 1.45;
+    }
+    .flag {
+      height: 8px; border-radius: 4px; margin-bottom: 20px;
+      background: linear-gradient(90deg, #FCD116 0 33.33%, #003893 33.33% 66.66%, #CE1126 66.66%);
+    }
+    h1 {
+      font-family: var(--font-d);
+      font-size: 1.75rem;
+      letter-spacing: -0.02em;
+      margin: 0 0 8px;
+    }
+    .lede { color: var(--muted); margin: 0 0 24px; }
+    h2 {
+      font-family: var(--font-d);
+      font-size: 1.05rem;
+      margin: 28px 0 10px;
+    }
+    .check {
+      list-style: none; padding: 0; margin: 0;
+      display: grid; gap: 8px;
+    }
+    .check li {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      min-height: 44px;
+    }
+    .check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
+    .block {
+      background: var(--mist);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      white-space: pre-wrap;
+    }
+    .copy {
+      min-height: 40px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font: 600 13px/1 var(--font-b);
+      padding: 0 14px;
+      cursor: pointer;
+      margin-bottom: 18px;
+    }
+    .copy:hover { filter: brightness(0.94); }
+    .copy:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    .warn {
+      border-left: 4px solid var(--crisis);
+      padding: 10px 12px;
+      background: color-mix(in oklch, var(--crisis) 8%, white);
+      border-radius: 0 10px 10px 0;
+      font-size: 0.9rem;
+    }
+    a { color: var(--accent); }
+    footer { margin-top: 32px; font-size: 0.85rem; color: var(--muted); }
+  </style>
+</head>
+<body data-od-id="replica-cheatsheet">
+  <div class="flag" aria-hidden="true"></div>
+  <h1 data-od-id="cheatsheet-title">Cheatsheet · voluntario X</h1>
+  <p class="lede">Imprimí o guardá esta página. Una acción por turno. Si dudás, no publiques.</p>
+
+  <h2>Checklist (30 s)</h2>
+  <ul class="check" data-od-id="checklist">
+    <li><input type="checkbox" id="c1" /><label for="c1">Sin ataque político ni símbolos de campaña</label></li>
+    <li><input type="checkbox" id="c2" /><label for="c2">Sin cifras inventadas</label></li>
+    <li><input type="checkbox" id="c3" /><label for="c3">Un solo CTA → terremotocolombia.co</label></li>
+    <li><input type="checkbox" id="c4" /><label for="c4">Imagen del kit visual (tokens Mallanet)</label></li>
+    <li><input type="checkbox" id="c5" /><label for="c5">Máx. 2–3 hashtags · sin tags de facción</label></li>
+  </ul>
+
+  <h2>5 textos listos</h2>
+
+  <div class="block" id="t1">Mientras el timeline discute, alguien necesita un teléfono o un reporte claro.
+Terremoto Colombia · mapa + utilidad · no somos gobierno.
+→ https://terremotocolombia.co
+Mallanet.org</div>
+  <button type="button" class="copy" data-copy="t1">Copiar 1 · Ancla</button>
+
+  <div class="block" id="t2">Regla de oro:
+✅ Fuente con nombre
+❌ Audio sin origen
+❌ Cifras sin link
+https://terremotocolombia.co</div>
+  <button type="button" class="copy" data-copy="t2">Copiar 2 · Antirumor</button>
+
+  <div class="block" id="t3">Si alguien necesita mapa / teléfonos / cómo reportar sin rumor:
+https://terremotocolombia.co
+No somos oficiales · Mallanet.org</div>
+  <button type="button" class="copy" data-copy="t3">Copiar 3 · Reply</button>
+
+  <div class="block" id="t4">Teléfonos útiles (no reemplazan a la autoridad):
+https://terremotocolombia.co/telefonos</div>
+  <button type="button" class="copy" data-copy="t4">Copiar 4 · Teléfonos</button>
+
+  <div class="block" id="t5">¿Querés ayudar sin improvisar?
+https://terremotocolombia.co/voluntario
+Mallanet.org</div>
+  <button type="button" class="copy" data-copy="t5">Copiar 5 · Voluntariado</button>
+
+  <p class="warn" data-od-id="warn-politics">
+    Si el post viral es pelea política: no entres. Buscá otro sobre el sismo, ayuda o verificación.
+  </p>
+
+  <h2>Links</h2>
+  <p>
+    <a href="visual-kit.html">Kit visual</a> ·
+    <a href="x-playbook.md">Playbook completo</a> ·
+    <a href="index.html">Inicio campaña</a>
+  </p>
+
+  <footer>Terremoto Colombia · Mallanet.org · tokens #4080f2 / #0f2154</footer>
+
+  <script>
+    document.querySelectorAll("[data-copy]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var el = document.getElementById(btn.getAttribute("data-copy"));
+        var text = el ? el.textContent : "";
+        navigator.clipboard.writeText(text).then(function () {
+          var prev = btn.textContent;
+          btn.textContent = "Copiado";
+          setTimeout(function () { btn.textContent = prev; }, 1200);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

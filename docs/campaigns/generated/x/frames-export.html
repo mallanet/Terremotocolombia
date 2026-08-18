@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Export frames · Ola 0 X</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0f2154;
+      --accent: #4080f2;
+      --mist: #e1eaff;
+      --co-y: #FCD116;
+      --co-b: #003893;
+      --co-r: #CE1126;
+      --font-d: "Sora", system-ui, sans-serif;
+      --font-b: "IBM Plex Sans", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #111;
+      color: var(--mist);
+      font-family: var(--font-b);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      align-items: flex-start;
+    }
+    .frame {
+      position: relative;
+      overflow: hidden;
+      background: var(--ink);
+      color: var(--mist);
+      flex-shrink: 0;
+    }
+    .frame-wide { width: 1200px; height: 675px; }
+    .frame-header { width: 1500px; height: 500px; }
+    .flag-top {
+      position: absolute; inset: 0 0 auto 0; height: 12px;
+      background: linear-gradient(90deg, var(--co-y) 0 33.33%, var(--co-b) 33.33% 66.66%, var(--co-r) 66.66%);
+      z-index: 2;
+    }
+    .glow {
+      position: absolute;
+      width: 520px; height: 520px;
+      border-radius: 50%;
+      background: radial-gradient(circle, color-mix(in srgb, var(--accent) 35%, transparent) 0%, transparent 68%);
+      right: -80px; bottom: -120px;
+      pointer-events: none;
+    }
+    .topo {
+      position: absolute; inset: 0;
+      opacity: 0.18;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 70% 40%, transparent 40%, color-mix(in srgb, var(--mist) 40%, transparent) 41%, transparent 42%),
+        radial-gradient(ellipse 60% 40% at 75% 55%, transparent 50%, color-mix(in srgb, var(--mist) 30%, transparent) 51%, transparent 52%);
+      pointer-events: none;
+    }
+    .pad {
+      position: absolute; inset: 40px 52px 44px;
+      display: flex; flex-direction: column;
+      z-index: 1;
+    }
+    .brand-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .logo { height: 44px; width: auto; display: block; }
+    .url-pill {
+      font: 600 15px/1 var(--font-b);
+      color: var(--ink);
+      background: var(--mist);
+      padding: 10px 14px;
+      border-radius: 999px;
+    }
+    .kicker {
+      margin-top: 32px;
+      font: 600 15px/1 var(--font-b);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .headline {
+      margin: 14px 0 0;
+      font-family: var(--font-d);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      font-size: 54px;
+      line-height: 1.05;
+      max-width: 16ch;
+    }
+    .headline-sm { font-size: 46px; }
+    .sub {
+      margin-top: auto;
+      font-size: 22px;
+      max-width: 36ch;
+      color: color-mix(in srgb, var(--mist) 88%, white);
+      line-height: 1.35;
+    }
+    .foot {
+      margin-top: 22px;
+      display: flex; align-items: center; gap: 12px;
+      font-size: 16px;
+      color: color-mix(in srgb, var(--mist) 70%, transparent);
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); flex-shrink: 0;
+    }
+    .list {
+      list-style: none; margin: 28px 0 0; padding: 0;
+      display: flex; flex-direction: column; gap: 14px;
+      font-size: 22px;
+      max-width: 28ch;
+    }
+    .list li {
+      display: flex; align-items: baseline; gap: 14px;
+    }
+    .list b {
+      font-family: var(--font-d);
+      color: var(--accent);
+      min-width: 1.6ch;
+    }
+    .badge {
+      display: inline-flex;
+      margin-top: 28px;
+      font: 700 13px/1 var(--font-b);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink);
+      background: var(--accent);
+      padding: 10px 12px;
+      border-radius: 8px;
+      width: fit-content;
+    }
+    .epicentro {
+      position: absolute;
+      right: 64px; bottom: 80px;
+      width: 200px; height: 200px;
+      z-index: 0;
+    }
+    .rings {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      border: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+      animation: none;
+    }
+    .rings::before, .rings::after {
+      content: "";
+      position: absolute; inset: 18%;
+      border-radius: 50%;
+      border: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    }
+    .rings::after { inset: 36%; border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+    .core {
+      position: absolute;
+      left: 50%; top: 50%;
+      width: 28px; height: 28px;
+      margin: -14px 0 0 -14px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+    .header-lockup {
+      position: absolute;
+      left: 64px; top: 50%;
+      transform: translateY(-50%);
+      z-index: 1;
+      max-width: 22ch;
+    }
+    .header-lockup .kicker { margin-top: 0; }
+    .header-lockup .headline {
+      font-size: 48px;
+      margin-top: 12px;
+    }
+    .header-lockup .sub {
+      margin-top: 16px;
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+  <!-- A2 ancla -->
+  <article class="frame frame-wide" id="x-ancla-utilidad-16x9">
+    <div class="flag-top"></div>
+    <div class="topo"></div>
+    <div class="glow"></div>
+    <div class="epicentro" aria-hidden="true"><div class="rings"><span class="core"></span></div></div>
+    <div class="pad">
+      <div class="brand-row">
+        <img class="logo" src="../../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+        <span class="url-pill">terremotocolombia.co</span>
+      </div>
+      <p class="kicker">Infraestructura ciudadana</p>
+      <h1 class="headline">Utilidad en medio del ruido</h1>
+      <p class="sub">Mapa, reportes y teléfonos útiles. Independiente. No partidista.</p>
+      <div class="foot"><span class="dot"></span> Mallanet.org · No somos gobierno</div>
+    </div>
+  </article>
+
+  <!-- B1 teléfonos -->
+  <article class="frame frame-wide" id="x-telefonos-16x9">
+    <div class="flag-top"></div>
+    <div class="topo"></div>
+    <div class="glow"></div>
+    <div class="pad">
+      <div class="brand-row">
+        <img class="logo" src="../../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+        <span class="url-pill">/telefonos</span>
+      </div>
+      <p class="kicker">Directorio útil</p>
+      <h1 class="headline headline-sm">Teléfonos antes que rumores</h1>
+      <ul class="list">
+        <li><b>01</b> Canales oficiales de tu ciudad</li>
+        <li><b>02</b> Directorio ciudadano centralizado</li>
+        <li><b>03</b> En emergencia real: llamá ya</li>
+      </ul>
+      <div class="foot"><span class="dot"></span> terremotocolombia.co/telefonos</div>
+    </div>
+  </article>
+
+  <!-- D1 antirumor -->
+  <article class="frame frame-wide" id="x-antirumor-16x9">
+    <div class="flag-top"></div>
+    <div class="topo"></div>
+    <div class="glow"></div>
+    <div class="pad">
+      <div class="brand-row">
+        <img class="logo" src="../../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+        <span class="url-pill">Verificá primero</span>
+      </div>
+      <div class="badge">Antidesinformación</div>
+      <h1 class="headline headline-sm">Si no tiene fuente, no lo amplifiques</h1>
+      <ul class="list">
+        <li><b>✓</b> SGC · UNGRD · alcaldía</li>
+        <li><b>✗</b> Cifras sin link</li>
+        <li><b>✗</b> Audio sin origen</li>
+      </ul>
+      <div class="foot"><span class="dot"></span> terremotocolombia.co · Mallanet.org</div>
+    </div>
+  </article>
+
+  <!-- Hilo portada -->
+  <article class="frame frame-wide" id="x-hilo-portada-16x9">
+    <div class="flag-top"></div>
+    <div class="topo"></div>
+    <div class="glow"></div>
+    <div class="epicentro" aria-hidden="true"><div class="rings"><span class="core"></span></div></div>
+    <div class="pad">
+      <div class="brand-row">
+        <img class="logo" src="../../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+        <span class="url-pill">Hilo · 8 partes</span>
+      </div>
+      <p class="kicker">Solo utilidad</p>
+      <h1 class="headline">Qué hacer sin rumores</h1>
+      <p class="sub">Seguridad → fuentes oficiales → reporte claro → ayuda ordenada.</p>
+      <div class="foot"><span class="dot"></span> Guardalo · compartilo · terremotocolombia.co</div>
+    </div>
+  </article>
+
+  <!-- Header perfil -->
+  <article class="frame frame-header" id="x-header-16x9">
+    <div class="flag-top"></div>
+    <div class="topo"></div>
+    <div class="glow" style="right:-40px;bottom:-160px;width:640px;height:640px"></div>
+    <div class="epicentro" style="right:120px;bottom:70px;opacity:.9" aria-hidden="true"><div class="rings"><span class="core"></span></div></div>
+    <div class="header-lockup">
+      <p class="kicker">Mallanet.org</p>
+      <h1 class="headline">Terremoto Colombia</h1>
+      <p class="sub">Mapa · reportes · teléfonos útiles</p>
+    </div>
+  </article>
+</body>
+</html>

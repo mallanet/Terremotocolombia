@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="es-ES">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kit visual X · Terremoto Colombia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: oklch(97% 0.008 260);
+      --surface: #fff;
+      --fg: #0f2154;
+      --muted: oklch(48% 0.03 260);
+      --border: oklch(90% 0.02 267);
+      --accent: #4080f2;
+      --ink: #0f2154;
+      --mist: #e1eaff;
+      --crisis: #CE1126;
+      --co-y: #FCD116;
+      --co-b: #003893;
+      --co-r: #CE1126;
+      --font-d: "Sora", system-ui, sans-serif;
+      --font-b: "IBM Plex Sans", system-ui, sans-serif;
+      --ease: cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font-b);
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.45;
+    }
+    .shell { max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; }
+    .flag {
+      height: 8px;
+      background: linear-gradient(90deg, var(--co-y) 0 33.33%, var(--co-b) 33.33% 66.66%, var(--co-r) 66.66%);
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-family: var(--font-d);
+      font-size: clamp(1.6rem, 3vw, 2.1rem);
+      letter-spacing: -0.02em;
+      margin: 0 0 8px;
+    }
+    .lede { color: var(--muted); max-width: 62ch; margin: 0 0 24px; }
+    .nav {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px;
+    }
+    .nav button {
+      font: 600 13px/1 var(--font-b);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg);
+      padding: 10px 14px;
+      min-height: 44px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 160ms var(--ease), border-color 160ms var(--ease);
+    }
+    .nav button:hover { background: var(--mist); }
+    .nav button[aria-selected="true"] {
+      background: var(--ink);
+      color: var(--mist);
+      border-color: var(--ink);
+    }
+    .nav button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .grid {
+      display: grid;
+      gap: 28px;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 960px) {
+      .grid { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
+    }
+    .stage {
+      overflow: auto;
+      padding: 12px;
+      background: oklch(92% 0.01 260);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+    .side {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+    }
+    .side h2 {
+      font-family: var(--font-d);
+      font-size: 1rem;
+      margin: 0 0 10px;
+    }
+    .side pre {
+      white-space: pre-wrap;
+      font-family: var(--font-b);
+      font-size: 13.5px;
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 12px;
+      margin: 0 0 12px;
+      border: 1px solid var(--border);
+    }
+    .copy-btn {
+      width: 100%;
+      min-height: 44px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #fff;
+      font: 600 14px/1 var(--font-b);
+      cursor: pointer;
+    }
+    .copy-btn:hover { filter: brightness(0.94); }
+    .copy-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    .meta { font-size: 12px; color: var(--muted); margin-top: 10px; }
+
+    /* —— Export frames —— */
+    .frame-wide, .frame-sq, .frame-story {
+      position: relative;
+      flex-shrink: 0;
+      overflow: hidden;
+      color: var(--mist);
+      background: var(--ink);
+      box-shadow: 0 18px 40px oklch(26% 0.05 266 / 0.28);
+    }
+    .frame-wide { width: 1200px; height: 675px; border-radius: 4px; }
+    .frame-sq { width: 1080px; height: 1080px; border-radius: 4px; }
+    .frame-story { width: 540px; height: 960px; border-radius: 4px; transform-origin: top left; }
+    .flag-top {
+      position: absolute; inset: 0 0 auto 0; height: 12px;
+      background: linear-gradient(90deg, var(--co-y) 0 33.33%, var(--co-b) 33.33% 66.66%, var(--co-r) 66.66%);
+    }
+    .pad { position: absolute; inset: 36px 48px 40px; display: flex; flex-direction: column; }
+    .pad-sq { inset: 56px 56px 64px; }
+    .brand-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .logo { height: 44px; width: auto; display: block; }
+    .logo-sm { height: 36px; }
+    .url-pill {
+      font: 600 15px/1 var(--font-b);
+      color: var(--ink);
+      background: var(--mist);
+      padding: 10px 14px;
+      border-radius: 999px;
+      letter-spacing: 0.01em;
+    }
+    .kicker {
+      margin-top: 28px;
+      font: 600 15px/1 var(--font-b);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .headline {
+      margin: 14px 0 0;
+      font-family: var(--font-d);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      font-size: 56px;
+      line-height: 1.05;
+      max-width: 16ch;
+    }
+    .headline-sm { font-size: 48px; }
+    .sub {
+      margin-top: auto;
+      font-size: 22px;
+      max-width: 34ch;
+      color: oklch(92% 0.02 260);
+    }
+    .foot {
+      margin-top: 22px;
+      display: flex; align-items: center; gap: 14px;
+      font-size: 16px;
+      color: oklch(78% 0.03 260);
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); flex-shrink: 0;
+    }
+    .epicentro {
+      position: absolute;
+      right: 56px; bottom: 72px;
+      width: 210px; height: 210px;
+      opacity: 0.95;
+    }
+    .rings {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      border: 2px solid color-mix(in oklch, var(--accent) 55%, transparent);
+    }
+    .rings::before, .rings::after {
+      content: "";
+      position: absolute; inset: 18%;
+      border-radius: 50%;
+      border: 2px solid color-mix(in oklch, var(--accent) 40%, transparent);
+    }
+    .rings::after { inset: 36%; border-color: var(--accent); }
+    .core {
+      position: absolute; left: 50%; top: 50%;
+      width: 14px; height: 14px; margin: -7px 0 0 -7px;
+      border-radius: 50%; background: var(--accent);
+    }
+    .list {
+      margin: 28px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 14px;
+      font-size: 26px;
+      font-weight: 500;
+    }
+    .list li {
+      display: flex; gap: 14px; align-items: flex-start;
+    }
+    .list b {
+      color: var(--accent);
+      font-family: var(--font-d);
+      min-width: 1.4ch;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: color-mix(in oklch, var(--crisis) 18%, transparent);
+      color: #ffd5d8;
+      font: 600 14px/1 var(--font-b);
+      width: fit-content;
+      margin-top: 20px;
+    }
+    .city-input {
+      font-family: var(--font-d);
+      font-size: 64px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      border: 0;
+      background: transparent;
+      color: var(--mist);
+      width: 100%;
+      padding: 0;
+      margin-top: 12px;
+    }
+    .city-input:focus { outline: 2px solid var(--accent); outline-offset: 6px; border-radius: 4px; }
+    .quote-box {
+      margin-top: 40px;
+      padding: 28px;
+      border-left: 4px solid var(--accent);
+      background: color-mix(in oklch, var(--mist) 8%, transparent);
+      border-radius: 0 16px 16px 0;
+      font-family: var(--font-d);
+      font-size: 42px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    .story .pad { inset: 48px 36px 56px; }
+    .story .headline { font-size: 42px; max-width: 10ch; }
+    .story .sub { font-size: 20px; }
+    .scale-hint { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+  </style>
+</head>
+<body>
+  <div class="shell" data-od-id="x-visual-kit">
+    <div class="flag" aria-hidden="true"></div>
+    <h1 data-od-id="kit-title">Kit visual para X</h1>
+    <p class="lede">
+      Piezas listas para capturar y adjuntar al playbook.
+      Tokens Mallanet · sin cifras · sin semiótica de campaña.
+      Elegí una card, copiá el texto sugerido y publicá.
+    </p>
+
+    <nav class="nav" role="tablist" aria-label="Piezas de campaña" data-od-id="kit-nav">
+      <button type="button" role="tab" aria-selected="true" data-tab="launch">Lanzamiento</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="phones">Teléfonos</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="map">Mapa</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="verify">Antirumor</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="volunteer">Voluntariado</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="thread">Portada hilo</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="city">Ciudad 1:1</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="quote">Quote</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="story">Story</button>
+    </nav>
+
+    <!-- LAUNCH -->
+    <section class="panel active" id="panel-launch" role="tabpanel">
+      <div class="grid">
+        <div>
+          <p class="scale-hint">Canvas export 1200×675 — scroll horizontal si hace falta</p>
+          <div class="stage">
+            <article class="frame-wide" data-od-id="export-frame-launch">
+              <div class="flag-top"></div>
+              <div class="pad">
+                <div class="brand-row">
+                  <img class="logo" src="../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+                  <span class="url-pill" data-od-id="cta-url">terremotocolombia.co</span>
+                </div>
+                <p class="kicker">Infraestructura ciudadana</p>
+                <h2 class="headline">Utilidad en medio del ruido</h2>
+                <p class="sub">Mapa, reportes y teléfonos útiles. Independiente. No partidista.</p>
+                <div class="foot"><span class="dot"></span> Mallanet.org · No somos gobierno</div>
+              </div>
+              <div class="epicentro" aria-hidden="true"><div class="rings"><span class="core"></span></div></div>
+            </article>
+          </div>
+        </div>
+        <aside class="side">
+          <h2>Copy sugerido (A1)</h2>
+          <pre id="copy-launch">Mientras el timeline discute, alguien necesita un teléfono, un refugio o un reporte claro.
+
+Terremoto Colombia es infraestructura ciudadana — mapa, reportes y fuentes útiles.
+No somos gobierno. No somos partido.
+
+→ https://terremotocolombia.co
+Mallanet.org</pre>
+          <button type="button" class="copy-btn" data-copy="copy-launch">Copiar texto</button>
+          <p class="meta">Ola 0–1 · adjuntá esta imagen · 0–2 hashtags</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- PHONES -->
+    <section class="panel" id="panel-phones" role="tabpanel" hidden>
+      <div class="grid">
+        <div>
+          <p class="scale-hint">1200×675</p>
+          <div class="stage">
+            <article class="frame-wide" data-od-id="export-frame-phones">
+              <div class="flag-top"></div>
+              <div class="pad">
+                <div class="brand-row">
+                  <img class="logo" src="../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+                  <span class="url-pill">/telefonos</span>
+                </div>
+                <p class="kicker">Directorio útil</p>
+                <h2 class="headline headline-sm">Teléfonos antes que rumores</h2>
+                <ul class="list">
+                  <li><b>01</b> Canales oficiales de tu ciudad</li>
+                  <li><b>02</b> Directorio ciudadano centralizado</li>
+                  <li><b>03</b> En emergencia real: llamá ya</li>
+                </ul>
+                <div class="foot"><span class="dot"></span> terremotocolombia.co/telefonos</div>
+              </div>
+            </article>
+          </div>
+        </div>
+        <aside class="side">
+          <h2>Copy sugerido (B1)</h2>
+          <pre id="copy-phones">Antes de reenviar un pantallazo dudoso: guardá los canales oficiales de tu ciudad y usá el directorio.
+
+Teléfonos y líneas útiles:
+→ https://terremotocolombia.co/telefonos
+
+En emergencia real: llamá a los números locales. Nosotros no reemplazamos a la autoridad.</pre>
+          <button type="button" class="copy-btn" data-copy="copy-phones">Copiar texto</button>
+          <p class="meta">Bookmarkable · alto guardado</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- MAP -->
+    <section class="panel" id="panel-map" role="tabpanel" hidden>
+      <div class="grid">
+        <div>
+          <p class="scale-hint">1200×675</p>
+          <div class="stage">
+            <article class="frame-wide" data-od-id="export-frame-map">
+              <div class="flag-top"></div>
+              <div class="pad">
+                <div class="brand-row">
+                  <img class="logo" src="../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+                  <span class="url-pill">terremotocolombia.co</span>
+                </div>
+                <p class="kicker">Mapa ciudadano</p>
+                <h2 class="headline">Reportá claro. Coordiná mejor.</h2>
+                <p class="sub">Ubicación · tipo de afectación · sin drama innecesario.</p>
+                <div class="foot"><span class="dot"></span> Dato verificable &gt; audio anónimo</div>
+              </div>
+              <div class="epicentro" aria-hidden="true"><div class="rings"><span class="core"></span></div></div>
+            </article>
+          </div>
+        </div>
+        <aside class="side">
+          <h2>Copy sugerido (C2)</h2>
+          <pre id="copy-map">El rumor viaja más rápido que el reporte.
+Si viste afectación en tu barrio, publicá el dato en el mapa — no en un audio anónimo.
+
+https://terremotocolombia.co
+
+#TerremotoColombia</pre>
+          <button type="button" class="copy-btn" data-copy="copy-map">Copiar texto</button>
+          <p class="meta">Personalizá el barrio en el texto</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- VERIFY -->
+    <section class="panel" id="panel-verify" role="tabpanel" hidden>
+      <div class="grid">
+        <div>
+          <p class="scale-hint">1200×675 · pieza de mayor potencial RT</p>
+          <div class="stage">
+            <article class="frame-wide" data-od-id="export-frame-verify">
+              <div class="flag-top"></div>
+              <div class="pad">
+                <div class="brand-row">
+                  <img class="logo" src="../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+                  <span class="url-pill">Verificá primero</span>
+                </div>
+                <div class="badge">Antidesinformación</div>
+                <h2 class="headline headline-sm">Si no tiene fuente, no lo amplifiques</h2>
+                <ul class="list">
+                  <li><b>✓</b> SGC · UNGRD · alcaldía</li>
+                  <li><b>✗</b> Cifras sin link</li>
+                  <li><b>✗</b> Audio sin origen</li>
+                </ul>
+                <div class="foot"><span class="dot"></span> terremotocolombia.co · Mallanet.org</div>
+              </div>
+            </article>
+          </div>
+        </div>
+        <aside class="side">
+          <h2>Copy sugerido (D1)</h2>
+          <pre id="copy-verify">Regla de oro del sismo:
+
+✅ Fuente con nombre (SGC, UNGRD, alcaldía, bomberos)
+❌ Audio de WhatsApp sin origen
+❌ Cifras sin link
+❌ “Me dijeron que…”
+
+Herramienta ciudadana: https://terremotocolombia.co</pre>
+          <button type="button" class="copy-btn" data-copy="copy-verify">Copiar texto</button>
+          <p class="meta">Cruza ejes políticos — no elijas bando</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- VOLUNTEER -->
+    <section class="panel" id="panel-volunteer" role="tabpanel" hidden>
+      <div class="grid">
+        <div>
+          <p class="scale-hint">1200×675</p>
+          <div class="stage">
+            <article class="frame-wide" data-od-id="export-frame-volunteer">
+              <div class="flag-top"></div>
+              <div class="pad">
+                <div class="brand-row">
+                  <img class="logo" src="../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+                  <span class="url-pill">/voluntario</span>
+                </div>
+                <p class="kicker">Ayuda ordenada</p>
+                <h2 class="headline">Ayudar también se coordina</h2>
+                <p class="sub">Voluntariado, acopio y donaciones con criterios — sin improvisar en el vacío.</p>
+                <div class="foot"><span class="dot"></span> terremotocolombia.co/voluntario</div>
+              </div>
+            </article>
+          </div>
+        </div>
+        <aside class="side">
+          <h2>Copy sugerido (E1)</h2>
+          <pre id="copy-volunteer">¿Querés ayudar sin improvisar?
+Empezá por canales ordenados: voluntariado, acopio, necesidades publicadas.
+
+→ https://terremotocolombia.co/voluntario
+Mallanet.org</pre>
+          <button type="button" class="copy-btn" data-copy="copy-volunteer">Copiar texto</button>
+          <p class="meta">Ola 2 · conversión a acción</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- THREAD -->
+    <section class="panel" id="panel-thread" role="tabpanel" hidden>
+      <div class="grid">
+        <div>
+          <p class="scale-hint">1200×675 · portada del hilo maestro</p>
+          <div class="stage">
+            <article class="frame-wide" data-od-id="export-frame-thread">
+              <div class="flag-top"></div>
+              <div class="pad">
+                <div class="brand-row">
+                  <img class="logo" src="../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+                  <span class="url-pill">Hilo · 8 partes</span>
+                </div>
+                <p class="kicker">Solo utilidad</p>
+                <h2 class="headline">Qué hacer sin rumores</h2>
+                <p class="sub">Seguridad → fuentes oficiales → reporte claro → ayuda ordenada.</p>
+                <div class="foot"><span class="dot"></span> Guardalo · compartilo · terremotocolombia.co</div>
+              </div>
+            </article>
+          </div>
+        </div>
+        <aside class="side">
+          <h2>Arranque del hilo (1/8)</h2>
+          <pre id="copy-thread">Sismo en Colombia: este hilo es solo utilidad.
+Sin política. Sin cifras inventadas.
+Guardalo.
+
+(Seguí con el hilo completo en campaigns/x-playbook.md §H)</pre>
+          <button type="button" class="copy-btn" data-copy="copy-thread">Copiar texto</button>
+          <p class="meta">Pegá el resto desde el playbook</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- CITY -->
+    <section class="panel" id="panel-city" role="tabpanel" hidden>
+      <div class="grid">
+        <div>
+          <p class="scale-hint">1080×1080 · editá el nombre de ciudad</p>
+          <div class="stage">
+            <article class="frame-sq" data-od-id="export-frame-city">
+              <div class="flag-top"></div>
+              <div class="pad pad-sq">
+                <div class="brand-row">
+                  <img class="logo logo-sm" src="../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+                  <span class="url-pill">Mapa ciudadano</span>
+                </div>
+                <p class="kicker">Alerta local</p>
+                <label class="visually-hidden" for="city-name">Ciudad</label>
+                <input class="city-input" id="city-name" value="Quibdó" data-od-id="city-fill" />
+                <p class="sub" style="margin-top:24px">Si hay afectación, reportala en el mapa. Dato claro &gt; rumor.</p>
+                <div class="foot" style="margin-top:auto"><span class="dot"></span> terremotocolombia.co</div>
+              </div>
+            </article>
+          </div>
+        </div>
+        <aside class="side">
+          <h2>Copy sugerido (G-CIUDAD)</h2>
+          <pre id="copy-city">Quibdó: si estás reportando afectación, sumalo al mapa ciudadano para que no se pierda en el scroll.
+
+→ https://terremotocolombia.co
+
+#TerremotoColombia #Chocó</pre>
+          <button type="button" class="copy-btn" data-copy="copy-city">Copiar texto</button>
+          <p class="meta">Cambiá la ciudad en la card y en el texto</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- QUOTE -->
+    <section class="panel" id="panel-quote" role="tabpanel" hidden>
+      <div class="grid">
+        <div>
+          <p class="scale-hint">1080×1080</p>
+          <div class="stage">
+            <article class="frame-sq" data-od-id="export-frame-quote">
+              <div class="flag-top"></div>
+              <div class="pad pad-sq">
+                <div class="brand-row">
+                  <img class="logo logo-sm" src="../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+                  <span class="url-pill">Mallanet.org</span>
+                </div>
+                <div class="quote-box">Polarización no es información. Hoy la utilidad es el acto cívico.</div>
+                <div class="foot" style="margin-top:auto"><span class="dot"></span> terremotocolombia.co</div>
+              </div>
+            </article>
+          </div>
+        </div>
+        <aside class="side">
+          <h2>Copy sugerido (D3)</h2>
+          <pre id="copy-quote">Polarización ≠ información.
+Hoy la utilidad es el acto cívico.
+
+Mapa y directorio: https://terremotocolombia.co · Mallanet.org</pre>
+          <button type="button" class="copy-btn" data-copy="copy-quote">Copiar texto</button>
+          <p class="meta">Ideal para quote-tweet calmado</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- STORY -->
+    <section class="panel" id="panel-story" role="tabpanel" hidden>
+      <div class="grid">
+        <div>
+          <p class="scale-hint">1080×1920 (preview a 50%)</p>
+          <div class="stage">
+            <article class="frame-story story" data-od-id="export-frame-story" style="transform: scale(0.5); margin-bottom: -480px;">
+              <div class="flag-top"></div>
+              <div class="pad">
+                <img class="logo" src="../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+                <p class="kicker" style="margin-top:48px">Terremoto Colombia</p>
+                <h2 class="headline">Una herramienta. Cero bando.</h2>
+                <p class="sub">Mapa · teléfonos · reportes. Infraestructura ciudadana.</p>
+                <div class="foot" style="margin-top:auto"><span class="dot"></span> terremotocolombia.co</div>
+              </div>
+            </article>
+          </div>
+        </div>
+        <aside class="side">
+          <h2>Copy Stories / Comunidad</h2>
+          <pre id="copy-story">Utilidad &gt; ruido.
+terremotocolombia.co
+Mallanet.org — no somos gobierno.</pre>
+          <button type="button" class="copy-btn" data-copy="copy-story">Copiar texto</button>
+          <p class="meta">También sirve para WhatsApp Status</p>
+        </aside>
+      </div>
+    </section>
+  </div>
+
+  <style>
+    .visually-hidden {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+  </style>
+  <script>
+    (function () {
+      var tabs = document.querySelectorAll("[data-tab]");
+      var cityInput = document.getElementById("city-name");
+      var copyCity = document.getElementById("copy-city");
+
+      function show(id) {
+        tabs.forEach(function (btn) {
+          var on = btn.getAttribute("data-tab") === id;
+          btn.setAttribute("aria-selected", on ? "true" : "false");
+        });
+        document.querySelectorAll(".panel").forEach(function (p) {
+          var on = p.id === "panel-" + id;
+          p.classList.toggle("active", on);
+          p.hidden = !on;
+        });
+      }
+
+      tabs.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          show(btn.getAttribute("data-tab"));
+        });
+      });
+
+      if (cityInput && copyCity) {
+        cityInput.addEventListener("input", function () {
+          var city = cityInput.value.trim() || "Tu ciudad";
+          copyCity.textContent =
+            city +
+            ": si estás reportando afectación, sumalo al mapa ciudadano para que no se pierda en el scroll.\n\n→ https://terremotocolombia.co\n\n#TerremotoColombia";
+        });
+      }
+
+      document.querySelectorAll("[data-copy]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var el = document.getElementById(btn.getAttribute("data-copy"));
+          if (!el) return;
+          var text = el.textContent;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () {
+              btn.textContent = "Copiado";
+              setTimeout(function () { btn.textContent = "Copiar texto"; }, 1400);
+            });
+          } else {
+            var ta = document.createElement("textarea");
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            document.body.removeChild(ta);
+            btn.textContent = "Copiado";
+            setTimeout(function () { btn.textContent = "Copiar texto"; }, 1400);
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

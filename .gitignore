@@ -27,3 +27,8 @@ scripts/content-audit/banned-patterns.local.txt
 
 # Higgsfield local renders
 campaigns/**/higgsfield/out/
+docs/campaigns/generated/**/*.jpg
+docs/campaigns/generated/**/*.json
+docs/campaigns/generated/**/*.png
+!docs/campaigns/generated/**/.gitkeep
+

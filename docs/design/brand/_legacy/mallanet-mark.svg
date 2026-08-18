@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Mallanet.org</title>
+  <desc id="desc">Manos que sostienen comunidad bajo una red global. Marca Mallanet.</desc>
+  <!-- Authentic mark blue from production PNG (#3DABF9) -->
+  <g fill="#3DABF9" stroke="#3DABF9">
+    <!-- Network dome -->
+    <g fill="none" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M48 128c0-56 35-96 80-96s80 40 80 96"/>
+      <path d="M64 128c8-40 30-68 64-68s56 28 64 68"/>
+      <path d="M88 128c6-24 18-40 40-40s34 16 40 40"/>
+      <path d="M48 128h160"/>
+      <path d="M58 96c30-18 50-18 80-18s50 0 80 18"/>
+      <path d="M70 64c24-20 46-28 58-28s34 8 58 28"/>
+      <path d="M128 32v96"/>
+      <path d="M96 40c10 28 14 56 14 88"/>
+      <path d="M160 40c-10 28-14 56-14 88"/>
+    </g>
+    <!-- Nodes -->
+    <g stroke="none">
+      <circle cx="128" cy="32" r="5.5"/>
+      <circle cx="88" cy="48" r="4.5"/>
+      <circle cx="168" cy="48" r="4.5"/>
+      <circle cx="64" cy="72" r="4.5"/>
+      <circle cx="128" cy="64" r="4.5"/>
+      <circle cx="192" cy="72" r="4.5"/>
+      <circle cx="52" cy="104" r="4.5"/>
+      <circle cx="96" cy="96" r="4"/>
+      <circle cx="160" cy="96" r="4"/>
+      <circle cx="204" cy="104" r="4.5"/>
+      <circle cx="48" cy="128" r="5"/>
+      <circle cx="88" cy="128" r="4"/>
+      <circle cx="128" cy="128" r="4.5"/>
+      <circle cx="168" cy="128" r="4"/>
+      <circle cx="208" cy="128" r="5"/>
+    </g>
+    <!-- Community -->
+    <g stroke="none">
+      <circle cx="86" cy="148" r="14"/>
+      <path d="M62 198c0-18 10-30 24-30s24 12 24 30v6H62z"/>
+      <circle cx="128" cy="158" r="11"/>
+      <path d="M108 202c0-14 8-22 20-22s20 8 20 22v4h-40z"/>
+      <circle cx="170" cy="148" r="14"/>
+      <path d="M146 198c0-18 10-30 24-30s24 12 24 30v6h-48z"/>
+    </g>
+    <!-- Hands -->
+    <g stroke="none">
+      <path d="M28 206c10-28 36-48 64-52 8-1 12 7 9 13-9 16-10 30-5 44 2 6-2 11-8 11H48c-12 0-22-8-20-16z"/>
+      <path d="M228 206c-10-28-36-48-64-52-8-1-12 7-9 13 9 16 10 30 5 44-2 6 2 11 8 11h40c12 0 22-8 20-16z"/>
+      <path d="M78 220c14-12 32-18 50-18s36 6 50 18c4 3 2 10-3 10H81c-5 0-7-7-3-10z"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es-ES">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Campaña X · Terremoto Colombia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: oklch(97% 0.008 260);
+      --surface: #fff;
+      --fg: #0f2154;
+      --muted: oklch(48% 0.03 260);
+      --border: oklch(90% 0.02 267);
+      --accent: #4080f2;
+      --ink: #0f2154;
+      --mist: #e1eaff;
+      --co-y: #FCD116;
+      --co-b: #003893;
+      --co-r: #CE1126;
+      --font-d: "Sora", system-ui, sans-serif;
+      --font-b: "IBM Plex Sans", system-ui, sans-serif;
+      --ease: cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--font-b); background: var(--bg); color: var(--fg); }
+    .flag {
+      height: 10px;
+      background: linear-gradient(90deg, var(--co-y) 0 33.33%, var(--co-b) 33.33% 66.66%, var(--co-r) 66.66%);
+    }
+    .hero {
+      background: var(--ink);
+      color: var(--mist);
+      padding: 48px 24px 56px;
+    }
+    .hero-inner { max-width: 920px; margin: 0 auto; }
+    .brand {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    }
+    .brand img { height: 40px; }
+    .pill {
+      background: var(--mist); color: var(--ink);
+      font: 600 13px/1 var(--font-b);
+      padding: 10px 14px; border-radius: 999px;
+    }
+    h1 {
+      font-family: var(--font-d);
+      font-size: clamp(2rem, 4vw, 2.75rem);
+      letter-spacing: -0.03em;
+      margin: 28px 0 12px;
+      max-width: 14ch;
+    }
+    .lede { font-size: 1.125rem; max-width: 48ch; color: oklch(88% 0.02 260); margin: 0; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 48px; padding: 0 20px; border-radius: 10px;
+      font: 600 15px/1 var(--font-b); text-decoration: none;
+      transition: filter 160ms var(--ease), background 160ms var(--ease);
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { filter: brightness(0.94); }
+    .btn-ghost {
+      background: transparent; color: var(--mist);
+      border: 1px solid color-mix(in oklch, var(--mist) 35%, transparent);
+    }
+    .btn-ghost:hover { background: color-mix(in oklch, var(--mist) 10%, transparent); }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    main { max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
+    h2 {
+      font-family: var(--font-d);
+      font-size: 1.35rem;
+      letter-spacing: -0.02em;
+      margin: 0 0 16px;
+    }
+    .cards {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 720px) {
+      .cards { grid-template-columns: 1fr 1fr; }
+    }
+    a.card {
+      display: block;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 160ms var(--ease), transform 160ms var(--ease);
+    }
+    a.card:hover { border-color: var(--accent); transform: translateY(-1px); }
+    a.card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    a.card strong {
+      display: block;
+      font-family: var(--font-d);
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+    a.card span { color: var(--muted); font-size: 0.92rem; }
+    .wave {
+      margin-top: 40px;
+      border-top: 1px solid var(--border);
+      padding-top: 32px;
+    }
+    ol.waves {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 12px;
+    }
+    ol.waves li {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+    ol.waves b {
+      font-family: var(--font-d);
+      color: var(--accent);
+      font-size: 1.1rem;
+    }
+    .rules {
+      margin-top: 36px;
+      padding: 20px;
+      border-radius: 14px;
+      background: var(--mist);
+      color: var(--ink);
+    }
+    .rules ul { margin: 10px 0 0; padding-left: 1.2em; }
+    .rules li { margin: 6px 0; }
+    footer {
+      margin-top: 48px;
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="flag" aria-hidden="true"></div>
+  <header class="hero" data-od-id="campaign-hero">
+    <div class="hero-inner">
+      <div class="brand">
+        <img src="../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+        <span class="pill" data-od-id="campaign-domain">terremotocolombia.co</span>
+      </div>
+      <h1 data-od-id="campaign-title">Campaña X · utilidad cívica</h1>
+      <p class="lede">
+        Playbook replicable para difundir Terremoto Colombia en X:
+        copy, olas, hashtags seguros y kit visual Mallanet —
+        sin pelear el trending político.
+      </p>
+      <div class="actions">
+        <a class="btn btn-primary" href="launch-now.html" data-od-id="cta-launch">Publicar ya</a>
+        <a class="btn btn-ghost" href="visual-kit.html" data-od-id="cta-visual">Kit visual</a>
+        <a class="btn btn-ghost" href="x-playbook.md" data-od-id="cta-playbook">Playbook</a>
+      </div>
+    </div>
+  </header>
+
+  <main data-od-id="campaign-main">
+    <h2>Entregables</h2>
+    <div class="cards">
+      <a class="card" href="launch-now.html" data-od-id="card-launch">
+        <strong>Publicar ya</strong>
+        <span>Cola de posts con Copiar: Día 0, hilo 8, Día 1–2, replies y pack voluntarios.</span>
+      </a>
+      <a class="card" href="posts-48h.md" data-od-id="card-posts">
+        <strong>Cola 48 h (markdown)</strong>
+        <span>Textos exactos para pegar, mapa visual→post y checklist pre-publish.</span>
+      </a>
+      <a class="card" href="x-playbook.md" data-od-id="card-playbook">
+        <strong>Playbook completo</strong>
+        <span>Reglas, olas 0–3, banco de copy A–I, replies, KPIs, crisis de reputación.</span>
+      </a>
+      <a class="card" href="visual-kit.html" data-od-id="card-visual">
+        <strong>Kit visual (9 piezas)</strong>
+        <span>Lanzamiento, teléfonos, mapa, antirumor, voluntariado, hilo, ciudad, quote, story.</span>
+      </a>
+      <a class="card" href="replica-cheatsheet.html" data-od-id="card-replica">
+        <strong>Cheatsheet de réplica</strong>
+        <span>Una página para voluntarios: checklist + 5 textos listos.</span>
+      </a>
+      <a class="card" href="../opengraph-terremoto-colombia.html" data-od-id="card-og">
+        <strong>Open Graph master</strong>
+        <span>Card social del sitio · mismo canon · sin cifras.</span>
+      </a>
+    </div>
+
+    <section class="wave" data-od-id="waves">
+      <h2>Olas en 30 segundos</h2>
+      <ol class="waves">
+        <li><b>0</b><div><strong>Romper el ruido</strong><br />Ancla + replies de utilidad en posts del sismo.</div></li>
+        <li><b>1</b><div><strong>Hilo bookmarkable</strong><br />8 tuits: seguridad → fuentes → mapa → ayuda.</div></li>
+        <li><b>2</b><div><strong>Red de réplica</strong><br />Voluntarios con plantilla ciudad + antirumor.</div></li>
+        <li><b>3</b><div><strong>Sostenimiento</strong><br />1–2 posts/día sin inventar métricas.</div></li>
+      </ol>
+    </section>
+
+    <section class="rules" data-od-id="hard-rules">
+      <strong>Reglas duras</strong>
+      <ul>
+        <li>Cero semiótica electoral (tigre, Patria Milagro, ataques).</li>
+        <li>Cero cifras sin fuente oficial enlazada.</li>
+        <li>Crédito solo Mallanet.org · un CTA por post.</li>
+        <li>Hashtags de facción = fuera.</li>
+      </ul>
+    </section>
+
+    <footer>
+      Canon: DESIGN.md · brand-spec.md · tokens #4080f2 / #0f2154 / #e1eaff · Mallanet.org
+    </footer>
+  </main>
+</body>
+</html>

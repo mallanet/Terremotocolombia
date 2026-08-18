@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es-ES">
+<head>
+  <meta charset="UTF-8" />
+  <title>Post ancla · Escalera de utilidad · Terremoto Colombia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0f2154;
+      --mist: #e1eaff;
+      --accent: #4080f2;
+      --co-y: #FCD116;
+      --co-b: #003893;
+      --co-r: #CE1126;
+      --font-d: "Sora", system-ui, sans-serif;
+      --font-b: "IBM Plex Sans", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #111; display: grid; place-items: center; min-height: 100vh; }
+    .frame {
+      width: 1920px;
+      height: 1080px;
+      position: relative;
+      overflow: hidden;
+      color: var(--mist);
+      background: linear-gradient(145deg, #0a1638 0%, var(--ink) 45%, #142a5c 100%);
+      font-family: var(--font-b);
+    }
+    .flag-top {
+      position: absolute; inset: 0 0 auto 0; height: 14px;
+      background: linear-gradient(90deg, var(--co-y) 0 33.33%, var(--co-b) 33.33% 66.66%, var(--co-r) 66.66%);
+    }
+    .header {
+      position: absolute; top: 48px; left: 72px; right: 72px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { height: 52px; }
+    .url-pill {
+      font: 600 18px/1 var(--font-b);
+      color: var(--ink);
+      background: var(--mist);
+      padding: 14px 20px;
+      border-radius: 999px;
+    }
+    .kicker {
+      position: absolute; top: 140px; left: 72px;
+      font: 600 16px/1 var(--font-b);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .title {
+      position: absolute; top: 176px; left: 72px;
+      font-family: var(--font-d);
+      font-size: 64px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      max-width: 18ch;
+    }
+    .stairs {
+      position: absolute;
+      right: 80px;
+      bottom: 100px;
+      width: 920px;
+      height: 520px;
+    }
+  </style>
+</head>
+<body>
+  <article class="frame" id="export-target">
+    <div class="flag-top"></div>
+    <header class="header">
+      <img class="logo" src="../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+      <span class="url-pill">terremotocolombia.co</span>
+    </header>
+    <p class="kicker">Escalera de utilidad cívica</p>
+    <h1 class="title">Qué hacer después del sismo</h1>
+    <svg class="stairs" viewBox="0 0 920 520" xmlns="http://www.w3.org/2000/svg" aria-label="Cuatro pasos de utilidad">
+      <defs>
+        <linearGradient id="stone" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#2a3f6e"/>
+          <stop offset="100%" stop-color="#1a2a4a"/>
+        </linearGradient>
+      </defs>
+      <!-- Step 1 -->
+      <rect x="40" y="380" width="200" height="100" rx="6" fill="url(#stone)" stroke="#4080f2" stroke-width="2"/>
+      <text x="140" y="430" fill="#e1eaff" font-family="Sora, sans-serif" font-size="22" font-weight="700" text-anchor="middle">1</text>
+      <text x="140" y="460" fill="#a8c4ff" font-family="IBM Plex Sans, sans-serif" font-size="16" text-anchor="middle">Seguridad personal</text>
+      <!-- Step 2 -->
+      <rect x="260" y="300" width="200" height="180" rx="6" fill="url(#stone)" stroke="#4080f2" stroke-width="2"/>
+      <text x="360" y="370" fill="#e1eaff" font-family="Sora, sans-serif" font-size="22" font-weight="700" text-anchor="middle">2</text>
+      <text x="360" y="400" fill="#a8c4ff" font-family="IBM Plex Sans, sans-serif" font-size="16" text-anchor="middle">Fuentes oficiales</text>
+      <!-- Step 3 -->
+      <rect x="480" y="200" width="200" height="280" rx="6" fill="url(#stone)" stroke="#4080f2" stroke-width="2"/>
+      <text x="580" y="310" fill="#e1eaff" font-family="Sora, sans-serif" font-size="22" font-weight="700" text-anchor="middle">3</text>
+      <text x="580" y="340" fill="#a8c4ff" font-family="IBM Plex Sans, sans-serif" font-size="16" text-anchor="middle">Mapa y reportes</text>
+      <!-- Step 4 -->
+      <rect x="700" y="100" width="200" height="380" rx="6" fill="url(#stone)" stroke="#4080f2" stroke-width="2"/>
+      <text x="800" y="260" fill="#e1eaff" font-family="Sora, sans-serif" font-size="22" font-weight="700" text-anchor="middle">4</text>
+      <text x="800" y="290" fill="#a8c4ff" font-family="IBM Plex Sans, sans-serif" font-size="16" text-anchor="middle">Ayuda coordinada</text>
+      <!-- Accent glow -->
+      <circle cx="800" cy="180" r="40" fill="#4080f2" opacity="0.25"/>
+      <circle cx="800" cy="180" r="16" fill="#4080f2"/>
+    </svg>
+    <p style="position:absolute;left:72px;bottom:56px;font-size:20px;color:#a8c4ff;">Ciudadano · Independiente · Mallanet.org</p>
+  </article>
+</body>
+</html>

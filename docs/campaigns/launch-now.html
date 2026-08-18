@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="es-ES">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Publicar ya · Cola X · Terremoto Colombia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&family=Sora:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: oklch(97% 0.008 260);
+      --surface: #fff;
+      --fg: #0f2154;
+      --muted: oklch(48% 0.03 260);
+      --border: oklch(90% 0.02 267);
+      --accent: #4080f2;
+      --ink: #0f2154;
+      --mist: #e1eaff;
+      --ok: oklch(52% 0.12 155);
+      --co-y: #FCD116;
+      --co-b: #003893;
+      --co-r: #CE1126;
+      --font-d: "Sora", system-ui, sans-serif;
+      --font-b: "IBM Plex Sans", system-ui, sans-serif;
+      --font-m: "IBM Plex Mono", ui-monospace, monospace;
+      --ease: cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font-b);
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.45;
+    }
+    .flag {
+      height: 8px;
+      background: linear-gradient(90deg, var(--co-y) 0 33.33%, var(--co-b) 33.33% 66.66%, var(--co-r) 66.66%);
+    }
+    .top {
+      background: var(--ink);
+      color: var(--mist);
+      padding: 28px 20px 32px;
+    }
+    .top-inner { max-width: 980px; margin: 0 auto; }
+    .brand {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .brand img { height: 36px; }
+    .pill {
+      background: var(--mist); color: var(--ink);
+      font: 600 12px/1 var(--font-b);
+      padding: 10px 12px; border-radius: 999px;
+    }
+    h1 {
+      font-family: var(--font-d);
+      font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+      letter-spacing: -0.03em;
+      margin: 0 0 8px;
+      max-width: 18ch;
+    }
+    .lede { margin: 0; color: oklch(88% 0.02 260); max-width: 52ch; }
+    .top-actions {
+      display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;
+    }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 44px; padding: 0 16px; border-radius: 10px;
+      font: 600 14px/1 var(--font-b); text-decoration: none; border: 0; cursor: pointer;
+      transition: filter 160ms var(--ease), background 160ms var(--ease);
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { filter: brightness(0.94); }
+    .btn-ghost {
+      background: transparent; color: var(--mist);
+      border: 1px solid color-mix(in oklch, var(--mist) 35%, transparent);
+    }
+    .btn-ghost:hover { background: color-mix(in oklch, var(--mist) 10%, transparent); }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 28px 20px 88px; }
+    .sticky-bar {
+      position: sticky; top: 0; z-index: 20;
+      background: color-mix(in oklch, var(--bg) 88%, transparent);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      margin: 0 -20px 24px;
+      padding: 12px 20px;
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+    .sticky-bar a, .sticky-bar button {
+      font: 600 13px/1 var(--font-b);
+      color: var(--fg);
+      text-decoration: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 10px 12px;
+      min-height: 40px;
+      cursor: pointer;
+    }
+    .sticky-bar a:hover, .sticky-bar button:hover { border-color: var(--accent); }
+    .sticky-bar a:focus-visible, .sticky-bar button:focus-visible {
+      outline: 2px solid var(--accent); outline-offset: 2px;
+    }
+    .progress {
+      margin-left: auto;
+      font: 600 13px/1 var(--font-m);
+      color: var(--muted);
+    }
+    h2 {
+      font-family: var(--font-d);
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+      margin: 36px 0 14px;
+    }
+    h2:first-of-type { margin-top: 8px; }
+    .hint {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin: -6px 0 16px;
+    }
+    .queue { display: grid; gap: 14px; }
+    .post {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 16px 14px;
+      display: grid;
+      gap: 12px;
+      transition: border-color 160ms var(--ease), opacity 160ms var(--ease);
+    }
+    .post.done {
+      opacity: 0.55;
+      border-color: color-mix(in oklch, var(--ok) 40%, var(--border));
+    }
+    .post-meta {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+    .badge {
+      font: 600 11px/1 var(--font-m);
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      padding: 7px 9px;
+      border-radius: 999px;
+      background: var(--mist);
+      color: var(--ink);
+    }
+    .badge.now { background: var(--accent); color: #fff; }
+    .badge.visual {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      text-transform: none;
+      letter-spacing: 0;
+      font-family: var(--font-b);
+    }
+    .post-title {
+      font-family: var(--font-d);
+      font-size: 1.02rem;
+      margin: 0;
+      flex: 1 1 auto;
+      min-width: 12ch;
+    }
+    .copy-box {
+      margin: 0;
+      white-space: pre-wrap;
+      font: 500 14px/1.5 var(--font-b);
+      background: oklch(96% 0.01 260);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      color: var(--fg);
+    }
+    .row-actions {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+    .btn-copy {
+      background: var(--ink);
+      color: var(--mist);
+      min-width: 110px;
+    }
+    .btn-copy:hover { filter: brightness(1.08); }
+    .btn-copy.copied {
+      background: var(--ok);
+      color: #fff;
+    }
+    .btn-mark {
+      background: var(--surface);
+      color: var(--fg);
+      border: 1px solid var(--border);
+    }
+    .btn-mark:hover { background: var(--mist); }
+    .btn-link {
+      background: transparent;
+      color: var(--accent);
+      border: 0;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      padding: 0 4px;
+      min-height: 44px;
+      font: 600 13px/1 var(--font-b);
+      cursor: pointer;
+    }
+    .btn-link:hover { color: var(--ink); }
+    .thread-block {
+      border-left: 3px solid var(--accent);
+      padding-left: 12px;
+      margin-top: 4px;
+    }
+    .rules {
+      margin-top: 28px;
+      padding: 18px;
+      border-radius: 14px;
+      background: var(--mist);
+      color: var(--ink);
+    }
+    .rules ul { margin: 8px 0 0; padding-left: 1.2em; }
+    .rules li { margin: 5px 0; }
+    footer {
+      margin-top: 40px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      background: var(--ink);
+      color: var(--mist);
+      padding: 12px 16px;
+      border-radius: 999px;
+      font: 600 13px/1 var(--font-b);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms var(--ease), transform 180ms var(--ease);
+      z-index: 50;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="flag" aria-hidden="true"></div>
+  <header class="top" data-od-id="launch-hero">
+    <div class="top-inner">
+      <div class="brand">
+        <img src="../../brand/mallanet/logo-claro.svg" alt="Mallanet" />
+        <span class="pill" data-od-id="launch-domain">terremotocolombia.co</span>
+      </div>
+      <h1 data-od-id="launch-title">Publicar ya</h1>
+      <p class="lede">
+        Cola Ola 0 lista para X: copiá el texto, adjuntá el JPG de
+        <code>generated/x/</code> y pegá. Utilidad cívica — cero política, cero cifras inventadas.
+      </p>
+      <div class="top-actions">
+        <a class="btn btn-primary" href="posts-ola-0-listos.md" data-od-id="cta-ola0">Pack Ola 0 (publicar ya)</a>
+        <a class="btn btn-ghost" href="generated/x/MANIFEST.md" data-od-id="cta-manifest">Manifest visuales</a>
+        <a class="btn btn-ghost" href="visual-kit.html" data-od-id="cta-kit">Kit HTML</a>
+        <a class="btn btn-ghost" href="replica-cheatsheet.html" data-od-id="cta-replica">Pack voluntarios</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" data-od-id="launch-main">
+    <div class="sticky-bar" data-od-id="launch-nav">
+      <a href="#ahora">Ahora</a>
+      <a href="#hilo">Hilo</a>
+      <a href="#dia1">Día 1–2</a>
+      <a href="#replies">Replies</a>
+      <a href="#voluntarios">Voluntarios</a>
+      <button type="button" id="reset-done" data-od-id="btn-reset">Reiniciar checks</button>
+      <span class="progress" id="progress" data-od-id="progress">0 publicados</span>
+    </div>
+
+    <h2 id="ahora">Cola inmediata (Ola 0 · Día 0)</h2>
+    <p class="hint">Ventanas CO: 07:30–09:00 · 12:00–14:00 · 20:00–22:00. Empezá por <strong>A2</strong>. Visuales: <code>generated/x/*.jpg</code>.</p>
+    <div class="queue" id="queue-now" data-od-id="queue-now"></div>
+
+    <h2 id="hilo">Hilo maestro (8 tuits)</h2>
+    <p class="hint">Slot +4 h (o mañana). Portada: <code>generated/x/x-hilo-portada-16x9.png</code> solo en el 1/8.</p>
+    <div class="queue thread-block" id="queue-thread" data-od-id="queue-thread"></div>
+
+    <h2 id="dia1">Día 1–2</h2>
+    <div class="queue" id="queue-later" data-od-id="queue-later"></div>
+
+    <h2 id="replies">Replies (usar 8–15× hoy)</h2>
+    <p class="hint">Respondé posts virales del sismo. No pelees. Un link. Listo.</p>
+    <div class="queue" id="queue-replies" data-od-id="queue-replies"></div>
+
+    <h2 id="voluntarios">Pack voluntarios</h2>
+    <p class="hint">Rotá textos. Bio: “Comparto utilidad de terremotocolombia.co · Mallanet.org (no oficial)”.</p>
+    <div class="queue" id="queue-vols" data-od-id="queue-vols"></div>
+
+    <section class="rules" data-od-id="launch-rules">
+      <strong>Antes de pegar</strong>
+      <ul>
+        <li>Sin ataque, bando, tigre ni hashtags de facción.</li>
+        <li>Sin magnitud / muertos / cifras sin fuente oficial.</li>
+        <li>Un CTA · crédito Mallanet.org · imagen de <code>generated/x/</code>.</li>
+        <li>En emergencia real: 123 / autoridad local — nosotros no la reemplazamos.</li>
+      </ul>
+      <strong style="display:block;margin-top:16px">Checklist publicar YA</strong>
+      <ul>
+        <li>Header perfil: <code>generated/x/x-header-16x9.png</code> (crop ~1500×500)</li>
+        <li>Slot 1 A2 + <code>x-ancla-utilidad-16x9.png</code></li>
+        <li>Slot 2 B1 + <code>x-telefonos-16x9.png</code></li>
+        <li>Slot 3 D1 + <code>x-antirumor-16x9.png</code></li>
+        <li>Slot 4 Hilo + <code>x-hilo-portada-16x9.png</code></li>
+        <li>Slot 5 · 2–3× G-REPLY (sin pelear)</li>
+      </ul>
+    </section>
+
+    <footer>
+      Canon Mallanet #4080f2 / #0f2154 / #e1eaff · <a href="posts-ola-0-listos.md">Ola 0</a> · <a href="generated/x/MANIFEST.md">visuales</a> · <a href="x-playbook.md">playbook</a>
+    </footer>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">Copiado</div>
+
+  <script>
+    (function () {
+      var LINK = "https://terremotocolombia.co";
+      var STORAGE_KEY = "tc-x-launch-done-v1";
+
+      var now = [
+        {
+          id: "p01",
+          when: "H0 · YA",
+          title: "A2 · Ancla",
+          visual: "x-ancla-utilidad-16x9.png",
+          visualHref: "generated/x/x-ancla-utilidad-16x9.png",
+          urgent: true,
+          text:
+            "Si estás buscando qué hacer o cómo ayudar después del sismo:\n\n" +
+            "Mapa + reportes + teléfonos en un solo lugar.\n" +
+            "terremotocolombia.co\n\n" +
+            "Ciudadano. Independiente. Mallanet.org\n" +
+            "#TerremotoColombia"
+        },
+        {
+          id: "p02",
+          when: "+1 h",
+          title: "B1 · Teléfonos",
+          visual: "x-telefonos-16x9.png",
+          visualHref: "generated/x/x-telefonos-16x9.png",
+          text:
+            "Antes de reenviar un pantallazo dudoso: guardá los canales oficiales de tu ciudad y usá el directorio.\n\n" +
+            "Teléfonos y líneas útiles:\n" +
+            "→ terremotocolombia.co/telefonos\n\n" +
+            "En emergencia real: llamá a los números locales. Nosotros no reemplazamos a la autoridad."
+        },
+        {
+          id: "p03",
+          when: "+2,5 h",
+          title: "D1 · Antirumor",
+          visual: "x-antirumor-16x9.png",
+          visualHref: "generated/x/x-antirumor-16x9.png",
+          text:
+            "Regla de oro del sismo:\n\n" +
+            "✅ Fuente con nombre (SGC, UNGRD, alcaldía, bomberos)\n" +
+            "❌ Audio de WhatsApp sin origen\n" +
+            "❌ Cifras sin link\n" +
+            "❌ “Me dijeron que…”\n\n" +
+            "Herramienta ciudadana: terremotocolombia.co"
+        },
+        {
+          id: "p04",
+          when: "Ola 1 · tarde",
+          title: "C1 · Mapa",
+          visual: "x-ancla-utilidad-16x9.png",
+          visualHref: "generated/x/x-ancla-utilidad-16x9.png",
+          text:
+            "¿Daños en [CIUDAD]? Reportalo en el mapa ciudadano.\n\n" +
+            "Dato claro > rumor.\n" +
+            "→ terremotocolombia.co\n\n" +
+            "#TerremotoColombia"
+        }
+      ];
+
+      var thread = [
+        {
+          id: "t1",
+          when: "1/8",
+          title: "Hilo · apertura",
+          visual: "x-hilo-portada-16x9.png",
+          visualHref: "generated/x/x-hilo-portada-16x9.png",
+          text:
+            "Sismo en Colombia: este hilo es solo utilidad.\n" +
+            "Sin política. Sin cifras inventadas.\n" +
+            "Guardalo.\n\n" +
+            "#TerremotoColombia"
+        },
+        {
+          id: "t2",
+          when: "2/8",
+          title: "Hilo · seguridad",
+          visual: "—",
+          text:
+            "Primero: tu seguridad y la de tu gente.\n" +
+            "Después: información.\n" +
+            "Al revés es pánico."
+        },
+        {
+          id: "t3",
+          when: "3/8",
+          title: "Hilo · fuentes",
+          visual: "—",
+          text:
+            "Fuentes a mirar antes que el grupo de WhatsApp:\n" +
+            "• Servicio Geológico Colombiano\n" +
+            "• UNGRD\n" +
+            "• Alcaldía / bomberos de tu ciudad"
+        },
+        {
+          id: "t4",
+          when: "4/8",
+          title: "Hilo · producto",
+          visual: "—",
+          text:
+            "Terremoto Colombia (Mallanet.org) junta mapa, reportes ciudadanos y teléfonos útiles en un solo lugar.\n" +
+            "No somos gobierno.\n\n" +
+            "→ " + LINK
+        },
+        {
+          id: "t5",
+          when: "5/8",
+          title: "Hilo · reportar",
+          visual: "—",
+          text:
+            "Si vas a reportar: dato claro > drama.\n" +
+            "Ubicación, tipo de afectación, hora aproximada.\n" +
+            "Menos rumor, más coordinación."
+        },
+        {
+          id: "t6",
+          when: "6/8",
+          title: "Hilo · ayudar",
+          visual: "—",
+          text:
+            "¿Querés ayudar?\n" +
+            "Voluntariado / acopio / donaciones con criterios:\n\n" +
+            LINK + "/voluntario\n" +
+            LINK + "/acopio\n" +
+            LINK + "/donaciones"
+        },
+        {
+          id: "t7",
+          when: "7/8",
+          title: "Hilo · amplificación",
+          visual: "—",
+          text:
+            "Regla de amplificación:\n" +
+            "Si no tiene fuente, no lo RT.\n" +
+            "Si tiene fuente, sumá el link útil."
+        },
+        {
+          id: "t8",
+          when: "8/8",
+          title: "Hilo · cierre",
+          visual: "—",
+          text:
+            "Compartí este hilo con alguien que esté reenviando audios.\n" +
+            "Utilidad > ruido.\n\n" +
+            LINK + " · Mallanet.org\n" +
+            "#TerremotoColombia"
+        }
+      ];
+
+      var later = [
+        {
+          id: "p05",
+          when: "D1 · 08:00",
+          title: "Post 05 · Verificá",
+          visual: "Antirumor",
+          text:
+            "Si el post no dice de dónde salió el número, no lo amplifiques.\n\n" +
+            "Verificá. Después compartí.\n" +
+            "→ " + LINK + "\n" +
+            "#TerremotoColombia"
+        },
+        {
+          id: "p06",
+          when: "D1 · 12:30",
+          title: "Post 06 · Voluntariado",
+          visual: "Voluntariado",
+          text:
+            "¿Querés ayudar sin improvisar?\n" +
+            "Empezá por canales ordenados: voluntariado, acopio, necesidades publicadas.\n\n" +
+            "→ " + LINK + "/voluntario\n" +
+            "Mallanet.org\n" +
+            "#TerremotoColombia"
+        },
+        {
+          id: "p07",
+          when: "D1 · 18:00",
+          title: "Post 07 · Quiénes somos",
+          visual: "Confianza",
+          text:
+            "Somos iniciativa ciudadana, independiente y no gubernamental.\n" +
+            "Centralizamos info útil. No reemplazamos a SGC ni a UNGRD.\n\n" +
+            "Quiénes somos → " + LINK + "/quienes-somos"
+        },
+        {
+          id: "p08",
+          when: "D1 · 21:00",
+          title: "Post 08 · Guía",
+          visual: "Guía / Lanzamiento",
+          text:
+            "Si estás buscando qué hacer o cómo ayudar:\n\n" +
+            "Mapa + reportes + teléfonos + guía en un solo lugar.\n" +
+            LINK + "/guia\n\n" +
+            "Ciudadano. Independiente. Mallanet.org\n" +
+            "#TerremotoColombia"
+        },
+        {
+          id: "p09",
+          when: "D2 · 08:30",
+          title: "Post 09 · Ciudad (editá)",
+          visual: "Ciudad",
+          text:
+            "[CIUDAD]: si estás reportando afectación, sumalo al mapa ciudadano para que no se pierda en el scroll.\n\n" +
+            "→ " + LINK + "\n" +
+            "#TerremotoColombia #[CIUDAD]"
+        },
+        {
+          id: "p10",
+          when: "D2 · 13:00",
+          title: "Post 10 · Donar / acopio",
+          visual: "Voluntariado",
+          text:
+            "Donar bien también es coordinar.\n" +
+            "Revisá organizaciones listadas y evitá campañas opacas.\n\n" +
+            LINK + "/donaciones\n" +
+            LINK + "/acopio\n" +
+            "Mallanet.org"
+        },
+        {
+          id: "p11",
+          when: "D2 · 20:30",
+          title: "Post 11 · Confianza corta",
+          visual: "Quote",
+          text:
+            "Si buscás un bando, este no es tu RT.\n" +
+            "Si buscás utilidad, sí.\n\n" +
+            "Terremoto Colombia · Mallanet.org\n" +
+            "→ " + LINK
+        }
+      ];
+
+      var replies = [
+        {
+          id: "r1",
+          when: "Reply",
+          title: "Utilidad corta",
+          visual: "—",
+          text:
+            "Si alguien necesita mapa / teléfonos / cómo reportar sin rumor:\n" +
+            LINK + "\n\n" +
+            "No somos oficiales · Mallanet.org"
+        },
+        {
+          id: "r2",
+          when: "Reply",
+          title: "Teléfonos",
+          visual: "—",
+          text:
+            "Directorio de líneas útiles (no reemplaza al 123):\n" +
+            LINK + "/telefonos"
+        },
+        {
+          id: "r3",
+          when: "Quote",
+          title: "Citar oficial útil",
+          visual: "Quote",
+          text:
+            "Útil. Lo dejamos junto al directorio ciudadano para quien llega tarde al hilo:\n\n" +
+            LINK
+        },
+        {
+          id: "r4",
+          when: "Reply",
+          title: "Antirumor",
+          visual: "—",
+          text:
+            "Antes de RT: ¿tiene fuente con nombre?\n" +
+            "Si no, no amplifiques. Herramienta ciudadana → " + LINK
+        }
+      ];
+
+      var vols = [
+        {
+          id: "v1",
+          when: "V1",
+          title: "Corta mapa",
+          visual: "Lanzamiento",
+          text: "Mapa + teléfonos útiles · sin política → " + LINK
+        },
+        {
+          id: "v2",
+          when: "V2",
+          title: "Verificá",
+          visual: "Antirumor",
+          text: "Antes de reenviar el audio: verificá. " + LINK
+        },
+        {
+          id: "v3",
+          when: "V3",
+          title: "Infraestructura",
+          visual: "Confianza",
+          text:
+            "No somos gobierno. Sí somos infraestructura ciudadana.\n" +
+            "Mallanet.org · " + LINK
+        },
+        {
+          id: "v4",
+          when: "V4",
+          title: "Directorio",
+          visual: "Teléfonos",
+          text: "Guardá el directorio: " + LINK + "/telefonos"
+        },
+        {
+          id: "v5",
+          when: "V5",
+          title: "Geo fill-in",
+          visual: "Ciudad",
+          text:
+            "[CIUDAD] necesita reportes claros, no rumores.\n" +
+            "→ " + LINK
+        },
+        {
+          id: "v6",
+          when: "Status",
+          title: "WhatsApp / Story",
+          visual: "Story 9:16",
+          text:
+            "Utilidad, no ruido.\n" +
+            "Mapa · teléfonos · reportes\n" +
+            "terremotocolombia.co\n" +
+            "Mallanet.org"
+        }
+      ];
+
+      function loadDone() {
+        try {
+          return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") || {};
+        } catch (e) {
+          return {};
+        }
+      }
+
+      function saveDone(map) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+      }
+
+      var doneMap = loadDone();
+      var toastEl = document.getElementById("toast");
+      var toastTimer;
+
+      function toast(msg) {
+        toastEl.textContent = msg;
+        toastEl.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () {
+          toastEl.classList.remove("show");
+        }, 1400);
+      }
+
+      function updateProgress() {
+        var n = Object.keys(doneMap).filter(function (k) { return doneMap[k]; }).length;
+        document.getElementById("progress").textContent = n + " marcados";
+      }
+
+      function copyText(text, btn) {
+        function ok() {
+          btn.classList.add("copied");
+          btn.textContent = "Copiado";
+          toast("Texto copiado — pegalo en X");
+          setTimeout(function () {
+            btn.classList.remove("copied");
+            btn.textContent = "Copiar";
+          }, 1600);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(ok).catch(function () {
+            fallbackCopy(text, ok);
+          });
+        } else {
+          fallbackCopy(text, ok);
+        }
+      }
+
+      function fallbackCopy(text, ok) {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand("copy");
+          ok();
+        } catch (e) {
+          toast("No se pudo copiar — seleccioná el texto");
+        }
+        document.body.removeChild(ta);
+      }
+
+      function renderCard(item, mount) {
+        var el = document.createElement("article");
+        el.className = "post" + (doneMap[item.id] ? " done" : "");
+        el.setAttribute("data-od-id", "post-" + item.id);
+        el.innerHTML =
+          '<div class="post-meta">' +
+            '<span class="badge' + (item.urgent ? " now" : "") + '">' + item.when + "</span>" +
+            '<h3 class="post-title">' + item.title + "</h3>" +
+            '<span class="badge visual">Visual: ' + item.visual + "</span>" +
+          "</div>" +
+          '<pre class="copy-box"></pre>' +
+          '<div class="row-actions">' +
+            '<button type="button" class="btn btn-copy" data-od-id="copy-' + item.id + '">Copiar</button>' +
+            '<button type="button" class="btn btn-mark" data-od-id="mark-' + item.id + '">' +
+              (doneMap[item.id] ? "Desmarcar" : "Marcar publicado") +
+            "</button>" +
+            (item.visualHref
+              ? '<a class="btn-link" href="' + item.visualHref + '">Abrir visual</a>'
+              : item.visual !== "—"
+                ? '<a class="btn-link" href="visual-kit.html">Ir al kit</a>'
+                : "") +
+          "</div>";
+        el.querySelector(".copy-box").textContent = item.text;
+        var copyBtn = el.querySelector(".btn-copy");
+        var markBtn = el.querySelector(".btn-mark");
+        copyBtn.addEventListener("click", function () {
+          copyText(item.text, copyBtn);
+        });
+        markBtn.addEventListener("click", function () {
+          doneMap[item.id] = !doneMap[item.id];
+          saveDone(doneMap);
+          el.classList.toggle("done", !!doneMap[item.id]);
+          markBtn.textContent = doneMap[item.id] ? "Desmarcar" : "Marcar publicado";
+          updateProgress();
+        });
+        mount.appendChild(el);
+      }
+
+      function renderList(items, mountId) {
+        var mount = document.getElementById(mountId);
+        items.forEach(function (item) {
+          renderCard(item, mount);
+        });
+      }
+
+      renderList(now, "queue-now");
+      renderList(thread, "queue-thread");
+      renderList(later, "queue-later");
+      renderList(replies, "queue-replies");
+      renderList(vols, "queue-vols");
+      updateProgress();
+
+      document.getElementById("reset-done").addEventListener("click", function () {
+        doneMap = {};
+        saveDone(doneMap);
+        document.querySelectorAll(".post").forEach(function (el) {
+          el.classList.remove("done");
+          var btn = el.querySelector(".btn-mark");
+          if (btn) btn.textContent = "Marcar publicado";
+        });
+        updateProgress();
+        toast("Checks reiniciados");
+      });
+    })();
+  </script>
+</body>
+</html>
