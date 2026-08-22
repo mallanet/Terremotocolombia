@@ -596,7 +596,7 @@ patientImportsRouter.post(
  *       - { name: id, in: path, required: true, schema: { type: string } }
  *       - { name: rowId, in: path, required: true, schema: { type: string } }
  *     responses:
- *       200: { description: Fila actualizada, re-validada y re-clasificada }
+ *       200: { description: "Fila actualizada, re-validada y re-clasificada" }
  *       400: { description: Payload inválido o hospitalId inexistente }
  *       404: { description: Lote o fila no encontrados }
  *       409: { description: Fila en estado terminal o edición concurrente (baseline obsoleta) }
@@ -698,7 +698,7 @@ patientImportsRouter.post(
  *       - { name: id, in: path, required: true, schema: { type: string } }
  *       - { name: rowId, in: path, required: true, schema: { type: string } }
  *     responses:
- *       200: { description: Decisión aplicada (valid con candidato aceptado, o re-clasificada) }
+ *       200: { description: "Decisión aplicada (valid con candidato aceptado, o re-clasificada)" }
  *       400: { description: Payload inválido o patientId fuera de los candidatos de la fila }
  *       404: { description: Lote o fila no encontrados }
  *       409: { description: Fila en estado no decidible }

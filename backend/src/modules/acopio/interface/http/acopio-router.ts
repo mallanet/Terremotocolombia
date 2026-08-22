@@ -15,8 +15,8 @@ import {
  *     description: >-
  *       Devuelve los puntos donde se reciben donaciones físicas, con facetas de
  *       país y categoría para filtrar. Incluye la lista estática de centros
- *       oficiales del sismo, los reportes ciudadanos tipo shelter y, si
-       ENABLE_RESPONSEGRID=true, ResponseGrid.
+ *       oficiales del sismo, los reportes ciudadanos tipo shelter y, si el
+ *       módulo ResponseGrid está activo, esa fuente también.
  *     parameters:
  *       - in: query
  *         name: country
