@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { APP_BUILD_SHA_HEADER, getAppBuildSha } from "./src/shared/build-identity";
 
 // Cabeceras de seguridad para TODA respuesta. Un panel admin importa más que el
 // sitio público: bloqueamos embebido en iframe (clickjacking sobre acciones de
@@ -10,6 +11,7 @@ const SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Robots-Tag", value: "noindex, nofollow" },
+  { key: APP_BUILD_SHA_HEADER, value: getAppBuildSha() },
 ];
 
 const nextConfig: NextConfig = {
@@ -24,7 +26,7 @@ const nextConfig: NextConfig = {
   // sticky sessions en el LB. Derivar el id del commit SHA hace que coincidan;
   // deploymentId fuerza recarga limpia cuando una pestaña vieja pega a un pod
   // nuevo. APP_BUILD_SHA llega en BUILD time (build-arg → ENV); "dev" en local.
-  generateBuildId: async () => process.env.APP_BUILD_SHA || "dev",
+  generateBuildId: async () => getAppBuildSha(),
   deploymentId: process.env.APP_BUILD_SHA || undefined,
 
   // Sirve /_next/static desde el CDN (R2) si está configurado, para que un chunk

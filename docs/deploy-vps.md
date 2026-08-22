@@ -158,10 +158,15 @@ a "single box" setup, with no external proxy or edge in front. Public
 traffic needs only the `ufw allow 80/tcp` / `443/tcp` rules from step 1 to
 reach it.
 
-The `migrate` service runs the database migrations. It must finish
-successfully before `backend`/`worker` start. This is a declared dependency
-in the compose file (`condition: service_completed_successfully`) — you do
-not need to orchestrate it by hand.
+The `migrate` service runs the database migrations. It is behind Compose
+profile `migrate`. Ordinary `up` does not run it:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .prod.env --profile migrate run --rm migrate
+```
+
+Apply migrations before you start or recreate `backend`/`worker`. The app
+containers do not wait for migrate.
 
 ## Smoke checks (required before you announce the deployment)
 
@@ -249,13 +254,14 @@ git pull origin main   # or the branch you use for production
 docker compose -f docker-compose.prod.yml --env-file .prod.env up -d --build
 ```
 
-- The `migrate` service runs again on every `up --build`. It applies any new
-  migration before `backend`/`worker` start. You do not need to run
-  migrations by hand.
+- The `migrate` service does **not** run on every `up --build`. Use
+  `--profile migrate` when you intend to apply schema changes. Then recreate
+  the app containers.
 - This project's migrations must be expand-contract (see
-  `docs/architecture.md`). This pattern is exactly why this `up` command
-  causes no downtime. The old container keeps serving traffic. The new
-  container starts against the already-migrated schema.
+  `docs/architecture.md`). This pattern is why a code rollback can keep
+  additive schema in place.
+- Backend, frontend, and admin declare HTTP healthchecks. Pass
+  `APP_BUILD_SHA` as a build-arg so served identity matches the git SHA.
 - If you changed `NEXT_PUBLIC_*` variables in `.prod.env`, a restart is not
   enough. Those variables get inlined at build time. The `frontend` rebuild
   above already picks them up. Confirm this if you are unsure:

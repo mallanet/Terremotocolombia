@@ -17,7 +17,8 @@ deployment serves real traffic.
 > An earlier version of this file asked for exactly that merge. That
 > instruction no longer applies, and following it now would cause harm.
 > `CLAUDE.md` holds what an agent needs to know **before** touching
-> anything: that a push to `main` deploys, what a human must always handle,
+> anything: that a push to `main` uploads Worker versions, that promotion
+> is a separate human step, what a human must always handle,
 > and where each piece runs. Turning it into a link to this file would erase
 > all of that.
 >
@@ -40,12 +41,13 @@ deployment serves real traffic.
 - Do not rewrite history, delete branches you do not own, or revert changes
   you did not make.
 - **A merge to `main` that touches `frontend/**` or
-  `config/deployment.config.json` deploys the frontend automatically, with
-  no approval step.** Treat "push to main" the same as "deploy to a site
-  people are using right now." **The backend does not deploy on its own** —
-  it deploys only when a human runs `deploy-backend.yml` by hand
-  (`workflow_dispatch`), which also runs a schema-drift gate. For the full
-  rules on what a human must always do: `CLAUDE.md`.
+  `config/deployment.config.json` uploads a frontend Worker version. It does
+  not send production traffic.** A human must run `promote-frontend.yml`
+  with that SHA. The same split applies to `admin/**` and
+  `promote-admin.yml`. **The backend does not deploy on its own** — upload
+  and promote are both `workflow_dispatch` on `deploy-backend.yml`, and
+  both run a schema-capability gate. For the full rules on what a human
+  must always do: `CLAUDE.md`.
 
 ## Architecture rule
 
@@ -344,10 +346,12 @@ The backend has TWO HTTP surfaces, and each one follows its own pattern:
 
 #### Schema order: the schema goes FIRST, and no deploy applies it for you
 
-In `docker-compose.prod.yml`, the `migrate` service runs before
-`backend`/`worker` start. **That is NOT what happens in production
-today.** Production runs on Cloudflare Workers: a push to `main` deploys
-**code**, and nothing else. A human gates every migration, and neither CI
+In `docker-compose.prod.yml`, the `migrate` service sits behind Compose
+profile `migrate`. Ordinary `up` does not run it. **That VPS path is not
+what serves production today.** Production runs on Cloudflare Workers: a
+push to `main` uploads frontend and admin Worker versions and does not
+send them traffic. A human promotes an immutable SHA. Nothing in that
+path applies a migration. A human gates every migration, and neither CI
 nor any deploy runs one.
 
 This already caused an outage (2026-08-11, commit `a81e17c`): a single

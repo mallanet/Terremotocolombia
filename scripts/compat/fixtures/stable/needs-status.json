@@ -1,0 +1,14 @@
+{
+  "surface": "GET /api/needs/status/:jobId",
+  "lane": "stable-shape",
+  "notes": "Citizen payload must never appear. Zod validation lands in U3.",
+  "requiredKeys": ["jobId", "state", "progress", "result", "failedReason"],
+  "allowedStates": ["queued", "completed", "failed"],
+  "example": {
+    "jobId": "need-00000000-0000-4000-8000-000000000000",
+    "state": "queued",
+    "progress": null,
+    "result": null,
+    "failedReason": null
+  }
+}

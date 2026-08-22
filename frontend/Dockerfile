@@ -8,7 +8,7 @@ WORKDIR /app
 # ---- deps: instala con el lockfile (mejor cache de capas) ----
 FROM base AS deps
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+RUN npm ci --no-audit --no-fund
 
 # ---- builder: compila el server standalone ----
 FROM base AS builder

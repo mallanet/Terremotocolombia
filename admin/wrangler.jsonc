@@ -23,6 +23,7 @@
   // (la sesión es el JWT del backend en cookie httpOnly, firmado por la API).
   "vars": {
     "EMERGENCY_API_URL": "https://api.terremotocolombia.co",
+    "APP_BUILD_SHA": "dev",
   },
   // Staging: Worker aparte, dominio aparte (admin-staging), API de staging.
   // Mismo fichero a propósito — ver frontend/wrangler.jsonc.
@@ -41,6 +42,7 @@
       },
       "vars": {
         "EMERGENCY_API_URL": "https://api-staging.terremotocolombia.co",
+        "APP_BUILD_SHA": "dev",
       },
     },
   },

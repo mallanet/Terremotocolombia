@@ -1,0 +1,9 @@
+{
+  "surface": "POST /api/needs (202)",
+  "lane": "stable-shape",
+  "requiredKeys": ["queued", "jobId"],
+  "example": {
+    "queued": true,
+    "jobId": "need-00000000-0000-4000-8000-000000000000"
+  }
+}

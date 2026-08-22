@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { NextConfig } from "next";
+import { APP_BUILD_SHA_HEADER, getAppBuildSha } from "./lib/build-identity";
 
 // Cabeceras de seguridad aplicadas a todas las rutas.
 //
@@ -23,6 +24,7 @@ const securityHeaders = [
     key: "Strict-Transport-Security",
     value: "max-age=31536000; includeSubDomains",
   },
+  { key: APP_BUILD_SHA_HEADER, value: getAppBuildSha() },
 ];
 
 // Origen del backend (NEXT_PUBLIC_API_URL) para inyectarlo en la CSP. En prod es
@@ -189,7 +191,7 @@ const nextConfig: NextConfig = {
   // coincidan; `deploymentId` fuerza una navegación dura (recarga limpia) cuando
   // una pestaña vieja pega contra un pod nuevo entre deploys. APP_BUILD_SHA se lee
   // en BUILD time (build-arg → ENV en el Dockerfile); cae a "dev" en local.
-  generateBuildId: async () => process.env.APP_BUILD_SHA || "dev",
+  generateBuildId: async () => getAppBuildSha(),
   deploymentId: process.env.APP_BUILD_SHA || undefined,
   // Sirve /_next/static desde el CDN (R2 + dominio Cloudflare) para que una
   // petición de chunk nunca pegue a un pod mid-deploy con otro build — el CDN

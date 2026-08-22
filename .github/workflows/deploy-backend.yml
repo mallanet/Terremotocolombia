@@ -1,41 +1,36 @@
 name: Deploy backend
 
-# Despliega SOLO la API (Worker terremotocolombia-api).
+# Uploads or promotes the API Worker (terremotocolombia-api).
+# Migrations stay a separate human-gated step (backend/worker/migrate.ts
+# against Neon direct). This workflow never migrates.
 #
-# MANUAL (workflow_dispatch) desde 2026-08-11 por la tarde, decision del
-# mantenedor tras el incidente de las 6h de 503: mergear a main ya NO
-# despliega el backend de produccion por si solo. El historial completo:
-# manual con confirmacion -> automatico en push (mañana del 2026-08-11) ->
-# manual de nuevo (tarde, post-incidente). Staging conserva su deploy
-# automatico (deploy-staging.yml): alli es donde se prueba; produccion se
-# despliega mirando.
+# action=upload: typecheck, schema capability gate, wrangler versions upload.
+# action=promote: versions deploy of the tagged SHA. Does not rebuild.
 #
-# Como desplegar:
-#   Actions -> "Deploy backend" -> Run workflow (rama main)
-#   o: gh workflow run deploy-backend.yml --ref main
-#
-# OJO CON EL REF: se despliega el codigo del ref que elijas, no el de `main`.
-# Mergea a main ANTES de lanzarlo. Si lo lanzas sobre una rama y despues
-# alguien lo lanza sobre main, el segundo pisa al primero en silencio y
-# produccion se queda con el backend de main. Paso el 2026-08-10 (/api/pets
-# volvio a dar 404 tras un despliegue aparentemente correcto). El estado sano
-# es `main` == lo que corre en produccion.
-#
-# El gate de deriva de esquema corre igualmente en cada dispatch y falla
-# cerrado: si el codigo espera columnas que produccion no tiene, no hay
-# deploy. `omitir_drift` es la salida de emergencia auditada.
-#
-# OJO: las migraciones SIGUEN siendo un paso aparte y deliberado
-# (backend/worker/migrate.ts contra Neon DIRECTO). Este workflow solo
-# despliega codigo; nunca toca el esquema.
+# OJO CON EL REF: the workflow deploys the ref you select, not always main.
+# Merge to main before you run it.
 on:
   workflow_dispatch:
     inputs:
+      action:
+        description: Upload a version with no traffic, or promote an uploaded SHA
+        type: choice
+        options:
+          - upload
+          - promote
+        default: upload
+      source_sha:
+        description: Required for promote. Full git SHA tagged on upload.
+        required: false
+        type: string
+      worker_version_id:
+        description: Optional Worker Version ID for promote
+        required: false
+        type: string
       omitir_drift:
         description: >-
-          Saltar el gate de deriva de esquema. SOLO para un hotfix que no toca
-          las tablas de la migracion pendiente. Queda registrado en Actions con
-          tu usuario: es una decision visible, no un flag de conveniencia.
+          Skip the schema-drift gate. ONLY for a hotfix that does not touch
+          tables from a pending migration. The skip is visible in Actions.
         type: boolean
         default: false
 
@@ -47,11 +42,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Deploy de la API
+  upload:
+    if: ${{ inputs.action == 'upload' }}
+    name: Upload API Worker version (no traffic)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
+    env:
+      APP_BUILD_SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
 
@@ -63,7 +60,7 @@ jobs:
 
       - uses: dopplerhq/cli-action@v3
 
-      - name: Instalar dependencias
+      - name: Install dependencies
         working-directory: backend
         run: npm ci
 
@@ -71,60 +68,83 @@ jobs:
         working-directory: backend
         run: npm run typecheck
 
-      # GATE DE DERIVA — corre ANTES del deploy, a proposito.
-      #
-      # El 2026-08-11 este workflow desplegó el codigo del formulario ramificado
-      # de voluntarios mientras su migracion 0003 seguia sin aplicar: 6h de 503
-      # en TODOS los registros publicos y ~44 inscripciones perdidas. El smoke
-      # check de mas abajo dio verde todo el rato, porque /api/readyz hace
-      # SELECT 1 y eso pasa con el esquema derivado.
-      #
-      # Corre antes y falla cerrado: si la base no tiene las columnas que el
-      # codigo nuevo va a nombrar, NO se despliega y produccion se queda
-      # sirviendo el codigo anterior, que si casa con el esquema anterior.
-      # Fallar el deploy es estrictamente mejor que desplegar y romper.
-      #
-      # Compara COLUMNAS contra information_schema, no el contador de
-      # migraciones (ver worker/check-schema-drift.ts). No escribe nada y NO
-      # aplica migraciones: el gate humano de CLAUDE.md sigue intacto.
-      #
-      # Salida de emergencia: Actions -> Run workflow -> omitir_drift. Hay que
-      # marcarla a mano en el formulario y queda con nombre y hora en el
-      # historial: nadie se la salta sin dejar rastro.
-      - name: Gate de deriva de esquema
+      - name: Schema capability gate
         if: ${{ inputs.omitir_drift != true }}
         working-directory: backend
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-        run: doppler run --command 'npm run check:schema-drift'
+        run: doppler run --command 'npm run check:platform-schema'
 
-      - name: Aviso de gate omitido
+      - name: Drift gate skipped
         if: ${{ inputs.omitir_drift == true }}
         run: |
-          echo "::warning title=Gate de deriva OMITIDO::Se despliega sin comprobar el esquema. Verifica que este hotfix no toca las tablas de ninguna migracion pendiente."
+          echo "::warning title=Schema gate SKIPPED::Uploading without checking the schema. Confirm this hotfix does not touch pending-migration tables."
 
-      # OJO: las migraciones NO corren aqui. Son un paso aparte y deliberado
-      # (backend/worker/migrate.ts con DATABASE_URL apuntando a Neon DIRECTO,
-      # no al endpoint -pooler). Encadenarlas a cada deploy significaria migrar
-      # el esquema de produccion sin que nadie lo mire.
-      - name: Deploy a Cloudflare Workers
+      - name: Upload Worker version (no production traffic)
         working-directory: backend
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+          APP_BUILD_SHA: ${{ github.sha }}
         run: |
           doppler run --command '
-            CLOUDFLARE_API_TOKEN="$CLOUDFLARE_ACCOUNT_API_TOKEN" \
-            CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID" \
-            npx wrangler deploy'
+            export CLOUDFLARE_API_TOKEN="$CLOUDFLARE_ACCOUNT_API_TOKEN"
+            export CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID"
+            export APP_BUILD_SHA="'"$APP_BUILD_SHA"'"
+            bash ../scripts/release/upload-worker-version.sh
+          '
 
-      - name: Smoke check de la API
+  promote:
+    if: ${{ inputs.action == 'promote' }}
+    name: Promote API Worker version
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production-backend
+      url: https://api.terremotocolombia.co
+    steps:
+      - name: Require source SHA
+        run: test -n "${{ inputs.source_sha }}"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - uses: dopplerhq/cli-action@v3
+
+      - name: Install wrangler
+        working-directory: backend
+        run: npm ci
+
+      - name: Schema capability gate
+        if: ${{ inputs.omitir_drift != true }}
+        working-directory: backend
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+        run: doppler run --command 'npm run check:platform-schema'
+
+      - name: Promote uploaded version
+        working-directory: backend
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          WORKER_VERSION_ID: ${{ inputs.worker_version_id }}
         run: |
-          set -euo pipefail
-          for i in $(seq 1 10); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://api.terremotocolombia.co/api/readyz || echo 000)
-            echo "intento $i -> HTTP $code"
-            [ "$code" = "200" ] && exit 0
-            sleep 10
-          done
-          echo "La API no devolvio 200 tras el despliegue"
-          exit 1
+          test -n "$SOURCE_SHA"
+          doppler run --command '
+            export CLOUDFLARE_API_TOKEN="$CLOUDFLARE_ACCOUNT_API_TOKEN"
+            export CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID"
+            export SOURCE_SHA="'"$SOURCE_SHA"'"
+            export WORKER_VERSION_ID="'"$WORKER_VERSION_ID"'"
+            bash ../scripts/release/promote-worker-version.sh
+          '
+
+      - name: Domain smoke including served API SHA
+        env:
+          SHA_TARGETS: api
+        run: bash scripts/smoke/domain-smoke.sh production ${{ inputs.source_sha }}

@@ -1,0 +1,9 @@
+{
+  "surface": "GET /api/healthz",
+  "lane": "stable-shape",
+  "requiredKeys": ["ok", "sha"],
+  "example": {
+    "ok": true,
+    "sha": "dev"
+  }
+}

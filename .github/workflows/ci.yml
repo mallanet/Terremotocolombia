@@ -90,6 +90,7 @@ jobs:
     permissions:
       contents: read
     env:
+      APP_BUILD_SHA: ${{ github.sha }}
       NEXT_PUBLIC_API_URL: "https://api.example.org"
       NEXT_PUBLIC_ASSET_PREFIX: ""
       NEXT_PUBLIC_R2_PUBLIC_BASE: "https://cdn.example.org"
@@ -186,6 +187,7 @@ jobs:
       # fallar por telemetria y no por una dependencia real — justo el tipo de
       # falso positivo que esta guardia existe para eliminar.
       NEXT_TELEMETRY_DISABLED: "1"
+      APP_BUILD_SHA: ${{ github.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -235,7 +237,7 @@ jobs:
       - name: Que significa si este job falla
         if: failure()
         run: |
-          echo "::error::El build del frontend necesito RED. Casi siempre es un \`next/font/google\` (u otra descarga en tiempo de build) que volvio a colarse. Auto-aloja el recurso — mira frontend/app/fonts/README.md — en vez de relajar esta guardia: main despliega a produccion sin aprobacion."
+          echo "::error::El build del frontend necesito RED. Casi siempre es un \`next/font/google\` (u otra descarga en tiempo de build) que volvio a colarse. Auto-aloja el recurso — mira frontend/app/fonts/README.md — en vez de relajar esta guardia."
 
   # ---------------------------------------------------------------------
   # admin: internal Next.js panel. Verified locally that `next build`
@@ -247,6 +249,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      APP_BUILD_SHA: ${{ github.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -380,3 +384,22 @@ jobs:
 
       - name: Run content audit
         run: bash scripts/content-audit/run.sh
+
+  # U0: Dockerfiles must not hide install/typecheck failure. Mixed-version
+  # shape fixtures must stay well-formed.
+  release-control:
+    name: release control (Docker fail-closed + fixtures)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Dockerfiles fail closed
+        run: bash scripts/release/assert-docker-fail-closed.sh
+
+      - name: Mixed-version shape fixtures
+        run: node scripts/compat/check-fixtures.mjs

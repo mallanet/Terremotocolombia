@@ -118,7 +118,8 @@
     "ENABLE_STRIPE_DONATIONS": "true",
     // Detras de Cloudflare la unica cabecera de IP no falsificable es esta.
     // X-Forwarded-For la puede poner el cliente.
-    "TRUSTED_IP_HEADER": "cf-connecting-ip"
+    "TRUSTED_IP_HEADER": "cf-connecting-ip",
+    "APP_BUILD_SHA": "dev"
   },
   // El esquema compartido (../infra/db/schema.ts) vive FUERA de backend/, asi
   // que esbuild busca sus imports en infra/node_modules y no los encuentra.
@@ -194,7 +195,8 @@
         "ADMIN_BASE_URL": "https://admin-staging.terremotocolombia.co",
         "CORS_ORIGINS": "https://staging.terremotocolombia.co",
         "TRUSTED_IP_HEADER": "cf-connecting-ip",
-        "ENABLE_STRIPE_DONATIONS": "true"
+        "ENABLE_STRIPE_DONATIONS": "true",
+        "APP_BUILD_SHA": "dev"
       },
       "observability": {
         "enabled": true,
