@@ -19,9 +19,11 @@ infrastructure layer:
 - `packages/contracts/`: shared Zod envelopes (`file:` dependency). Backend,
   frontend, and admin import this package. npm copies it into each app's
   `node_modules` (`install-links=true`) so Next can resolve it without
-  raising `turbopack.root` and nesting the standalone output. A
-  contracts-only merge can upload frontend/admin Worker versions; U0 keeps
-  production traffic on the last promoted SHA until a human promotes.
+  raising `turbopack.root` and nesting the standalone output. The three
+  list shapes and the additive-only rule are in
+  `packages/contracts/README.md`. A contracts-only merge can upload
+  frontend/admin Worker versions; U0 keeps production traffic on the last
+  promoted SHA until a human promotes.
 - `backend/worker/`: BullMQ over Valkey, for external-source sync, geocoding,
   deduplication, hub federation, and backfills/migrations. **Not deployed
   today** — see [Workers and queues](#workers-and-queues).

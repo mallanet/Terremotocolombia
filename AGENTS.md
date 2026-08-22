@@ -146,13 +146,15 @@ packages, a shared contracts package, and a shared infrastructure layer:
   copies the package into `node_modules` instead of a symlink that sits
   outside `turbopack.root`. After you edit the package, run `npm ci` in
   each consumer. Next apps list it in `transpilePackages`. Zod is a
-  peerDependency at `^3.23.8`.
+  peerDependency at `^3.23.8`. Envelope names and the additive-only rule
+  live in `packages/contracts/README.md`.
 - `backend/worker/`: BullMQ workers (external-source sync, geocoding,
   deduplication, hub federation, migrations/backfills) running over Valkey.
 - `admin/`: the admin panel, a standalone Next.js microservice
   (role-based access with a JWT in an httpOnly cookie). Its BFF (`app/api/*`)
   forwards to the backend over the internal network — it does not serve
-  public traffic.
+  public traffic. HTTP returns `Result`. Wrap a migrated response with
+  `readAdminResult` so a mismatch returns `Err` and does not throw.
 - `infra/db/`: the Drizzle schema (`schema.ts`, the source of truth) and
   versioned migrations.
 - `config/deployment.config.json`: the deployment's identity (name,
