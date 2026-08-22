@@ -8,7 +8,7 @@ WORKDIR /app
 # ---- deps: lockfile + local contracts package (mejor cache de capas) ----
 FROM base AS deps
 COPY packages/contracts /packages/contracts
-COPY frontend/package.json frontend/package-lock.json ./
+COPY frontend/package.json frontend/package-lock.json frontend/.npmrc ./
 RUN npm ci --no-audit --no-fund
 
 # ---- builder: compila el server standalone ----

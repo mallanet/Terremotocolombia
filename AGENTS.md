@@ -142,8 +142,11 @@ packages, a shared contracts package, and a shared infrastructure layer:
   validates its environment at startup (fail-fast), uses Drizzle over
   Postgres, and reuses one image for the API, the worker, and migrations.
 - `packages/contracts/`: source-form TypeScript package consumed via
-  `file:../packages/contracts`. Next apps list it in `transpilePackages`.
-  Zod is a peerDependency at `^3.23.8`.
+  `file:../packages/contracts`. Each app sets `install-links=true` so npm
+  copies the package into `node_modules` instead of a symlink that sits
+  outside `turbopack.root`. After you edit the package, run `npm ci` in
+  each consumer. Next apps list it in `transpilePackages`. Zod is a
+  peerDependency at `^3.23.8`.
 - `backend/worker/`: BullMQ workers (external-source sync, geocoding,
   deduplication, hub federation, migrations/backfills) running over Valkey.
 - `admin/`: the admin panel, a standalone Next.js microservice

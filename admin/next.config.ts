@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 import { APP_BUILD_SHA_HEADER, getAppBuildSha } from "./src/shared/build-identity";
 
@@ -16,11 +17,16 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   // Emit a self-contained server bundle. Required for container deployments.
-  // transpilePackages compiles the TypeScript source of the file: contracts
-  // package. Keep turbopack.root on this package so standalone output stays
-  // flat for the VPS image.
+  // transpilePackages compiles the TypeScript source of the local contracts
+  // package. npm copies that package into node_modules (install-links=true),
+  // so the bundle does not resolve files outside this folder. Keep
+  // turbopack.root here so standalone output stays flat for OpenNext and
+  // the VPS image.
   output: "standalone",
   transpilePackages: ["@mallanet/contracts"],
+  turbopack: {
+    root: path.resolve(import.meta.dirname),
+  },
 
   // Anti version-skew para el roll multi-pod (mismo problema que resolvió el
   // frontend): `next build` estampa un build-id aleatorio, así que 2 pods del
