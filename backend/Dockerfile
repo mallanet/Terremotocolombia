@@ -10,7 +10,7 @@ WORKDIR /app
 # file:../packages/contracts desde /app/package.json apunta a /packages/contracts.
 FROM base AS deps
 COPY packages/contracts /packages/contracts
-COPY backend/package.json backend/package-lock.json* ./
+COPY backend/package.json backend/package-lock.json* backend/.npmrc ./
 RUN npm ci --no-audit --no-fund
 
 FROM base AS builder

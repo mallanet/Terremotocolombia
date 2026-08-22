@@ -25,7 +25,9 @@
     "paths": {
       "@/*": [
         "./*"
-      ]
+      ],
+      "zod": ["./node_modules/zod"],
+      "zod/*": ["./node_modules/zod/*"]
     }
   },
   "include": [

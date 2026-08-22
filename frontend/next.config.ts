@@ -145,10 +145,11 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
-  // Fija la raíz al paquete. El prebuild copia deployment.config.json desde el
-  // root del monorepo antes de que Next lo importe, así que el bundle ya no
-  // necesita resolver archivos externos. Esto también mantiene el standalone
-  // en `.next/standalone/.next`, la ubicación que OpenNext empaqueta.
+  // Keep the root on this package. prebuild copies deployment.config.json
+  // into the package, and npm copies @mallanet/contracts into node_modules
+  // (install-links=true), so the bundle does not resolve files outside
+  // this folder. That keeps standalone output in `.next/standalone/.next`,
+  // the layout OpenNext packs.
   // No anunciar el stack en cada respuesta.
   poweredByHeader: false,
   turbopack: {

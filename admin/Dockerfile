@@ -9,7 +9,7 @@ WORKDIR /app
 
 FROM base AS deps
 COPY packages/contracts /packages/contracts
-COPY admin/package.json admin/package-lock.json ./
+COPY admin/package.json admin/package-lock.json admin/.npmrc ./
 RUN npm ci --no-audit --no-fund
 
 FROM base AS builder
