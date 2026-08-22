@@ -177,8 +177,8 @@ services:
 
   admin:
     build:
-      context: ./admin
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: admin/Dockerfile
       args:
         APP_BUILD_SHA: ${APP_BUILD_SHA:-unknown}
     env_file: .prod.env

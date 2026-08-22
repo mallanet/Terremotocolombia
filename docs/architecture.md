@@ -16,6 +16,10 @@ infrastructure layer:
 - `backend/`: Express + TypeScript. It serves the whole `/api` surface,
   validates its environment at startup, accesses Postgres through Drizzle,
   and shares one image with the worker and the migration job.
+- `packages/contracts/`: shared Zod envelopes (`file:` dependency). Backend,
+  frontend, and admin import this package. A contracts-only merge can upload
+  frontend/admin Worker versions; U0 keeps production traffic on the last
+  promoted SHA until a human promotes.
 - `backend/worker/`: BullMQ over Valkey, for external-source sync, geocoding,
   deduplication, hub federation, and backfills/migrations. **Not deployed
   today** — see [Workers and queues](#workers-and-queues).

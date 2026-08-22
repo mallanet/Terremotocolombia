@@ -15,6 +15,7 @@
  *   json() throws → err({ kind: "parse" })
  */
 
+import { errorEnvelopeSchema } from "@mallanet/contracts";
 import type { ApiError, Result } from "../result";
 import { err, ok } from "../result";
 
@@ -70,13 +71,10 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
 
     if (!response.ok) {
       const body = await response.json().catch(() => undefined);
-      const message =
-        typeof body === "object" &&
-        body !== null &&
-        "error" in body &&
-        typeof body.error === "string"
-          ? body.error
-          : response.statusText || `HTTP error ${response.status}`;
+      const parsed = errorEnvelopeSchema.safeParse(body);
+      const message = parsed.success
+        ? parsed.data.error
+        : response.statusText || `HTTP error ${response.status}`;
       return err<ApiError>({
         kind: response.status === 401 ? "auth" : "http",
         status: response.status,

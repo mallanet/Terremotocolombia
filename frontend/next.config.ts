@@ -138,6 +138,7 @@ const nextConfig: NextConfig = {
   // + infra/). En Vercel es inocuo. `public` y `.next/static` se copian a mano
   // en el Dockerfile, tal como indican los docs de Next.
   output: "standalone",
+  transpilePackages: ["@mallanet/contracts"],
   // Tree-shaking de barrels: importa solo los iconos usados de lucide-react en
   // vez del módulo completo. Next 16 ya lo hace por defecto para lucide; queda
   // explícito por si cambia el default o se suman más libs de barril.

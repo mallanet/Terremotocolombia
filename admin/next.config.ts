@@ -16,9 +16,11 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   // Emit a self-contained server bundle. Required for container deployments.
-  // App plana (sin monorepo): server.js + .next/static quedan en la raíz del
-  // build, sin necesidad de transpilePackages ni outputFileTracingRoot.
+  // transpilePackages compiles the TypeScript source of the file: contracts
+  // package. Keep turbopack.root on this package so standalone output stays
+  // flat for the VPS image.
   output: "standalone",
+  transpilePackages: ["@mallanet/contracts"],
 
   // Anti version-skew para el roll multi-pod (mismo problema que resolvió el
   // frontend): `next build` estampa un build-id aleatorio, así que 2 pods del

@@ -1,3 +1,4 @@
+import { healthOkSchema } from "@mallanet/contracts";
 import { NextResponse } from "next/server";
 import { APP_BUILD_SHA_HEADER, getAppBuildSha } from "../../../src/shared/build-identity";
 import { BFF_CACHE_HEADERS } from "../_shared/bff-cache";
@@ -12,7 +13,7 @@ import { BFF_CACHE_HEADERS } from "../_shared/bff-cache";
 export function GET(): NextResponse {
   const sha = getAppBuildSha();
   return NextResponse.json(
-    { ok: true, sha },
+    healthOkSchema.parse({ ok: true, sha }),
     {
       status: 200,
       headers: { ...BFF_CACHE_HEADERS, [APP_BUILD_SHA_HEADER]: sha },

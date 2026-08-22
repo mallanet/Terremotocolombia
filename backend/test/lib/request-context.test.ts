@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import express from "express";
 import request from "supertest";
+import { healthOkSchema } from "@mallanet/contracts";
 import "../helpers";
 
 describe("request correlation", () => {
@@ -16,6 +17,7 @@ describe("request correlation", () => {
     expect(response.headers["x-request-id"]).not.toBe("client-controlled");
     expect(response.headers["x-app-build-sha"]).toBeTruthy();
     expect(response.body).toEqual({ ok: true, sha: response.headers["x-app-build-sha"] });
+    expect(healthOkSchema.parse(response.body).ok).toBe(true);
   });
 
   it("keeps database telemetry scoped to one asynchronous request", async () => {
