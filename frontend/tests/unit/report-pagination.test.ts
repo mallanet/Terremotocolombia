@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { reportsListSchema } from "@mallanet/contracts";
 import { fetchAllReportPages, type ReportsResponse } from "@/hooks/emergency";
 import type { EmergencyReport } from "@/lib/types";
 
@@ -30,10 +31,13 @@ function page(number: number, reports: EmergencyReport[]): ReportsResponse {
 
 describe("fetchAllReportPages", () => {
   it("entrega al mapa también los reportes posteriores a los primeros 500", async () => {
+    const first = page(1, Array.from({ length: 500 }, (_, index) => report(`r-${index}`)));
+    const second = page(2, [report("r-500")]);
+    expect(reportsListSchema.parse(first).totalPages).toBe(2);
+    expect(reportsListSchema.parse(second).reports).toHaveLength(1);
+
     const fetchPage = vi.fn(async (number: number) =>
-      number === 1
-        ? page(1, Array.from({ length: 500 }, (_, index) => report(`r-${index}`)))
-        : page(2, [report("r-500")]),
+      number === 1 ? first : second,
     );
 
     const result = await fetchAllReportPages(fetchPage);

@@ -16,18 +16,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend } from "@/lib/api";
 import { qk } from "@/lib/query-keys";
-import type { EmergencyReport, EarthquakesListResponse } from "@/lib/types";
+import type { ReportsList } from "@mallanet/contracts";
+import { readReportsList } from "@/lib/reports-contract";
+import type { EarthquakesListResponse } from "@/lib/types";
 import type { MissingMapMarker } from "@/hooks/missing";
 import type { MapBounds } from "@/components/features/map";
 
-export interface ReportsResponse {
-  reports: EmergencyReport[];
-  persistent: boolean;
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
+export type ReportsResponse = ReportsList;
 
 const REPORT_PAGE_SIZE = 500;
 const REPORT_PAGE_CONCURRENCY = 4;
@@ -76,10 +71,11 @@ export async function fetchAllReportPages(
 }
 
 async function fetchReportsPage(page: number, signal?: AbortSignal) {
-  return apiGet<ReportsResponse>(
+  const raw = await apiGet<unknown>(
     `/api/reports?page=${page}&pageSize=${REPORT_PAGE_SIZE}`,
     signal,
   );
+  return readReportsList(raw, `GET /api/reports?page=${page}`);
 }
 
 /** Lista completa de reportes de emergencia (polleada) para el mapa. */

@@ -13,6 +13,12 @@ import { beforeAll, describe, expect, it } from "vitest";
 import "../helpers";
 import { SYNTHETIC_PNG_DATA_URL, expectNoSensitiveFields } from "../helpers";
 import request from "supertest";
+import {
+  reportConfirmOkSchema,
+  reportCreateResponseSchema,
+  reportDetailSchema,
+  reportsListSchema,
+} from "@mallanet/contracts";
 
 let app: import("express").Express;
 
@@ -39,12 +45,14 @@ describe("POST /api/reports", () => {
       .post("/api/reports")
       .send(syntheticReport({ photo: SYNTHETIC_PNG_DATA_URL }));
     expect(res.status).toBe(201);
-    expect(res.body.report).toMatchObject({ type: "critical", confirmations: 0 });
-    const id = res.body.report.id as string;
+    const created = reportCreateResponseSchema.parse(res.body);
+    expect(created.report).toMatchObject({ type: "critical", confirmations: 0 });
+    const id = created.report.id;
     expect(id).toBeTruthy();
+    expect(JSON.stringify(created.report)).not.toContain(created.editToken);
     // La foto SÍ se subió → photoUrl apunta al endpoint, pero el base64 no se
     // serializa: ni la clave `photo` ni el payload aparecen en la respuesta.
-    expect(res.body.report.photoUrl).toBe(`/api/reports/${id}/photo`);
+    expect(created.report.photoUrl).toBe(`/api/reports/${id}/photo`);
     expect(res.body.report).not.toHaveProperty("photo");
     expect(JSON.stringify(res.body)).not.toContain("base64");
     expectNoSensitiveFields(res.body);
@@ -86,9 +94,11 @@ describe("GET /api/reports", () => {
       .query({ page: 999_999, pageSize: 500 });
     expect(res.status).toBe(200);
     expect(res.headers["cache-control"]).toContain("s-maxage=8");
-    expect(res.body.reports).toEqual([]);
-    expect(res.body.total).toBeGreaterThan(0);
-    expect(res.body.totalPages).toBeGreaterThanOrEqual(1);
+    const page = reportsListSchema.parse(res.body);
+    expect(page.reports).toEqual([]);
+    expect(page.total).toBeGreaterThan(0);
+    expect(page.totalPages).toBeGreaterThanOrEqual(1);
+    expect(JSON.stringify(page)).not.toMatch(/editToken/);
   });
 
   it("pagina sin truncar el acceso después de 500 reportes", async () => {
@@ -111,9 +121,10 @@ describe("GET /api/reports", () => {
 
     const res = await request(app).get("/api/reports").query({ page: 2, pageSize: 500 });
     expect(res.status).toBe(200);
-    expect(res.body.total).toBeGreaterThan(500);
-    expect(res.body.page).toBe(2);
-    expect(res.body.reports.some((report: { id: string }) => report.id.startsWith(prefix))).toBe(true);
+    const page = reportsListSchema.parse(res.body);
+    expect(page.total).toBeGreaterThan(500);
+    expect(page.page).toBe(2);
+    expect(page.reports.some((report) => report.id.startsWith(prefix))).toBe(true);
   });
 
   it("lista DTOs con photoUrl pero sin la foto embebida en base64", async () => {
@@ -124,12 +135,13 @@ describe("GET /api/reports", () => {
 
     const res = await request(app).get("/api/reports");
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body.reports)).toBe(true);
-    const mine = res.body.reports.find((r: { id: string }) => r.id === id);
+    const page = reportsListSchema.parse(res.body);
+    const mine = page.reports.find((r) => r.id === id);
     expect(mine).toBeTruthy();
-    expect(mine.photoUrl).toBe(`/api/reports/${id}/photo`);
-    for (const r of res.body.reports) expect(r).not.toHaveProperty("photo");
-    expect(JSON.stringify(res.body)).not.toContain("base64");
+    expect(mine?.photoUrl).toBe(`/api/reports/${id}/photo`);
+    for (const r of page.reports) expect(r).not.toHaveProperty("photo");
+    expect(JSON.stringify(page)).not.toContain("base64");
+    expect(JSON.stringify(page)).not.toMatch(/editToken/);
     expectNoSensitiveFields(res.body);
   });
 
@@ -158,7 +170,7 @@ describe("POST /api/reports/:id/confirm", () => {
 
     const first = await request(app).post(`/api/reports/${id}/confirm`);
     expect(first.status).toBe(200);
-    expect(first.body).toMatchObject({ ok: true, confirmations: 1 });
+    expect(reportConfirmOkSchema.parse(first.body)).toMatchObject({ ok: true, confirmations: 1 });
 
     const second = await request(app).post(`/api/reports/${id}/confirm`);
     expect(second.status).toBe(409);
@@ -185,7 +197,7 @@ describe("PATCH /api/reports/:id", () => {
 
     const detail = await request(app).get(`/api/reports/${id}`);
     expect(detail.status).toBe(200);
-    expect(detail.body.report.place).toBe("Punto demo editado");
+    expect(reportDetailSchema.parse(detail.body).report.place).toBe("Punto demo editado");
     expect(detail.body).not.toHaveProperty("editToken");
     expect(JSON.stringify(detail.body)).not.toContain(editToken);
   });

@@ -16,6 +16,23 @@ export type {
 export { errorEnvelopeSchema } from "./errors";
 export type { ErrorEnvelope } from "./errors";
 export {
+  reportConfirmDuplicateSchema,
+  reportConfirmOkSchema,
+  reportCreateResponseSchema,
+  reportDetailSchema,
+  reportDtoSchema,
+  reportEditResponseSchema,
+  reportTypeSchema,
+  reportsListSchema,
+} from "./reports";
+export type {
+  ReportCreateResponse,
+  ReportDetail,
+  ReportDto,
+  ReportType,
+  ReportsList,
+} from "./reports";
+export {
   ContractValidationError,
   getContractValidationMode,
   issuePathsFromZod,

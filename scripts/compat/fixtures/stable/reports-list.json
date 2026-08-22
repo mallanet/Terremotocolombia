@@ -1,13 +1,14 @@
 {
   "surface": "GET /api/reports",
   "lane": "stable-shape",
-  "notes": "Synthetic keys only. Zod validation lands in U2.",
-  "requiredKeys": ["reports", "total", "page", "pageSize", "totalPages"],
+  "notes": "Synthetic keys only. Validated by reportsListSchema in U2. Never put editToken here.",
+  "requiredKeys": ["reports", "total", "page", "pageSize", "totalPages", "persistent"],
   "example": {
     "reports": [],
     "total": 0,
     "page": 1,
     "pageSize": 50,
-    "totalPages": 1
+    "totalPages": 1,
+    "persistent": true
   }
 }

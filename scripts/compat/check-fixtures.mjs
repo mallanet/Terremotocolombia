@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * U0 mixed-version fixture gate: required keys present, no token-like fields.
- * Replace with packages/contracts safeParse in U2+.
+ * Mixed-version fixture gate: required keys present, no token-like fields.
+ * Domain Zod schemas live in `@mallanet/contracts` (reports landed in U2).
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
