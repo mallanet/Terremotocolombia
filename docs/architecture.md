@@ -30,8 +30,9 @@ infrastructure layer:
   secrets). Deploy: automatic in staging (`deploy-staging.yml`); automatic
   in production on push to `main`, with the `admin/**` path filter
   (`deploy-admin.yml`; it was manual until 2026-08-11). Production sits
-  behind **Cloudflare Access** (email OTP plus a team allowlist, with a
-  bypass only for `/api/health`, for the smoke check) — see `CLAUDE.md` →
+  behind **Cloudflare Access** (native Google, Cloudflare account, or email
+  OTP, all constrained by the team allowlist, with a bypass only for
+  `/api/health`, for the smoke check) — see `CLAUDE.md` →
   "Where this actually runs." Note: the "Import patients" screen depends
   on the queue worker, which is still **not** deployed — on Workers, batches
   queue but do not process. Hospital data loading goes through the direct
@@ -536,7 +537,7 @@ flowchart TB
 
     user --> cfzone
     cfzone --> webw
-    cfzone -->|Cloudflare Access OTP| adminw
+    cfzone -->|Cloudflare Access: Google, account, or email OTP| adminw
     webw -->|NEXT_PUBLIC_API_URL| apiw
     adminw -->|EMERGENCY_API_URL BFF| apiw
     apiw --> neon

@@ -34,8 +34,9 @@ admin/
 The panel runs as a Cloudflare Worker in both environments
 (`admin.terremotocolombia.co` and `admin-staging.terremotocolombia.co`). It
 uses the same OpenNext pattern as the frontend (`wrangler.jsonc` plus
-`open-next.config.ts`). Cloudflare Access protects production (one-time
-passcode by email, checked against a team allowlist).
+`open-next.config.ts`). Cloudflare Access protects production (native Google,
+Cloudflare account, or email one-time-passcode login, all checked against
+the same team allowlist).
 
 - Daily operation (user creation, roles, data uploads, known issues):
   **`docs/runbook-admin.md`**.

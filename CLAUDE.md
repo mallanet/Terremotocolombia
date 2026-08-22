@@ -74,15 +74,19 @@ BFF only needs to know `EMERGENCY_API_URL`, and the session is the backend's
 JWT, stored in an httpOnly cookie.
 
 The **production** admin panel sits behind **Cloudflare Access**
-(organization `terremotocolombia.cloudflareaccess.com`, one-time passcode by
-email against a team allowlist). Nobody reaches even the panel's login page
-without passing that check first. One Access application bypasses this
+(organization `terremotocolombia.cloudflareaccess.com`, with native Google,
+Cloudflare account, and email one-time-passcode login methods against the
+same team allowlist). Nobody reaches even the panel's login page without
+passing that check first. One Access application bypasses this
 check, and only for `/api/health` — this keeps the smoke check in
 `deploy-admin.yml` able to see a `200` response. Do not remove that bypass.
 Access is managed through its own API, with a dedicated token
 (`CLOUDFLARE_ACCESS_API_TOKEN` in Doppler `prd`), separate from the
 OpenTofu module. To add a team member: add their email to the application's
-Access policy, then invite them from the panel's `/users` screen.
+Access policy, then invite them from the panel's `/users` screen. The Google
+OAuth client credentials are stored in Doppler `prd` as
+`CLOUDFLARE_ACCESS_GOOGLE_CLIENT_ID` and
+`CLOUDFLARE_ACCESS_GOOGLE_CLIENT_SECRET`; never put them in the repository.
 `admin-staging` carries **no** Access layer — only the panel's own login
 protects it, and it reads from the staging database branch.
 

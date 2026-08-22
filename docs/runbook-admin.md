@@ -13,16 +13,19 @@ and how hospital data is loaded. For architecture, see
 | Staging | admin-staging.terremotocolombia.co | `terremotocolombia-admin-staging` | api-staging.terremotocolombia.co |
 
 Production sits behind **Cloudflare Access**. Before a user sees the panel
-login page, the user must enter a one-time passcode (OTP). Cloudflare
-Access sends the OTP by email. The user's email must be on the allowlist
-of the Access application (organization
-`terremotocolombia.cloudflareaccess.com`). Staging has no Access layer.
+login page, the user must authenticate with native Google sign-in, a
+Cloudflare account, or an emailed one-time passcode (OTP). In every case,
+the authenticated email must be on the allowlist of the Access application
+(organization `terremotocolombia.cloudflareaccess.com`). Staging has no
+Access layer.
 
 ## Two identity layers (by design)
 
 1. **Cloudflare Access (edge).** This layer decides who can *reach* the
-   panel. It uses an email allowlist and an OTP. It does not use
-   passwords.
+   panel. It uses an email allowlist with three login methods: native Google,
+   Cloudflare account, and emailed OTP. Google OAuth client credentials live
+   in Doppler `prd` as `CLOUDFLARE_ACCESS_GOOGLE_CLIENT_ID` and
+   `CLOUDFLARE_ACCESS_GOOGLE_CLIENT_SECRET`.
 2. **Panel account (application).** This layer decides what each user can
    *do*. It uses role-based access control (RBAC) with capabilities in the
    form `resource:verb`. The session token is a JWT stored in an httpOnly
@@ -40,6 +43,10 @@ needs both.**
    `admin.terremotocolombia.co` application. Use the Zero Trust dashboard
    (Access → Applications), or use the API with the
    `CLOUDFLARE_ACCESS_API_TOKEN` secret from Doppler `prd`.
+   Send the user the stable direct link
+   `https://admin.terremotocolombia.co/`; Access redirects it to the current
+   sign-in flow. Do not copy the generated `cloudflareaccess.com` login URL,
+   because it contains short-lived request metadata.
 2. **Panel**: Log in as an admin. Go to **Users**. Invite the new user
    with an email address and a role.
    Production **has SMTP** (Resend). The Worker for the API holds the
