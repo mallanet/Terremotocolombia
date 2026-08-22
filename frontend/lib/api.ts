@@ -20,6 +20,7 @@
  * TanStack Query maneja cache/dedup/poll/refetch; este módulo solo habla HTTP.
  */
 import { errorEnvelopeSchema } from "@mallanet/contracts";
+import { validateApiContract } from "@/lib/contract-validation";
 
 const DEFAULT_TIMEOUT_MS = 8000;
 
@@ -99,8 +100,12 @@ async function request<T>(
       let msg = `${rest.method ?? "GET"} ${path} -> ${res.status}`;
       try {
         const body: unknown = await res.json();
-        const parsed = errorEnvelopeSchema.safeParse(body);
-        if (parsed.success) msg = parsed.data.error;
+        const parsed = validateApiContract(
+          errorEnvelopeSchema,
+          body,
+          `${rest.method ?? "GET"} ${path} error`,
+        );
+        if (parsed.valid) msg = parsed.data.error;
       } catch {
         /* sin cuerpo JSON */
       }
