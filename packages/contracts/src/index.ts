@@ -15,3 +15,16 @@ export type {
 } from "./envelopes";
 export { errorEnvelopeSchema } from "./errors";
 export type { ErrorEnvelope } from "./errors";
+export {
+  ContractValidationError,
+  getContractValidationMode,
+  issuePathsFromZod,
+  readContract,
+  validateContract,
+} from "./validate";
+export type {
+  ContractMismatchEvent,
+  ContractValidationMode,
+  ContractValidationOptions,
+  ContractValidationResult,
+} from "./validate";

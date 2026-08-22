@@ -288,6 +288,9 @@ The backend has TWO HTTP surfaces, and each one follows its own pattern:
   a bypass.
 - Keep TanStack Query as the client-side cache and dedup layer. Do not
   duplicate a manual fetch when a hook already exists.
+- Runtime-validate responses with `validateContract` / `readContract` from
+  `@mallanet/contracts`. Do not `parse()` and do not cast `unknown` to the
+  contract type. Production starts in report mode.
 - Photo URLs that arrive as relative paths must pass through
   `mediaUrl()`, to anchor them to the backend.
 
