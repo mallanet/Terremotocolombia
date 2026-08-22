@@ -2,6 +2,10 @@ import "./helpers";
 import express from "express";
 import request from "supertest";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  needPublicationStatusSchema,
+  needPublishAcceptedSchema,
+} from "@mallanet/contracts";
 
 const queueMocks = vi.hoisted(() => ({
   enqueue: vi.fn().mockResolvedValue("need-job-1"),
@@ -44,20 +48,24 @@ describe("needs publication HTTP", () => {
       });
 
     expect(response.status).toBe(202);
-    expect(response.body).toEqual({ queued: true, jobId: "need-job-1" });
+    expect(needPublishAcceptedSchema.parse(response.body)).toEqual({
+      queued: true,
+      jobId: "need-job-1",
+    });
     expect(queueMocks.enqueue).toHaveBeenCalledWith(expect.any(Object), "request-1");
   });
 
   it("expone el estado observable sin cache compartida", async () => {
     const response = await request(app).get("/api/needs/status/need-job-1");
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({
+    expect(needPublicationStatusSchema.parse(response.body)).toEqual({
       jobId: "need-job-1",
       state: "completed",
       progress: 100,
       result: { id: "external-1", status: "pending" },
       failedReason: null,
     });
+    expect(JSON.stringify(response.body)).not.toMatch(/email|phone|address|title/i);
     expect(response.headers["cache-control"]).toBe("no-store");
   });
 });

@@ -4,6 +4,11 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiGet, apiSend } from "@/lib/api";
 import { qk } from "@/lib/query-keys";
+import {
+  readNeedPublicationStatus,
+  readNeedPublishAccepted,
+} from "@/lib/needs-contract";
+import type { NeedPublicationStatus, NeedPublishAccepted } from "@mallanet/contracts";
 
 export const NEED_PRIORITIES = [
   { value: "urgent", label: "Urgente" },
@@ -55,28 +60,16 @@ export interface PublishNeedInput {
   turnstileToken?: string; // prueba de humanidad (Turnstile) para el backend
 }
 
-export interface PublishNeedResult {
-  queued: true;
-  jobId: string;
-}
-
-export interface NeedPublicationState {
-  jobId: string;
-  state: string;
-  progress: unknown;
-  result: { id: string; status: string } | null;
-  failedReason: string | null;
-}
+export type PublishNeedResult = NeedPublishAccepted;
+export type NeedPublicationState = NeedPublicationStatus;
 
 export function usePublishNeed() {
   return useMutation({
     mutationFn: async (input: PublishNeedInput) => {
-      const result = await apiSend<PublishNeedResult>(
-        "POST",
-        "/api/needs",
-        input,
+      const result = readNeedPublishAccepted(
+        await apiSend<unknown>("POST", "/api/needs", input),
       );
-      if (result.queued !== true || !result.jobId) {
+      if (result.queued !== true || !result.jobId || result.jobId === "invalid") {
         throw new Error("La API no confirmó que la publicación quedó en cola.");
       }
       return result;
@@ -91,10 +84,10 @@ export function useNeedPublicationStatus(jobId: string | null) {
   return useQuery({
     queryKey: qk.needs.publication(jobId),
     queryFn: ({ signal }) =>
-      apiGet<NeedPublicationState>(
+      apiGet<unknown>(
         `/api/needs/status/${encodeURIComponent(jobId ?? "")}`,
         signal,
-      ),
+      ).then((raw) => readNeedPublicationStatus(raw, jobId ?? "")),
     enabled: Boolean(jobId),
     refetchInterval: (query) =>
       query.state.data && TERMINAL_NEED_STATES.has(query.state.data.state)
