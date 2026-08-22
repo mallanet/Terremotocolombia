@@ -253,8 +253,14 @@ npm run migrate
   `backend/src/lib/`, or `backend/src/middleware/`.
 - Keep existing rate-limit, cache, and payload-size limits, unless the PR
   explains the operational risk.
-- For public contract changes, update the route's `@swagger` block and the
-  matching OpenAPI artifact.
+- For public contract changes, update the shared Zod schema in
+  `packages/contracts` (or the route `@swagger` block for a legacy
+  path), then run `cd backend && npm run openapi:generate`. Commit
+  `docs/api/openapi.json`. If you add or remove a documented path, add
+  or remove the matching row in `docs/api/contract-coverage.json`
+  (`contracts` / `legacy-jsdoc` / `legacy-crud`). Do not hand-edit the
+  spec to hide a break: CI generates HEAD and compares it with the
+  PR-base spec.
 - For long-running or third-party work (sync, geocoding, scrapers,
   backfills, external AI/API calls), queue it through the job-dispatch
   seam described in "Background jobs" below, and return a status you can

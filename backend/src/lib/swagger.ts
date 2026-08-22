@@ -14,6 +14,10 @@ import { fileURLToPath } from "url";
 import swaggerJSDoc from "swagger-jsdoc";
 import { buildCrudOpenApiPaths } from "@/public-api/crud-factory";
 import { PUBLIC_RESOURCES } from "@/public-api";
+import {
+  buildContractOpenApiOverlay,
+  mergeContractOverlay,
+} from "@/lib/openapi-contracts";
 
 /**
  * Raíz de fuentes a escanear (.../src o .../dist), o "" si no hay sistema de
@@ -40,16 +44,18 @@ function resolveSrcRoot(): string {
 }
 
 /**
- * Construye la spec OpenAPI uniendo DOS fuentes:
+ * Construye la spec OpenAPI uniendo TRES fuentes:
  *   1. bloques @swagger de los routes escritos a mano (auth, sync, admin…),
  *   2. paths CRUD derivados de la config de cada recurso de api/public/*
- *      (single source of truth: el MISMO esquema zod que valida).
+ *      (single source of truth: el MISMO esquema zod que valida),
+ *   3. overlay de `@mallanet/contracts` para rutas ya migradas (reports,
+ *      needs, health). El overlay gana si el path coincide.
  */
 export function buildOpenApiSpec(): object {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const base = buildFromJsDoc() as any;
   const crud = buildCrudOpenApiPaths(PUBLIC_RESOURCES);
-  return {
+  const hybrid = {
     ...base,
     paths: { ...(base.paths ?? {}), ...crud.paths },
     components: {
@@ -67,6 +73,8 @@ export function buildOpenApiSpec(): object {
       },
     },
   };
+  // Contract overlay wins for migrated public routes (reports, needs, health).
+  return mergeContractOverlay(hybrid, buildContractOpenApiOverlay());
 }
 
 /** Solo la parte escaneada de los bloques @swagger (routes a mano). */
@@ -94,6 +102,18 @@ function buildFromJsDoc(): object {
           Error: {
             type: "object",
             properties: { error: { type: "string" } },
+          },
+          Donation: {
+            type: "object",
+            description: "Public donation row (JSDoc placeholder until this surface migrates).",
+          },
+          DonationStats: {
+            type: "object",
+            description: "Public donation totals (JSDoc placeholder until this surface migrates).",
+          },
+          AdminHospitalSupplyRow: {
+            type: "object",
+            description: "Admin hospital-supply row (JSDoc placeholder until this surface migrates).",
           },
           AuthMe: {
             type: "object",

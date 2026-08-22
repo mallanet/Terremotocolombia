@@ -1,0 +1,731 @@
+{
+  "version": 1,
+  "required": [
+    {
+      "method": "post",
+      "path": "/api/reports"
+    },
+    {
+      "method": "patch",
+      "path": "/api/reports/{id}"
+    },
+    {
+      "method": "post",
+      "path": "/api/reports/{id}/confirm"
+    },
+    {
+      "method": "get",
+      "path": "/api/reports/{id}/photo"
+    },
+    {
+      "method": "get",
+      "path": "/api/acopio"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/volunteer-analytics"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/patient-imports/{id}/retry"
+    },
+    {
+      "method": "get",
+      "path": "/api/stats/psychology-help"
+    },
+    {
+      "method": "post",
+      "path": "/api/stats/psychology-help"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/psychology/form-callback"
+    },
+    {
+      "method": "get",
+      "path": "/api/earthquakes"
+    }
+  ],
+  "routes": [
+    {
+      "method": "get",
+      "path": "/api/acopio",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/admin/contact",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "patch",
+      "path": "/api/admin/contact",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/admin/data",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/admin/donations",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/admin/hospital-supplies",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/admin/login",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/campaign/balance",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/campaign/certificado/{code}",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/campaign/compromisos",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/campaign/materiales",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/campaign/punto",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/campaign/punto/recepciones",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/campaign/puntos",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/contact",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/data-deletion",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/deceased",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/donations",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/donations",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/earthquakes",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/geo",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/geocode",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/healthz",
+      "source": "contracts"
+    },
+    {
+      "method": "get",
+      "path": "/api/hub/reports",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/hub/stats",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/needs",
+      "source": "contracts"
+    },
+    {
+      "method": "get",
+      "path": "/api/needs/status/{jobId}",
+      "source": "contracts"
+    },
+    {
+      "method": "get",
+      "path": "/api/op/{op}",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/op/{op}",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/patients/search",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/auth/accept",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/auth/change-password",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/auth/forgot-password",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/auth/invite",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/auth/invite/{token}",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/auth/login",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/auth/logout",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/auth/me",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/auth/reset-password",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/campaign-pledges",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/campaign-pledges/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/campaign-shipments",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/campaign-shipments",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "delete",
+      "path": "/api/public/campaign-shipments/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/campaign-shipments/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "patch",
+      "path": "/api/public/campaign-shipments/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/campaign-sites",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/campaign-sites",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "delete",
+      "path": "/api/public/campaign-sites/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/campaign-sites/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "patch",
+      "path": "/api/public/campaign-sites/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/campaign-stewards",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/campaign-stewards",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "delete",
+      "path": "/api/public/campaign-stewards/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/campaign-stewards/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/chat",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/chat",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "delete",
+      "path": "/api/public/chat/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/chat/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/contact",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/contact",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/contact/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "patch",
+      "path": "/api/public/contact/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/deceased-imports",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/donations",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/donations",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/donations/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/hospitals",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/hospitals",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "delete",
+      "path": "/api/public/hospitals/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/hospitals/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "patch",
+      "path": "/api/public/hospitals/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/missing",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/missing",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "delete",
+      "path": "/api/public/missing/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/missing/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "patch",
+      "path": "/api/public/missing/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/patient-imports",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/patient-imports/{id}",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/patient-imports/{id}/apply",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/patient-imports/{id}/retry",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/patient-imports/{id}/rows",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "patch",
+      "path": "/api/public/patient-imports/{id}/rows/{rowId}",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/patient-imports/{id}/rows/{rowId}/confirm",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/patient-imports/{id}/rows/{rowId}/dedup",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/patient-imports/{id}/rows/{rowId}/reject",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/patients",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/patients",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "delete",
+      "path": "/api/public/patients/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/patients/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "patch",
+      "path": "/api/public/patients/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/pets",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/pets",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "delete",
+      "path": "/api/public/pets/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/pets/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "patch",
+      "path": "/api/public/pets/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/psychology",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/psychology/form-callback",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/reports",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/reports",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "delete",
+      "path": "/api/public/reports/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/reports/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "patch",
+      "path": "/api/public/reports/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/roles",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/roles",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "delete",
+      "path": "/api/public/roles/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/roles/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "patch",
+      "path": "/api/public/roles/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/volunteer-analytics",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/volunteer-checkins",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/volunteer-tasks",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/volunteer-tasks",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/volunteer-tasks/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "patch",
+      "path": "/api/public/volunteer-tasks/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/volunteer-tasks/{id}/assign",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/volunteers",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/volunteers",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "get",
+      "path": "/api/public/volunteers/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "patch",
+      "path": "/api/public/volunteers/{id}",
+      "source": "legacy-crud"
+    },
+    {
+      "method": "post",
+      "path": "/api/public/volunteers/{id}/message",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/readyz",
+      "source": "contracts"
+    },
+    {
+      "method": "get",
+      "path": "/api/reports",
+      "source": "contracts"
+    },
+    {
+      "method": "post",
+      "path": "/api/reports",
+      "source": "contracts"
+    },
+    {
+      "method": "get",
+      "path": "/api/reports/{id}",
+      "source": "contracts"
+    },
+    {
+      "method": "patch",
+      "path": "/api/reports/{id}",
+      "source": "contracts"
+    },
+    {
+      "method": "post",
+      "path": "/api/reports/{id}/confirm",
+      "source": "contracts"
+    },
+    {
+      "method": "get",
+      "path": "/api/reports/{id}/photo",
+      "source": "contracts"
+    },
+    {
+      "method": "get",
+      "path": "/api/stats/psychology-help",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/stats/psychology-help",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/sync/cron",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/sync/duplicates",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/sync/geocode",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/sync/reset",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/sync/run",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "get",
+      "path": "/api/sync/status",
+      "source": "legacy-jsdoc"
+    },
+    {
+      "method": "post",
+      "path": "/api/volunteers",
+      "source": "legacy-jsdoc"
+    }
+  ]
+}

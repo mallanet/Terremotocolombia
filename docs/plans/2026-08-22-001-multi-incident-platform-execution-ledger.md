@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-a-u5-in-progress
+status: phase-a-u16-in-progress
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -24,13 +24,13 @@ status. Complete means acceptance evidence, not the existence of files.
 | Item | Value |
 |---|---|
 | Implementation worktree | `/Users/eduardomuthmartinez/Mallanet/Colombia/platform-impl` |
-| Branch | `feat/platform-u5-envelopes` (U0–U4 are on `origin/staging` at `297306e`) |
+| Branch | `feat/platform-u16-openapi` (U0–U5 and U2–U3 are on `origin/staging` at `90bc30d`) |
 | Immutable bootstrap SHA | `83b7c1669fda091f092edcb3f470a1e81f5669ba` (origin/main, PR #53) |
 | User checkout (do not touch) | `/Users/eduardomuthmartinez/Mallanet/Colombia/repo` on `fix/frontend-backend-contracts` (`89089da`) |
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
 | Plans on origin/main | absent before this unit; copied into the worktree in Phase 0 |
 | Do not absorb | `8f12eaa` Access-doc edits and pptx |
-| origin/staging | `4414917db386d7559d30a3432aaafce05c78d884` (recorded 2026-08-22) |
+| origin/staging | `90bc30db4467f95f7a96f96316c8e3db594e4081` (recorded 2026-08-22) |
 | Local `main` | stale (`3dacec2`, 242 behind). Ignore. |
 | Plan original review SHA | `89089da` (ancestor of main) |
 | Cache addendum SHA | `d106977` (ancestor of main) |
@@ -74,7 +74,7 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** U5, then U2 and U3. Do not start U6.
+**Next executable unit:** U16. Do not start U6.
 
 ## Unit ledger
 
@@ -154,12 +154,62 @@ U35 starts deterministic shadow; not a U21 gate
 | Requirements | R4, R5 |
 | KTDs | KTD3 |
 | Depends on | U1 |
-| Status | in progress on `feat/platform-u5-envelopes` |
+| Status | merged to `staging` as `1df8361` (PR #57) |
 | Rollback | revert the U5 PR. No live admin call site opts into `schema` yet. |
 
-### U2, U3, U16 (Phase A remainder)
+**Evidence (2026-08-22):**
 
-Not started. U2 and U3 follow U4 (helper is on staging). Do not start U6.
+- Named list shapes in `packages/contracts/README.md`
+- `hospitalsBareListSchema` for `GET /api/hospitals`
+- `readAdminResult` never throws; live BFF call sites stay opt-in
+- CI on PR #57: all jobs green
+- Merged to `staging` as `1df8361`
+
+### U2 — Reports contracts (additive)
+
+| Field | Value |
+|---|---|
+| Requirements | R1, R4, R5 |
+| KTDs | KTD1 |
+| Depends on | U4 |
+| Status | merged to `staging` as `6df6207` (PR #58) |
+| Rollback | revert the U2 PR. Wire JSON is unchanged. |
+
+**Evidence (2026-08-22):**
+
+- `packages/contracts/src/reports.ts` matches live list/create/detail/confirm JSON
+- Frontend `readReportsList` uses report mode; missing `totalPages` defaults to 1
+- GET bodies have no `editToken`
+- CI on PR #58: all jobs green
+- Merged to `staging` as `6df6207`
+
+### U3 — Needs async-job envelope (additive)
+
+| Field | Value |
+|---|---|
+| Requirements | R1, R4, R5 |
+| KTDs | KTD3 |
+| Depends on | U4 |
+| Status | merged to `staging` as `90bc30d` (PR #59) |
+| Rollback | revert the U3 PR. Wire JSON is unchanged. Disabled `/api/needs` stays a generic 404. |
+
+**Evidence (2026-08-22):**
+
+- POST 202 and GET status parse through shared contracts
+- Frontend poll fails closed on a mismatch
+- Public `result` rejects extra citizen fields
+- CI on PR #59: all jobs green
+- Merged to `staging` as `90bc30d`
+
+### U16 — OpenAPI baseline and oasdiff CI gate
+
+| Field | Value |
+|---|---|
+| Requirements | R16 |
+| KTDs | KTD11 |
+| Depends on | U2, U3, U5 |
+| Status | in progress on `feat/platform-u16-openapi` |
+| Rollback | revert the U16 PR. Runtime `/api/docs` stays gated by `ENABLE_API_DOCS`. |
 
 ### U6+
 
