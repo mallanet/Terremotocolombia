@@ -188,8 +188,8 @@ services:
   # red interna; el navegador llama same-origin al BFF del admin.
   admin:
     build:
-      context: ./admin
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: admin/Dockerfile
     environment:
       NODE_ENV: production
       PORT: "3000"

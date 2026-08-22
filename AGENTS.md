@@ -132,7 +132,7 @@ affected people.
 ## Current state of the stack
 
 No root `package.json` exists. This is a simple monorepo with three npm
-packages and a shared infrastructure layer:
+packages, a shared contracts package, and a shared infrastructure layer:
 
 - `frontend/`: Next.js + React. Public UI and SSR. It does not access the
   database directly, and it does not add its own `app/api/**` routes — every
@@ -141,6 +141,12 @@ packages and a shared infrastructure layer:
 - `backend/`: Express + TypeScript. Serves the entire `/api` surface,
   validates its environment at startup (fail-fast), uses Drizzle over
   Postgres, and reuses one image for the API, the worker, and migrations.
+- `packages/contracts/`: source-form TypeScript package consumed via
+  `file:../packages/contracts`. Each app sets `install-links=true` so npm
+  copies the package into `node_modules` instead of a symlink that sits
+  outside `turbopack.root`. After you edit the package, run `npm ci` in
+  each consumer. Next apps list it in `transpilePackages`. Zod is a
+  peerDependency at `^3.23.8`.
 - `backend/worker/`: BullMQ workers (external-source sync, geocoding,
   deduplication, hub federation, migrations/backfills) running over Valkey.
 - `admin/`: the admin panel, a standalone Next.js microservice
@@ -487,6 +493,7 @@ backend/src/            Express API, services, middleware, Drizzle access
 backend/src/modules/    Integrations as DDD modules (domain/application/infra/http)
 backend/worker/         BullMQ workers, sync, migrations, and backfills
 admin/                  Standalone admin panel (Next.js: BFF app/api/* + RBAC)
+packages/contracts/     Shared Zod envelopes (file: dependency)
 infra/db/               Drizzle schema + migrations
 config/                 deployment.config.json (deployment identity)
 docs/                   Design and architecture

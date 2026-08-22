@@ -138,16 +138,18 @@ const nextConfig: NextConfig = {
   // + infra/). En Vercel es inocuo. `public` y `.next/static` se copian a mano
   // en el Dockerfile, tal como indican los docs de Next.
   output: "standalone",
+  transpilePackages: ["@mallanet/contracts"],
   // Tree-shaking de barrels: importa solo los iconos usados de lucide-react en
   // vez del módulo completo. Next 16 ya lo hace por defecto para lucide; queda
   // explícito por si cambia el default o se suman más libs de barril.
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
-  // Fija la raíz al paquete. El prebuild copia deployment.config.json desde el
-  // root del monorepo antes de que Next lo importe, así que el bundle ya no
-  // necesita resolver archivos externos. Esto también mantiene el standalone
-  // en `.next/standalone/.next`, la ubicación que OpenNext empaqueta.
+  // Keep the root on this package. prebuild copies deployment.config.json
+  // into the package, and npm copies @mallanet/contracts into node_modules
+  // (install-links=true), so the bundle does not resolve files outside
+  // this folder. That keeps standalone output in `.next/standalone/.next`,
+  // the layout OpenNext packs.
   // No anunciar el stack en cada respuesta.
   poweredByHeader: false,
   turbopack: {

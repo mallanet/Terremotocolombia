@@ -20,7 +20,9 @@
       // los anclan a backend/node_modules sin importar el archivo que importe.
       // (tsx ya resuelve esto en runtime; esto es solo para que tsc/CI pase.)
       "drizzle-orm": ["./node_modules/drizzle-orm"],
-      "drizzle-orm/*": ["./node_modules/drizzle-orm/*"]
+      "drizzle-orm/*": ["./node_modules/drizzle-orm/*"],
+      "zod": ["./node_modules/zod"],
+      "zod/*": ["./node_modules/zod/*"]
     },
     "types": ["node"]
   },

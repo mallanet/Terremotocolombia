@@ -17,11 +17,13 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@mallanet/contracts": "file:../packages/contracts",
     "@tanstack/react-query": "^5.0.0",
     "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "recharts": "^2.15.4"
+    "recharts": "^2.15.4",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",

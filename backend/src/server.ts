@@ -1,3 +1,4 @@
+import { CONTRACTS_PACKAGE_MARKER, healthOkSchema } from "@mallanet/contracts";
 import express from "express";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
@@ -140,8 +141,12 @@ app.use(metricsMiddleware);
 // `restart: unless-stopped`, no un healthcheck HTTP sobre estas rutas).
 // Ningún endpoint declara rate-limit: los pollea el smoke check cada pocos
 // segundos (la regla local/require-rate-limit solo aplica a routes/ + public-api/).
+if (CONTRACTS_PACKAGE_MARKER !== "@mallanet/contracts") {
+  throw new Error("contracts package identity mismatch");
+}
+
 app.get("/api/healthz", (_req, res) =>
-  res.json({ ok: true, sha: getAppBuildSha() }),
+  res.json(healthOkSchema.parse({ ok: true, sha: getAppBuildSha() })),
 );
 
 // READINESS: SELECT 1 con timeout corto. 200 si la DB responde, 503 si no.
@@ -160,10 +165,14 @@ app.get("/api/readyz", async (_req, res) => {
         timer = setTimeout(() => reject(new Error("readyz: db timeout")), READYZ_DB_TIMEOUT_MS);
       }),
     ]);
-    res.json({ ok: true, r2: isR2Configured(), sha: getAppBuildSha() });
+    res.json(
+      healthOkSchema.parse({ ok: true, r2: isR2Configured(), sha: getAppBuildSha() }),
+    );
   } catch {
     console.warn("readyz: db unreachable");
-    res.status(503).json({ ok: false, r2: isR2Configured(), sha: getAppBuildSha() });
+    res.status(503).json(
+      healthOkSchema.parse({ ok: false, r2: isR2Configured(), sha: getAppBuildSha() }),
+    );
   } finally {
     clearTimeout(timer);
   }

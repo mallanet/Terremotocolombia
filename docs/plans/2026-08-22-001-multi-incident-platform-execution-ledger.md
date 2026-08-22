@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-a-u0-in-progress
+status: phase-a-u1-in-progress
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -24,7 +24,7 @@ status. Complete means acceptance evidence, not the existence of files.
 | Item | Value |
 |---|---|
 | Implementation worktree | `/Users/eduardomuthmartinez/Mallanet/Colombia/platform-impl` |
-| Branch | `feat/platform-u0-release-control` |
+| Branch | `feat/platform-u1-contracts` (U0 is on `origin/staging` at `4f0cd85`) |
 | Immutable bootstrap SHA | `83b7c1669fda091f092edcb3f470a1e81f5669ba` (origin/main, PR #53) |
 | User checkout (do not touch) | `/Users/eduardomuthmartinez/Mallanet/Colombia/repo` on `fix/frontend-backend-contracts` (`89089da`) |
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
@@ -74,7 +74,7 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** U0.
+**Next executable unit:** U1.
 
 ## Unit ledger
 
@@ -86,10 +86,15 @@ U35 starts deterministic shadow; not a U21 gate
 | KTDs | KTD15, KTD17 |
 | Depends on | none |
 | Source SHA | `83b7c16` |
-| Status | code+tests complete; production dry-run blocked (B0) |
+| Status | staging evidence complete; production dry-run blocked (B0) |
 | Rollback | revert the U0 PR; uploaded Worker versions have no traffic until promote. After promote: `wrangler versions deploy <previous-id>@100%` |
 | Blocker | B0 staging-to-production dry run; B1 GitHub Environment required reviewers |
-| PR/commit | pending |
+| PR/commit | [PR #54](https://github.com/mallanet/Terremotocolombia/pull/54) merged to `staging` as `4f0cd85` |
+
+**Evidence (2026-08-22, staging):**
+
+- GitHub Actions `deploy-staging.yml` run `32578744556` on merge of #54: schema-capability gate **before** API `wrangler deploy --env staging`; frontend and admin deploys; domain smoke including served SHA. Conclusion: **success**.
+- Production traffic was not changed. Promote workflows were not run.
 
 **Evidence (2026-08-22, worktree):**
 
@@ -102,14 +107,30 @@ U35 starts deterministic shadow; not a U21 gate
 - Backend: lint, typecheck, worker tsc, `npm test` 80 files / 767 tests
 - Frontend: lint (existing warnings only), typecheck, `npm test` 39 files / 189 tests
 - Admin: lint, typecheck, `npm test` 32 files / 172 tests
-- Staging schema-before-deploy: `deploy-staging.yml` `check:platform-schema` step (not executed against staging in this worktree)
 - Production dry-run: **not run** (B0)
 
-**Not complete until:** first staging deploy of this branch proves capability gate + domain smoke SHA, and an approved production dry-run stores a release record.
+### U1 — Contracts package scaffold and distribution proof
 
-### U1–U16 (Phase A remainder)
+| Field | Value |
+|---|---|
+| Requirements | R1 |
+| KTDs | KTD1, KTD2 |
+| Depends on | U0 |
+| Status | in progress on `feat/platform-u1-contracts` |
+| Rollback | revert the U1 PR. Production is unchanged until a later promote. |
 
-Not started. Do not begin while U0 verification is incomplete.
+**Evidence (local, 2026-08-22):**
+
+- Source-form `@mallanet/contracts` with `zod` peer `^3.23.8`
+- Envelope tests: 10 passed
+- Backend `tsc` consumes the TypeScript source (no `dist/` fallback)
+- `wrangler deploy --dry-run` bundle contains `@mallanet/contracts`
+- Frontend 40/192, admin 32/172
+- Dockerfiles copy `packages/contracts`; admin Compose context is the repository root
+
+### U2–U16 (Phase A remainder)
+
+Not started. U4 follows U1. Do not start U6.
 
 ### U6+
 

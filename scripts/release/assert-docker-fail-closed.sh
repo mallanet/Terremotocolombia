@@ -21,6 +21,16 @@ check_no_match "$ROOT/frontend/Dockerfile" 'npm ci.*\|\|.*npm install' "frontend
 check_no_match "$ROOT/admin/Dockerfile" 'npm ci.*\|\|.*npm install' "admin Dockerfile has no npm ci fallback"
 check_no_match "$ROOT/backend/Dockerfile" 'npm run build[[:space:]]*\|\|' "backend Dockerfile does not ignore tsc failure"
 
+for file in "$ROOT/frontend/Dockerfile" "$ROOT/admin/Dockerfile" "$ROOT/backend/Dockerfile"; do
+  app="$(basename "$(dirname "$file")")"
+  if grep -q 'COPY packages/contracts' "$file"; then
+    echo "PASS  ${app} Dockerfile copies packages/contracts"
+  else
+    echo "FAIL  ${app} Dockerfile missing COPY packages/contracts"
+    FAIL=$((FAIL + 1))
+  fi
+done
+
 for file in "$ROOT/frontend/Dockerfile" "$ROOT/admin/Dockerfile"; do
   app="$(basename "$(dirname "$file")")"
   if grep -q 'ARG APP_BUILD_SHA' "$file"; then

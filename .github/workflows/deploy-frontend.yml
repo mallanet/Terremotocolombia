@@ -10,6 +10,7 @@ on:
     branches: [main]
     paths:
       - "frontend/**"
+      - "packages/contracts/**"
       - "config/deployment.config.json"
       - ".github/workflows/deploy-frontend.yml"
       - "scripts/release/**"

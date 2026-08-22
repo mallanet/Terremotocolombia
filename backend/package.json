@@ -26,6 +26,7 @@
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.4",
     "@aws-sdk/client-s3": "*",
+    "@mallanet/contracts": "file:../packages/contracts",
     "@neondatabase/serverless": "^1.1.0",
     "bcryptjs": "^3.0.3",
     "bullmq": "*",

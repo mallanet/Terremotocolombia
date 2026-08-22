@@ -19,6 +19,8 @@
  *
  * TanStack Query maneja cache/dedup/poll/refetch; este módulo solo habla HTTP.
  */
+import { errorEnvelopeSchema } from "@mallanet/contracts";
+
 const DEFAULT_TIMEOUT_MS = 8000;
 
 function resolveApiBase(): string {
@@ -96,8 +98,9 @@ async function request<T>(
     if (!res.ok) {
       let msg = `${rest.method ?? "GET"} ${path} -> ${res.status}`;
       try {
-        const body = await res.json();
-        if (body?.error) msg = body.error;
+        const body: unknown = await res.json();
+        const parsed = errorEnvelopeSchema.safeParse(body);
+        if (parsed.success) msg = parsed.data.error;
       } catch {
         /* sin cuerpo JSON */
       }
