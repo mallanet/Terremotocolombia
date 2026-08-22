@@ -33,6 +33,15 @@ export type {
   ReportsList,
 } from "./reports";
 export {
+  needPublicationResultSchema,
+  needPublicationStatusSchema,
+  needPublishAcceptedSchema,
+} from "./needs";
+export type {
+  NeedPublicationStatus,
+  NeedPublishAccepted,
+} from "./needs";
+export {
   ContractValidationError,
   getContractValidationMode,
   issuePathsFromZod,

@@ -1,5 +1,6 @@
 import "./helpers";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { needPublicationStatusSchema } from "@mallanet/contracts";
 import { registerJobBindings, resetJobBindings } from "@/lib/job-dispatch";
 import {
   getNeedPublicationState,
@@ -19,7 +20,9 @@ describe("estado durable de publicación en Cloudflare Queues", () => {
     const jobId = `need-status-${crypto.randomUUID()}`;
 
     await recordNeedPublicationState(jobId, "queued");
-    expect(await getNeedPublicationState(jobId)).toEqual({
+    expect(
+      needPublicationStatusSchema.parse(await getNeedPublicationState(jobId)),
+    ).toEqual({
       jobId,
       state: "queued",
       progress: null,
@@ -30,12 +33,17 @@ describe("estado durable de publicación en Cloudflare Queues", () => {
     await recordNeedPublicationState(jobId, "completed", {
       result: { id: "external-demo", status: "pending", privateField: "no sale" },
     });
-    expect(await getNeedPublicationState(jobId)).toEqual({
+    const completed = needPublicationStatusSchema.parse(
+      await getNeedPublicationState(jobId),
+    );
+    expect(completed).toEqual({
       jobId,
       state: "completed",
       progress: 100,
       result: { id: "external-demo", status: "pending" },
       failedReason: null,
     });
+    expect(JSON.stringify(completed)).not.toContain("privateField");
+    expect(JSON.stringify(completed)).not.toMatch(/email|phone|address|title/i);
   });
 });
