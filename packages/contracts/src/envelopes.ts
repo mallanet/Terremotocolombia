@@ -46,6 +46,20 @@ export function unboundedItemsSchema<ItemSchema extends z.ZodTypeAny>(itemSchema
   });
 }
 
+/**
+ * GET /api/hospitals list. This is not paginated: the array is `hospitals`,
+ * and `states` is null unless the caller asked for `include=states`.
+ */
+export function hospitalsBareListSchema<
+  HospitalSchema extends z.ZodTypeAny,
+  StateSchema extends z.ZodTypeAny,
+>(hospitalSchema: HospitalSchema, stateSchema: StateSchema) {
+  return z.object({
+    hospitals: z.array(hospitalSchema),
+    states: z.array(stateSchema).nullable(),
+  });
+}
+
 export const asyncJobAcceptedSchema = z.object({
   queued: z.literal(true),
   jobId: z.string().min(1),

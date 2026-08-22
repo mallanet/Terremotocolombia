@@ -4,6 +4,7 @@ export {
   asyncJobStateSchema,
   asyncJobStatusSchema,
   healthOkSchema,
+  hospitalsBareListSchema,
   paginatedEnvelopeSchema,
   unboundedItemsSchema,
 } from "./envelopes";

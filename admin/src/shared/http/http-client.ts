@@ -16,12 +16,16 @@
  */
 
 import { errorEnvelopeSchema } from "@mallanet/contracts";
+import type { z } from "zod";
 import type { ApiError, Result } from "../result";
 import { err, ok } from "../result";
+import { readAdminResult } from "./contract-validation";
 
-export type RequestOptions = {
+export type RequestOptions<T = unknown> = {
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  /** When set, a 2xx JSON body must parse as this schema. Mismatch returns Err. */
+  schema?: z.ZodType<T>;
 };
 
 export type HttpClientConfig = {
@@ -30,10 +34,10 @@ export type HttpClientConfig = {
 };
 
 export type HttpClient = {
-  get<T>(path: string, opts?: RequestOptions): Promise<Result<T>>;
-  post<T>(path: string, body: unknown, opts?: RequestOptions): Promise<Result<T>>;
-  patch<T>(path: string, body: unknown, opts?: RequestOptions): Promise<Result<T>>;
-  delete<T>(path: string, opts?: RequestOptions): Promise<Result<T>>;
+  get<T>(path: string, opts?: RequestOptions<T>): Promise<Result<T>>;
+  post<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<Result<T>>;
+  patch<T>(path: string, body: unknown, opts?: RequestOptions<T>): Promise<Result<T>>;
+  delete<T>(path: string, opts?: RequestOptions<T>): Promise<Result<T>>;
 };
 
 export function createHttpClient(config: HttpClientConfig): HttpClient {
@@ -42,7 +46,7 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
   async function request<T>(
     method: string,
     path: string,
-    opts: RequestOptions & { body?: unknown },
+    opts: RequestOptions<T> & { body?: unknown },
   ): Promise<Result<T>> {
     const headers: Record<string, string> = {
       ...defaultHeaders,
@@ -83,31 +87,35 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
       });
     }
 
-    let data: T;
+    let data: unknown;
     try {
-      data = (await response.json()) as T;
+      data = await response.json();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Failed to parse response body";
       return err<ApiError>({ kind: "parse", message });
     }
 
-    return ok<T>(data);
+    if (opts.schema) {
+      return readAdminResult(opts.schema, data, `${method} ${path}`);
+    }
+
+    return ok(data as T);
   }
 
   return {
-    get<T>(path: string, opts: RequestOptions = {}): Promise<Result<T>> {
+    get<T>(path: string, opts: RequestOptions<T> = {}): Promise<Result<T>> {
       return request<T>("GET", path, opts);
     },
 
-    post<T>(path: string, body: unknown, opts: RequestOptions = {}): Promise<Result<T>> {
+    post<T>(path: string, body: unknown, opts: RequestOptions<T> = {}): Promise<Result<T>> {
       return request<T>("POST", path, { ...opts, body });
     },
 
-    patch<T>(path: string, body: unknown, opts: RequestOptions = {}): Promise<Result<T>> {
+    patch<T>(path: string, body: unknown, opts: RequestOptions<T> = {}): Promise<Result<T>> {
       return request<T>("PATCH", path, { ...opts, body });
     },
 
-    delete<T>(path: string, opts: RequestOptions = {}): Promise<Result<T>> {
+    delete<T>(path: string, opts: RequestOptions<T> = {}): Promise<Result<T>> {
       return request<T>("DELETE", path, opts);
     },
   };

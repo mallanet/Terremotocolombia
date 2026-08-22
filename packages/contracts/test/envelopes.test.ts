@@ -6,6 +6,7 @@ import {
   asyncJobStatusSchema,
   errorEnvelopeSchema,
   healthOkSchema,
+  hospitalsBareListSchema,
   paginatedEnvelopeSchema,
   unboundedItemsSchema,
 } from "../src/index";
@@ -36,6 +37,17 @@ describe("paginated envelope", () => {
       totalCapped: true,
     });
     expect(parsed.totalCapped).toBe(true);
+  });
+
+  it("accepts a canonical page with totalCapped omitted", () => {
+    const parsed = schema.parse({
+      reports: [],
+      total: 0,
+      page: 1,
+      pageSize: 50,
+      totalPages: 1,
+    });
+    expect(parsed.totalCapped).toBeUndefined();
   });
 
   it("rejects a payload with no totalPages", () => {
@@ -107,6 +119,25 @@ describe("legacy and health shapes", () => {
         items: [{ id: "a" }],
       }).items,
     ).toEqual([{ id: "a" }]);
+  });
+
+  it("accepts the hospitals bare list with and without states", () => {
+    const schema = hospitalsBareListSchema(
+      z.object({ id: z.string() }),
+      z.string(),
+    );
+    expect(
+      schema.parse({
+        hospitals: [{ id: "h1" }],
+        states: null,
+      }),
+    ).toEqual({ hospitals: [{ id: "h1" }], states: null });
+    expect(
+      schema.parse({
+        hospitals: [],
+        states: ["Cundinamarca"],
+      }).states,
+    ).toEqual(["Cundinamarca"]);
   });
 
   it("parses health payloads and extra readiness fields", () => {

@@ -1,6 +1,8 @@
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { server } from "@/tests/setup";
+import { unboundedItemsSchema } from "@mallanet/contracts";
 import { createHttpClient } from "@/src/shared/http/http-client";
 
 const BASE_URL = "http://test-api.example.com";
@@ -171,6 +173,44 @@ describe("HttpClient", () => {
       await client.post("/items", { value: 1 });
 
       expect(capturedContentType).toContain("application/json");
+    });
+  });
+
+  describe("get — optional contract schema", () => {
+    it("returns Ok when the 2xx body matches the schema", async () => {
+      server.use(
+        http.get(`${BASE_URL}/items`, () =>
+          HttpResponse.json({ items: [{ id: "a" }] }),
+        ),
+      );
+
+      const client = createHttpClient({ baseUrl: BASE_URL });
+      const result = await client.get("/items", {
+        schema: unboundedItemsSchema(z.object({ id: z.string() })),
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.items).toEqual([{ id: "a" }]);
+      }
+    });
+
+    it("returns Err without throwing when the 2xx body does not match", async () => {
+      server.use(
+        http.get(`${BASE_URL}/items`, () =>
+          HttpResponse.json({ items: [{ id: 1 }] }),
+        ),
+      );
+
+      const client = createHttpClient({ baseUrl: BASE_URL });
+      const result = await client.get("/items", {
+        schema: unboundedItemsSchema(z.object({ id: z.string() })),
+      });
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.kind).toBe("parse");
+      }
     });
   });
 

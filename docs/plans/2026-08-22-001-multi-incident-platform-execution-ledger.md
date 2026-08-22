@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-a-u1-in-progress
+status: phase-a-u5-in-progress
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -24,7 +24,7 @@ status. Complete means acceptance evidence, not the existence of files.
 | Item | Value |
 |---|---|
 | Implementation worktree | `/Users/eduardomuthmartinez/Mallanet/Colombia/platform-impl` |
-| Branch | `feat/platform-u1-contracts` (U0 is on `origin/staging` at `4f0cd85`) |
+| Branch | `feat/platform-u5-envelopes` (U0–U4 are on `origin/staging` at `297306e`) |
 | Immutable bootstrap SHA | `83b7c1669fda091f092edcb3f470a1e81f5669ba` (origin/main, PR #53) |
 | User checkout (do not touch) | `/Users/eduardomuthmartinez/Mallanet/Colombia/repo` on `fix/frontend-backend-contracts` (`89089da`) |
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
@@ -74,7 +74,7 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** U1.
+**Next executable unit:** U5, then U2 and U3. Do not start U6.
 
 ## Unit ledger
 
@@ -116,7 +116,7 @@ U35 starts deterministic shadow; not a U21 gate
 | Requirements | R1 |
 | KTDs | KTD1, KTD2 |
 | Depends on | U0 |
-| Status | in progress on `feat/platform-u1-contracts` |
+| Status | merged to `staging` as `8cf24e6` (PR #55) |
 | Rollback | revert the U1 PR. Production is unchanged until a later promote. |
 
 **Evidence (local, 2026-08-22):**
@@ -126,11 +126,40 @@ U35 starts deterministic shadow; not a U21 gate
 - Backend `tsc` consumes the TypeScript source (no `dist/` fallback)
 - `wrangler deploy --dry-run` bundle contains `@mallanet/contracts`
 - Frontend 40/192, admin 32/172
-- Dockerfiles copy `packages/contracts`; admin Compose context is the repository root
+- CI on PR #55: all jobs green after `install-links=true` (copy, not symlink)
+- Merged to `staging` as `8cf24e6`
 
-### U2–U16 (Phase A remainder)
+### U4 — Validation telemetry and enforce flag
 
-Not started. U4 follows U1. Do not start U6.
+| Field | Value |
+|---|---|
+| Requirements | R2 |
+| KTDs | KTD4 |
+| Depends on | U1 |
+| Status | merged to `staging` as `297306e` (PR #56) |
+| Rollback | revert the U4 PR. Production stays on report mode. |
+
+**Evidence (2026-08-22):**
+
+- `validateContract` / `readContract` never cast `raw` to T
+- Production defaults to report; development/test always enforce
+- Frontend mismatch events reuse `client_error` with endpoint + issue paths only
+- CI on PR #56: all jobs green
+- Merged to `staging` as `297306e`
+
+### U5 — Envelope canon and admin adapter
+
+| Field | Value |
+|---|---|
+| Requirements | R4, R5 |
+| KTDs | KTD3 |
+| Depends on | U1 |
+| Status | in progress on `feat/platform-u5-envelopes` |
+| Rollback | revert the U5 PR. No live admin call site opts into `schema` yet. |
+
+### U2, U3, U16 (Phase A remainder)
+
+Not started. U2 and U3 follow U4 (helper is on staging). Do not start U6.
 
 ### U6+
 
