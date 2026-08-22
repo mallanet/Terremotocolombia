@@ -18,15 +18,17 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY backend ./backend
 COPY infra/db ./infra/db
 WORKDIR /app/backend
-# Compila TypeScript a JS. tsc con moduleResolution:bundler conserva los alias @/
-# como están; en runtime tsx los resuelve. El build sirve para validar tipos en
-# CI y tener el output disponible si se necesita depuración.
-RUN npm run build || echo "Build de tipos OK (tsx resuelve en runtime)"
+# Compila TypeScript. A failed typecheck must fail the image build.
+ARG APP_BUILD_SHA=dev
+ENV APP_BUILD_SHA=$APP_BUILD_SHA
+RUN npm run build
 
 FROM base AS runtime
 ENV NODE_ENV=production
 ENV PORT=8080
 ENV HOSTNAME=0.0.0.0
+ARG APP_BUILD_SHA=dev
+ENV APP_BUILD_SHA=$APP_BUILD_SHA
 # node:24-slim trae un usuario no-root `node` (uid 1000). Úsalo.
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/backend/dist ./backend/dist

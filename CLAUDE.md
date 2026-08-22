@@ -6,34 +6,36 @@ Mallanet.org). It serves real traffic right now.
 
 The repository began as a fork of a public disaster-response template. Most
 of the code is still generic. One fact matters most for you: the deployment
-identity is already set, the launch already happened, and **anything you
-push to `main` goes live**. For code conventions (endpoints, integration
-modules, Drizzle, ESLint rules), read [`AGENTS.md`](AGENTS.md).
+identity is already set, the launch already happened, and **a merge to
+`main` uploads production Worker versions but does not send them traffic**.
+Promotion is a separate human step. For code conventions (endpoints,
+integration modules, Drizzle, ESLint rules), read [`AGENTS.md`](AGENTS.md).
 
-## First fact: a push to `main` deploys the frontend and the admin panel — not the backend
+## First fact: a push to `main` uploads frontend and admin versions — it does not promote them
 
-**Frontend and admin** deploy on their own on every push to `main`, each
-with its own path filter: `deploy-frontend.yml` (`frontend/**` and
-`config/deployment.config.json`) and `deploy-admin.yml` (`admin/**`). No
-approval step exists for those two. Every commit is a deploy to a site
-that people use to search for missing family members.
+**Frontend and admin** still build on every push to `main` that matches their
+path filters: `deploy-frontend.yml` (`frontend/**` and
+`config/deployment.config.json`) and `deploy-admin.yml` (`admin/**`). Those
+workflows run `wrangler versions upload` tagged with `GITHUB_SHA`. They do
+**not** call `wrangler deploy`. Production traffic stays on the last promoted
+version until a human runs `promote-frontend.yml` or `promote-admin.yml`.
 
-**The production backend deploy is MANUAL** (`deploy-backend.yml`,
-`workflow_dispatch` only). The maintainer set this up on the afternoon of
-2026-08-11, after a 6-hour `503` incident caused by schema drift. Merging
-to `main` leaves the code ready, but the API Worker only deploys when a
-human runs the workflow — which also runs a schema-drift gate that fails
-closed. Staging still deploys on its own (`deploy-staging.yml`).
+**The production backend** stays split: `deploy-backend.yml` `action=upload`
+records a version after the schema-capability gate; `action=promote` sends
+traffic to that SHA. Staging still deploys on its own (`deploy-staging.yml`)
+with a schema-capability preflight before the API Worker deploy.
 
 ```mermaid
 flowchart LR
     push(["git push to main"]) --> gh["GitHub Actions\n(path-filtered per workflow)"]
-    gh -->|"frontend/**"| wf["deploy-frontend.yml\n(automatic)"]
-    gh -->|"admin/**"| wa["deploy-admin.yml\n(automatic)"]
-    gh -.->|"backend/**, infra/db/**\n(code ready, not deployed)"| wbReady["deploy-backend.yml\nwaits for a human"]
-    human(["a human runs\nworkflow_dispatch"]) --> wb["deploy-backend.yml\nschema-drift gate, fails closed"]
-    wf --> workerF["Worker\nterremotocolombia-web"]
-    wa --> workerA["Worker\nterremotocolombia-admin"]
+    gh -->|"frontend/**"| wf["deploy-frontend.yml\nupload, no traffic"]
+    gh -->|"admin/**"| wa["deploy-admin.yml\nupload, no traffic"]
+    gh -.->|"backend/**, infra/db/**\n(code ready, not deployed)"| wbReady["deploy-backend.yml\nupload waits for a human"]
+    human(["a human runs promote / dispatch"]) --> pf["promote-frontend.yml"]
+    human --> pa["promote-admin.yml"]
+    human --> wb["deploy-backend.yml action=promote\nschema-capability gate, fails closed"]
+    pf --> workerF["Worker\nterremotocolombia-web"]
+    pa --> workerA["Worker\nterremotocolombia-admin"]
     wb --> workerB["Worker\nterremotocolombia-api"]
     workerB -. "schema change: separate,\nmanual, earlier step" .-> migrate["backend/worker/migrate.ts\nagainst Neon direct endpoint"]
 ```
@@ -61,9 +63,9 @@ flowchart LR
 | Admin Worker | `terremotocolombia-admin` | `terremotocolombia-admin-staging` |
 | Database | Neon branch `production` | Neon branch `staging` |
 | Secrets | Doppler config `prd` | Doppler config `stg` |
-| Frontend deploy | automatic on push | automatic on push |
-| Backend deploy | **manual** (`deploy-backend.yml`, dispatch + drift gate) | automatic on push |
-| Admin deploy | automatic on push (`deploy-admin.yml`, filter `admin/**`) | automatic on push |
+| Frontend deploy | upload on push; promote is manual | automatic on push |
+| Backend deploy | **manual** (`deploy-backend.yml` upload then promote + capability gate) | automatic on push (capability gate first) |
+| Admin deploy | upload on push; promote is manual | automatic on push |
 
 Both environments share one `wrangler.jsonc` file per service — staging
 lives in that file's `env.staging` block. This is deliberate. Two separate

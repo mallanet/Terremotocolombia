@@ -27,9 +27,10 @@ infrastructure layer:
   serves `admin.terremotocolombia.co` (staging: `terremotocolombia-admin-staging` /
   `admin-staging.terremotocolombia.co`), through `@opennextjs/cloudflare`,
   the same as the frontend (`admin/wrangler.jsonc`, with no runtime
-  secrets). Deploy: automatic in staging (`deploy-staging.yml`); automatic
-  in production on push to `main`, with the `admin/**` path filter
-  (`deploy-admin.yml`; it was manual until 2026-08-11). Production sits
+  secrets). Deploy: automatic in staging (`deploy-staging.yml`); production
+  **uploads** a Worker version on push to `main` with the `admin/**` path
+  filter (`deploy-admin.yml`) and does not send traffic until
+  `promote-admin.yml`. Production sits
   behind **Cloudflare Access** (email OTP plus a team allowlist, with a
   bypass only for `/api/health`, for the smoke check) — see `CLAUDE.md` →
   "Where this actually runs." Note: the "Import patients" screen depends
@@ -363,8 +364,12 @@ surface. Turnstile and rate limiting remain the real protection.
   permanent. The system deletes a person's own photos from object storage
   before it deletes their row.
 - The `migrate` service in `docker-compose.prod.yml` uses the backend
-  image, and runs before `backend` and `worker` start. If it fails, the
-  app does not roll out.
+  image. It sits behind Compose profile `migrate`. Ordinary `up` does not
+  run it. Operators run:
+  `docker compose -f docker-compose.prod.yml --env-file .prod.env --profile migrate run --rm migrate`.
+  Backend, frontend, and admin containers have HTTP healthchecks. Do not
+  claim zero-downtime on this path until blue/green plus an atomic Caddy
+  switch exist.
 - Migrations must follow the expand-contract pattern, for rollouts with no
   downtime: old containers keep serving while the new one starts against
   the updated schema.
@@ -595,14 +600,16 @@ flowchart TB
   (Cloudflare Queues replace them for the jobs listed in
   [Workers and queues](#workers-and-queues)). The `admin/` panel **is**
   deployed on this path — see the Summary section above.
-- Deploy: `deploy-frontend.yml` and `deploy-admin.yml` run automatically,
-  on push to `main`, with a path filter. **`deploy-backend.yml` is
-  manual** (`workflow_dispatch` only, since the afternoon of 2026-08-11):
-  the API does not go out with the merge. It goes out when a human runs
-  the workflow, after a schema-drift gate that fails closed. In staging
-  (`deploy-staging.yml`), the backend deploys automatically. Migrations run
-  through neither CI nor any deploy — see [Data and
-  migrations](#data-and-migrations).
+- Deploy: `deploy-frontend.yml` and `deploy-admin.yml` **upload** Worker
+  versions on push to `main` (path-filtered). They do not send production
+  traffic. Promotion is `promote-frontend.yml` / `promote-admin.yml`
+  (`workflow_dispatch`, GitHub Environment names `production-frontend` /
+  `production-admin`). **`deploy-backend.yml` is manual** for both upload
+  and promote, with a schema-capability gate that fails closed (column
+  drift including campaign tables, plus journal SHA). Staging
+  (`deploy-staging.yml`) still deploys automatically after the same
+  capability preflight on the API. Migrations run through neither CI nor
+  any deploy — see [Data and migrations](#data-and-migrations).
 - An OpenTofu module, **outside this repository**, manages the Cloudflare
   zone (DNS, anti-spoofing, TLS, WAF, cache, rate limit).
 

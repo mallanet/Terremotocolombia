@@ -8,9 +8,7 @@ WORKDIR /app
 # ---- deps: instala solo con lockfile (mejor caché de capas) ----
 FROM base AS deps
 COPY package.json package-lock.json ./
-# ci reproducible; fallback a install si el lock drifta (optional-dep / versión
-# de npm). CI commitea el lock corregido de vuelta.
-RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+RUN npm ci --no-audit --no-fund
 
 # ---- builder: compila el server standalone ----
 FROM base AS builder
@@ -20,6 +18,8 @@ COPY . .
 # puede no tener public/ todavía).
 RUN mkdir -p /app/public
 ENV NEXT_TELEMETRY_DISABLED=1
+ARG APP_BUILD_SHA
+ENV APP_BUILD_SHA=$APP_BUILD_SHA
 RUN npm run build
 
 # ---- runtime: mínimo, no-root ----

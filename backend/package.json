@@ -19,6 +19,7 @@
     "worker": "tsx worker/index.ts",
     "db:generate": "drizzle-kit generate --config ../infra/db/drizzle.config.ts",
     "check:schema-drift": "tsx worker/check-schema-drift.ts",
+    "check:platform-schema": "tsx worker/check-platform-schema.ts",
     "check:migration-journal": "tsx worker/check-migration-journal.ts",
     "observe:db": "tsx worker/observe-db.ts"
   },

@@ -8,6 +8,7 @@ import { env, corsOrigins } from "@/config/env";
 import { errorHandler } from "@/middleware";
 import { metricsMiddleware, startMetricsServer } from "@/lib/metrics";
 import { requestContext } from "@/lib/request-context";
+import { getAppBuildSha } from "@/lib/build-identity";
 import { isR2Configured } from "@/lib/r2";
 import { mountPublicApi } from "@/public-api";
 import { buildOpenApiSpec } from "@/lib/swagger";
@@ -67,7 +68,7 @@ app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader(
       "Access-Control-Expose-Headers",
-      "ETag, X-Request-Id, X-Json-Edge-Cache, X-Photo-Edge-Cache",
+      "ETag, X-Request-Id, X-Json-Edge-Cache, X-Photo-Edge-Cache, X-App-Build-Sha",
     );
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
     res.setHeader(
@@ -139,7 +140,9 @@ app.use(metricsMiddleware);
 // `restart: unless-stopped`, no un healthcheck HTTP sobre estas rutas).
 // Ningún endpoint declara rate-limit: los pollea el smoke check cada pocos
 // segundos (la regla local/require-rate-limit solo aplica a routes/ + public-api/).
-app.get("/api/healthz", (_req, res) => res.json({ ok: true }));
+app.get("/api/healthz", (_req, res) =>
+  res.json({ ok: true, sha: getAppBuildSha() }),
+);
 
 // READINESS: SELECT 1 con timeout corto. 200 si la DB responde, 503 si no.
 // Nunca expone el error real (podría filtrar DATABASE_URL); loguea genérico.
@@ -157,10 +160,10 @@ app.get("/api/readyz", async (_req, res) => {
         timer = setTimeout(() => reject(new Error("readyz: db timeout")), READYZ_DB_TIMEOUT_MS);
       }),
     ]);
-    res.json({ ok: true, r2: isR2Configured() });
+    res.json({ ok: true, r2: isR2Configured(), sha: getAppBuildSha() });
   } catch {
     console.warn("readyz: db unreachable");
-    res.status(503).json({ ok: false, r2: isR2Configured() });
+    res.status(503).json({ ok: false, r2: isR2Configured(), sha: getAppBuildSha() });
   } finally {
     clearTimeout(timer);
   }

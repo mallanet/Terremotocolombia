@@ -1,4 +1,5 @@
 import { SITE_BRAND_NAME } from "@/lib/site";
+import CampaignIcon from "./CampaignIcon";
 
 /**
  * Banner de la campaña. Reutiliza el marco del hero de la portada (.e-hero*)
@@ -24,9 +25,7 @@ export default function CampaignHero({
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url('${HERO_IMAGE}')` }}
         />
-        {/* Velo: sin él, el texto blanco se pierde sobre los sacos claros. Va
-            plano y no en degradado porque el titular está centrado, así que
-            oscurecer un solo lado no ayudaría. */}
+        {/* Velo: sin él, el texto blanco se pierde sobre los sacos claros. */}
         <div aria-hidden className="absolute inset-0 bg-slate-950/62" />
 
         <div className="e-hero__inner">
@@ -52,14 +51,16 @@ export default function CampaignHero({
           <div className="mt-6 flex flex-wrap gap-3">
             <a
               href="#registrar"
-              className="rounded-full bg-white px-6 py-3 text-[15px] font-bold text-slate-900 shadow-lg transition hover:bg-slate-100"
+              className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-[15px] font-bold text-slate-900 shadow-lg transition hover:bg-slate-100"
             >
+              <CampaignIcon name="registrar" size={22} />
               Registrar mi donación
             </a>
             <a
               href="#puntos"
-              className="rounded-full border border-white/70 px-6 py-3 text-[15px] font-semibold text-white transition hover:bg-white/10"
+              className="inline-flex items-center gap-2 rounded-full border border-white/70 px-6 py-3 text-[15px] font-semibold text-white transition hover:bg-white/10"
             >
+              <CampaignIcon name="punto" size={22} />
               Ver los puntos de entrega
             </a>
           </div>

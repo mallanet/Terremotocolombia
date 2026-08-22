@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { GET } from "@/app/api/health/route";
+import { APP_BUILD_SHA_HEADER, getAppBuildSha } from "@/src/shared/build-identity";
 
 describe("GET /api/health", () => {
-  it("returns 200 with { ok: true }", async () => {
+  it("returns 200 with ok and sha", async () => {
     const response = await GET();
 
     expect(response.status).toBe(200);
 
     const body = await response.json();
-    expect(body).toEqual({ ok: true });
+    expect(body).toEqual({ ok: true, sha: getAppBuildSha() });
+    expect(response.headers.get(APP_BUILD_SHA_HEADER)).toBe(getAppBuildSha());
   });
 
   it("sets Cache-Control: no-store", async () => {

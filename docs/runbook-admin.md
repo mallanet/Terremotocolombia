@@ -156,17 +156,18 @@ PII, gated por `volunteer:read` (nav oculta sin la capacidad). El sistema
    host staging (nunca producción, nunca CI auto).
 3. Smoke en `admin-staging.terremotocolombia.co` con un admin que tenga
    `volunteer:read`.
-4. Solo entonces merge a `main` (auto-deploy admin+backend). Board de
+4. Solo entonces merge a `main` (upload admin Worker version; promote with
+   `promote-admin.yml`). Board de
    producción necesita además migración Neon **production** (paso humano).
 
 ## Panel deployments
 
 - **Staging**: Deployment is automatic on every push to the `staging`
   branch. This runs as the `admin` job in `deploy-staging.yml`.
-- **Production**: Deployment is automatic on every push to `main` that
-  changes a file under `admin/**`. This runs in `deploy-admin.yml`.
-  Before 2026-08-11, this deploy was manual. To redeploy by hand, run
-  `gh workflow run deploy-admin.yml`.
+- **Production**: A push to `main` that changes a file under `admin/**`
+  **uploads** a Worker version (`deploy-admin.yml`). It does not send
+  production traffic. Promote with `promote-admin.yml` and the uploaded
+  SHA. To upload by hand, run `gh workflow run deploy-admin.yml`.
 - The production smoke check sends a request to `/api/health`. This
   endpoint has a deliberate **bypass** of Access. Do not remove this
   bypass.

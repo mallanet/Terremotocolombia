@@ -21,6 +21,9 @@
     "enabled": true,
     "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": false }
   },
+  "vars": {
+    "APP_BUILD_SHA": "dev"
+  },
   // Entorno de staging: Worker aparte, dominio aparte, base de datos aparte
   // (rama de Neon). Se despliega con `wrangler deploy --env staging`.
   //
@@ -39,6 +42,9 @@
       "observability": {
         "enabled": true,
         "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": false }
+      },
+      "vars": {
+        "APP_BUILD_SHA": "dev"
       }
     }
   }

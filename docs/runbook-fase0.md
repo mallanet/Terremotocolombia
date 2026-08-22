@@ -124,8 +124,10 @@ deploy itself is also a human gate**, separate from G4: a human must run
 check that fails closed. This was briefly automatic for part of
 2026-08-11, until a schema-drift outage (commit `a81e17c`, about 6 hours of
 `503` errors) made the maintainer revert it back to manual, the same day.
-The frontend and the admin panel still deploy automatically, on push to
-`main`. See `CLAUDE.md` → "Where this actually runs" for the current rule.
+The frontend and the admin panel **upload** Worker versions on push to
+`main`. A human promotes the SHA (`promote-frontend.yml`,
+`promote-admin.yml`). See `CLAUDE.md` → "Where this actually runs" for the
+current rule.
 
 **Out of scope on purpose**: patient import (manual and OCR). It uses
 interactive transactions that fail in Workers. It needs its own separate

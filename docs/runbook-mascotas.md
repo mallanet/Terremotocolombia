@@ -113,21 +113,24 @@ production**, in both tiers.
 
 ## 3. Frontend
 
-The frontend deploys automatically on merge to `main`. `deploy-frontend.yml`
-triggers on changes under `frontend/**`. No manual step is needed.
+The frontend **uploads** a Worker version on merge to `main`.
+`deploy-frontend.yml` triggers on changes under `frontend/**`. Production
+traffic does not change until `promote-frontend.yml` runs with that SHA.
 
-Between the frontend merge and the manual backend dispatch, a window
+Between the frontend promote and the manual backend promote, a window
 exists. In this window, the "Mascotas" tab exists, but `/api/pets` does
 not yet exist. Nothing breaks: the tab shows "No pudimos cargar las
 mascotas" (We could not load the pets), an honest message. To keep this
-window short, start the backend deploy right after the merge. Do not wait
-for the frontend deploy to finish.
+window short, promote the backend after the frontend, in the order the
+release record names.
 
 ## Rollback
 
-- **Frontend**: Revert the merge and push. The deploy runs automatically.
-- **Backend**: Deploy the previous commit again, with the same manual
-  workflow.
+- **Frontend**: Promote the previous Worker version with
+  `promote-frontend.yml` (or `wrangler versions deploy <id>@100%`).
+  Reverting `main` only uploads a new candidate.
+- **Backend**: Promote the previous SHA with `deploy-backend.yml`
+  `action=promote`.
 - **Table**: You do not need to drop the table. With no code to read it,
   the table stays inactive and costs nothing. Run `DROP TABLE
   missing_pets` only if someone decides to abandon the feature. This

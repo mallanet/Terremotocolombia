@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
+import { APP_BUILD_SHA_HEADER, getAppBuildSha } from "@/lib/build-identity";
 
 const requestIds = new WeakMap<Request, string>();
 
@@ -18,6 +19,7 @@ export function requestContext(req: Request, res: Response, next: NextFunction):
   const id = randomUUID();
   requestIds.set(req, id);
   res.setHeader("X-Request-Id", id);
+  res.setHeader(APP_BUILD_SHA_HEADER, getAppBuildSha());
   requestTelemetry.run(
     { id, dbQueries: 0, dbDurationMs: 0, dbRetries: 0, dbFailures: 0 },
     next,

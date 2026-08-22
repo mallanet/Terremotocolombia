@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "note": "Names only. Never put secret values in this file. Hash this file into each release record.",
+  "workers": [
+    "terremotocolombia-web",
+    "terremotocolombia-web-staging",
+    "terremotocolombia-admin",
+    "terremotocolombia-admin-staging",
+    "terremotocolombia-api",
+    "terremotocolombia-api-staging"
+  ],
+  "wranglerVarNames": [
+    "APP_BUILD_SHA",
+    "EARTHQUAKES_MIN_LAT",
+    "EARTHQUAKES_MAX_LAT",
+    "EARTHQUAKES_MIN_LNG",
+    "EARTHQUAKES_MAX_LNG",
+    "NODE_ENV",
+    "COOKIE_SECURE",
+    "APP_BASE_URL",
+    "ADMIN_BASE_URL",
+    "CORS_ORIGINS",
+    "ENABLE_STRIPE_DONATIONS",
+    "TRUSTED_IP_HEADER",
+    "EMERGENCY_API_URL"
+  ],
+  "secretNames": [
+    "DATABASE_URL",
+    "JWT_SECRET",
+    "TURNSTILE_SECRET_KEY",
+    "CRON_SECRET",
+    "IP_SALT",
+    "PATIENT_DOCUMENT_HASH_SECRET",
+    "CLOUDFLARE_ACCOUNT_API_TOKEN",
+    "CLOUDFLARE_API_TOKEN_COLOMBIA_SCOPED",
+    "DOPPLER_TOKEN"
+  ],
+  "queues": {
+    "production": [
+      "terremotocolombia-needs",
+      "terremotocolombia-needs-dlq",
+      "terremotocolombia-imports",
+      "terremotocolombia-imports-dlq",
+      "terremotocolombia-matcher",
+      "terremotocolombia-matcher-dlq"
+    ],
+    "staging": [
+      "terremotocolombia-needs-staging",
+      "terremotocolombia-needs-dlq-staging",
+      "terremotocolombia-imports-staging",
+      "terremotocolombia-imports-dlq-staging",
+      "terremotocolombia-matcher-staging",
+      "terremotocolombia-matcher-dlq-staging"
+    ]
+  },
+  "crons": ["*/5 * * * *", "2-59/5 * * * *", "4-59/5 * * * *"],
+  "rateLimiterNamespaces": {
+    "production": "documented in backend/wrangler.jsonc",
+    "staging": "2026081202"
+  },
+  "assetRetentionSeconds": {
+    "stagingWranglerDeploy": 604800,
+    "productionVersions": "prior Worker versions retained by Cloudflare (limit 100)"
+  },
+  "customDomainsAttachedOutOfBand": [
+    "terremotocolombia.co",
+    "www.terremotocolombia.co",
+    "api.terremotocolombia.co",
+    "admin.terremotocolombia.co",
+    "staging.terremotocolombia.co",
+    "api-staging.terremotocolombia.co",
+    "admin-staging.terremotocolombia.co"
+  ]
+}

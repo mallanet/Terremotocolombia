@@ -31,6 +31,7 @@ describe("banner de la campaña", () => {
     expect(page).toContain("<CampaignHero");
     expect(hero).toContain('href="#registrar"');
     expect(hero).toContain('href="#puntos"');
+    expect(hero).toContain("CampaignIcon");
     expect(page).toContain('id="registrar"');
     expect(page).toContain('id="puntos"');
   });

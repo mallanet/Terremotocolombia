@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { APP_BUILD_SHA_HEADER, getAppBuildSha } from "../../../src/shared/build-identity";
 import { BFF_CACHE_HEADERS } from "../_shared/bff-cache";
 
 /**
@@ -9,5 +10,12 @@ import { BFF_CACHE_HEADERS } from "../_shared/bff-cache";
  * the error in the UI, not a traffic-less pod.
  */
 export function GET(): NextResponse {
-  return NextResponse.json({ ok: true }, { status: 200, headers: BFF_CACHE_HEADERS });
+  const sha = getAppBuildSha();
+  return NextResponse.json(
+    { ok: true, sha },
+    {
+      status: 200,
+      headers: { ...BFF_CACHE_HEADERS, [APP_BUILD_SHA_HEADER]: sha },
+    },
+  );
 }

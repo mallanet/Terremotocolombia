@@ -14,6 +14,8 @@ describe("request correlation", () => {
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     );
     expect(response.headers["x-request-id"]).not.toBe("client-controlled");
+    expect(response.headers["x-app-build-sha"]).toBeTruthy();
+    expect(response.body).toEqual({ ok: true, sha: response.headers["x-app-build-sha"] });
   });
 
   it("keeps database telemetry scoped to one asynchronous request", async () => {

@@ -1,0 +1,77 @@
+name: Promote frontend
+
+# Sends production traffic to an already-uploaded frontend Worker version.
+# Does not rebuild. Requires the source SHA that tagged the upload.
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full git SHA of the uploaded artifact
+        required: true
+        type: string
+      worker_version_id:
+        description: Optional Worker Version ID. Must belong to source_sha.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promote-frontend
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote frontend Worker version
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production-frontend
+      url: https://terremotocolombia.co
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: dopplerhq/cli-action@v3
+
+      - name: Install wrangler
+        working-directory: frontend
+        run: npm ci
+
+      - name: Promote uploaded version
+        working-directory: frontend
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          WORKER_VERSION_ID: ${{ inputs.worker_version_id }}
+        run: |
+          doppler run --command '
+            export CLOUDFLARE_API_TOKEN="$CLOUDFLARE_ACCOUNT_API_TOKEN"
+            export CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID"
+            export SOURCE_SHA="'"$SOURCE_SHA"'"
+            export WORKER_VERSION_ID="'"$WORKER_VERSION_ID"'"
+            bash ../scripts/release/promote-worker-version.sh
+          '
+
+      - name: Purge service worker at the edge
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+        run: |
+          doppler run --command '
+            curl -sf -X POST "https://api.cloudflare.com/client/v4/zones/494895363b65d50699864543d005238a/purge_cache" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN_COLOMBIA_SCOPED" \
+              -H "Content-Type: application/json" \
+              --data "{\"files\":[\"https://terremotocolombia.co/sw.js\",\"https://www.terremotocolombia.co/sw.js\"]}"'
+
+      - name: Domain smoke including served frontend SHA
+        env:
+          SHA_TARGETS: web
+        run: bash scripts/smoke/domain-smoke.sh production ${{ inputs.source_sha }}
