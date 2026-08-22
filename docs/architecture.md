@@ -237,19 +237,27 @@ require human review before any deployment.
 - **Analítica de voluntarios en `api/public/volunteer-analytics`.** Board de
   agregados (sin PII) para ops: KPIs (voluntarios/pending/contacted + conteos
   de tasks/assignments), buckets de intención (taxonomía congelada del canvas
-  + `other`), pipeline, geo, disponibilidad, skills digitales, altas por hora,
-  fuentes y `callouts[]`. Router a mano
+  + `other`), pipeline, geo, disponibilidad, skills digitales, altas por hora
+  (America/Bogotá), fuentes, `callouts[]`, y la capa de paridad: `offerTypes`,
+  `modality` (campo/digital/unclear), `pipelineByIntent`, `formCohorts`,
+  `fieldCapacity`, y `actions` P0/P1/P2 con títulos fijos en español
+  (“Contactar escasos” / “Despachar volumen” / “Banco remoto”) calculados
+  desde agregados vivos (no números del canvas). Router a mano
   (`public-api/routers/volunteer-analytics.router.ts`) con
   `requireCapability("volunteer:read")` (CROSS_CUTTING; el seedAuth la liga
   solo al rol sistema `admin`) + `cached()` SWR ~120s
   (`vol:analytics:full` / `vol:analytics:inc:{since}`) y bypass `?refresh=1`.
   Clasificador puro en
   `services/volunteer-analytics/classify-intent.ts`
-  (prioridad field_role → offer_types → digital → free-text). El panel
+  (prioridad field_role → offer_types → digital → free-text; más
+  `classifyModality` / `classifyFormCohort`). El panel
   (`admin/app/volunteer-analytics`) consume el BFF
-  `/api/admin/volunteer-analytics` (`Cache-Control: no-store`) con Recharts
-  y Query `staleTime` 60s. Schema `volunteers*` en Drizzle: expand-only;
-  **migrar Neon stg/prd es humano** (nunca el agente).
+  `/api/admin/volunteer-analytics` (`Cache-Control: no-store`) con Recharts,
+  Query `staleTime` 60s, y toggle corpus completo ↔ últimas 24h (`since`).
+  **Orden de despliegue:** backend manual (`deploy-backend.yml`) antes de que
+  el admin consuma campos nuevos; el lag de staging es aceptable — smoke en
+  main tras el deploy del Worker API. Schema `volunteers*` en Drizzle:
+  expand-only; **migrar Neon stg/prd es humano** (nunca el agente).
 
 ## Third-party integrations (`ENABLE_*` flags)
 
