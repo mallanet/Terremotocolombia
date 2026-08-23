@@ -388,7 +388,7 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 | Depends on | U7, U9 |
 | Status | in progress on Colombia staging. Process-cache complete. Queue/Cron consumer-first in this slice. Browser/SW/query keys remain. |
 | Rollback | revert the staging PR. Process-cache and queue consumers are expand-only; producers still emit v1. |
-| PR/commit | Process-cache: Colombia [PR #67](https://github.com/mallanet/Terremotocolombia/pull/67) `db71fb5`. Queue/Cron: this PR. Platform port follows after Colombia merge. |
+| PR/commit | Process-cache: Colombia [PR #67](https://github.com/mallanet/Terremotocolombia/pull/67) `db71fb5`. Queue/Cron: Colombia [PR #68](https://github.com/mallanet/Terremotocolombia/pull/68). Platform port follows after Colombia merge. |
 
 **Evidence (2026-08-23, process-cache, Colombia staging):**
 
