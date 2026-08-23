@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-a-u16-in-progress
+status: phase-a-complete-u6-bootstrapped
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -24,13 +24,13 @@ status. Complete means acceptance evidence, not the existence of files.
 | Item | Value |
 |---|---|
 | Implementation worktree | `/Users/eduardomuthmartinez/Mallanet/Colombia/platform-impl` |
-| Branch | `feat/platform-u16-openapi` (U0–U5 and U2–U3 are on `origin/staging` at `90bc30d`) |
+| Branch | `feat/platform-u6-ledger` (U0–U16 on `origin/staging` at `33ef83e`) |
 | Immutable bootstrap SHA | `83b7c1669fda091f092edcb3f470a1e81f5669ba` (origin/main, PR #53) |
 | User checkout (do not touch) | `/Users/eduardomuthmartinez/Mallanet/Colombia/repo` on `fix/frontend-backend-contracts` (`89089da`) |
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
 | Plans on origin/main | absent before this unit; copied into the worktree in Phase 0 |
 | Do not absorb | `8f12eaa` Access-doc edits and pptx |
-| origin/staging | `90bc30db4467f95f7a96f96316c8e3db594e4081` (recorded 2026-08-22) |
+| origin/staging | `33ef83e` Merge PR #60 (U16). Recorded 2026-08-23 |
 | Local `main` | stale (`3dacec2`, 242 behind). Ignore. |
 | Plan original review SHA | `89089da` (ancestor of main) |
 | Cache addendum SHA | `d106977` (ancestor of main) |
@@ -59,7 +59,7 @@ campaign reconstrucción (#47+#52), brand icons (#53).
 | Compose prod | `backend`/`worker` `depends_on: migrate` |
 | Auth | NULL-org / `is_system` wildcard / `is_super_admin` (U30, parked) |
 | Drift gate schema import | `schema.ts` only — **misses campaign tables** |
-| Platform GitHub repo | does not exist (U6 needs `gh repo create` authorization) |
+| Platform GitHub repo | interim `Emuthmartinez/platform` from `83b7c16`; intended `mallanet/platform` (B2 transfer) |
 | GitHub Environments with required reviewers | only `copilot`; production-* do not exist yet |
 
 Operability U23–U33 remain **parked**: U21/U22 are incomplete and no second-incident
@@ -74,7 +74,11 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** U16. Do not start U6.
+**Next executable unit:** U7 in `Emuthmartinez/platform`. Do not merge
+Colombia `staging` to `main` to copy Phase A. U19 imports from Colombia
+`origin/main` after those commits land there. Do not copy Colombia Doppler
+tokens onto the platform repo. Do not deploy the platform clone to
+terremotocolombia.co.
 
 ## Unit ledger
 
@@ -208,13 +212,59 @@ U35 starts deterministic shadow; not a U21 gate
 | Requirements | R16 |
 | KTDs | KTD11 |
 | Depends on | U2, U3, U5 |
-| Status | in progress on `feat/platform-u16-openapi` |
+| Status | merged to `staging` as `33ef83e` (PR #60) |
 | Rollback | revert the U16 PR. Runtime `/api/docs` stays gated by `ENABLE_API_DOCS`. |
 
-### U6+
+**Evidence (2026-08-22):**
 
-Blocked on Phase A and on authorization to create the platform repository,
-Doppler/Cloudflare isolation, and a disposable Neon RLS probe.
+- Hybrid generator: JSDoc + crud-factory + contract overlay
+- `cd backend && npm run openapi:generate` → `docs/api/openapi.json`
+- Coverage: 136 paths (10 `contracts`, 66 `legacy-crud`, 60 `legacy-jsdoc`)
+- Overlay paths stay `contracts`: healthz/readyz, public reports, `/api/needs*`
+- oasdiff v1.29.1; gate `oasdiff breaking --fail-on WARN`
+- CI job `contract compatibility (OpenAPI + oasdiff)` green on PR #60
+- Merged to `staging` as `33ef83e`
+
+This gate is **not** on Colombia `origin/main` (`83b7c16`). It reaches the
+platform clone only through U19 after Phase A commits land on Colombia `main`.
+
+### U6 — Platform repo bootstrap
+
+| Field | Value |
+|---|---|
+| Requirements | R6; instantiates KD1 |
+| KTDs | KD1, KTD5 |
+| Depends on | U2, U3, U5, U16 |
+| Status | clone complete on interim personal repo; org transfer still open (B2) |
+| Rollback | delete or archive `Emuthmartinez/platform`; Colombia production is unchanged |
+
+**Evidence (2026-08-23):**
+
+- `gh repo create mallanet/platform` failed: `Emuthmartinez cannot create a repository for mallanet`
+- User approved create under `Emuthmartinez`. Repo:
+  https://github.com/Emuthmartinez/platform
+- Clone SHA: Colombia `origin/main` `83b7c1669fda091f092edcb3f470a1e81f5669ba`
+- Isolation commit `5934084`: deploy/monitor/verify-jobs are dispatch-only and
+  skip unless `vars.ENABLE_PLATFORM_DEPLOYS == 'true'`. No Colombia Doppler
+  tokens on the clone. GitHub Actions was disabled until that commit was on
+  `main`, then re-enabled for CI.
+- drizzle-kit `0.31.10` in its own commit `0babcfb`. `drizzle-kit generate`
+  reported no schema changes.
+- RLS probe on disposable Neon branch `u6-rls-probe`
+  (`br-noisy-hill-axwaks2j`, parent staging, expires 2026-08-24T02:00:00Z).
+  Synthetic table only. Record:
+  https://github.com/Emuthmartinez/platform/blob/main/docs/platform/rls-feasibility.md
+- KTD5 stands: app-level enforcement. Neon owner has `BYPASSRLS`. FORCE RLS
+  does not bind that owner. A non-owner runtime role plus one HTTP `neon()`
+  batch can isolate tenants.
+- Probe table and role dropped after the record. Branch still expires.
+- Platform HEAD after U6 commits: `1e7f019`
+
+**Not claimed (plan verification, deferred):**
+
+- OpenAPI oasdiff CI on the platform clone (not on bootstrap SHA)
+- Staging deploy of three apps from the platform repo (would hit Colombia
+  staging Workers; forbidden until isolated platform staging exists)
 
 ## Blocker packets (open)
 
@@ -240,7 +290,9 @@ Doppler/Cloudflare isolation, and a disposable Neon RLS probe.
 - **Prepared:** workflows already declare those environment names.
 - **First action:** GitHub → Settings → Environments → required reviewers.
 
-### B2. Platform repository (U6, not now)
+### B2. Platform repository org home
 
-- **Missing:** authorization for `gh repo create` under `mallanet`.
-- **Do not start U6** before U1–U16 evidence is complete.
+- **Interim:** https://github.com/Emuthmartinez/platform exists and is isolated.
+- **Missing:** an org owner creates or transfers `mallanet/platform`.
+- **Do not** copy Colombia `DOPPLER_TOKEN` / Cloudflare tokens onto the clone.
+- **Do not** set `ENABLE_PLATFORM_DEPLOYS` until isolated Workers exist.
