@@ -34,7 +34,9 @@ import {
   persistPhotoDataUrl,
 } from "@/lib/r2";
 import { isAllowedImageDataUrl, parseImageDataUri } from "@/lib/image";
-import { invalidate, type ProcessCache } from "@/lib/cache";
+import { invalidate, tenantProcessCache, type ProcessCache } from "@/lib/cache";
+import { incidentOwnership } from "@/tenant/ownership";
+import type { TenantScope } from "@/tenant/scope";
 import { COLOMBIA_PROCESS_CACHE } from "@/lib/colombia-tenant";
 
 const { missingPets } = schema;
@@ -406,7 +408,8 @@ export async function listPets(
 
 export async function addPet(
   input: CreatePetInput,
-  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
+  scope: TenantScope,
+  cache: ProcessCache = tenantProcessCache(scope),
 ): Promise<PetDTO> {
   const id = crypto.randomUUID();
   const name = (input.name ?? "").trim().slice(0, MAX_NAME);
@@ -461,6 +464,7 @@ export async function addPet(
     status,
     resolutionNote,
     resolvedAt,
+    ...incidentOwnership(scope),
   });
   invalidate(cache);
 

@@ -62,7 +62,7 @@ import { writeAudit } from "@/auth/audit";
 import { allowedPartnerMediaUrl } from "@/config/partner-media-allowlist";
 import * as service from "@/services/missing";
 import type { ExternalMissingInput } from "@/services/missing";
-import { requestProcessCache } from "@/middleware/tenant";
+import { requestProcessCache, requireTenantScope } from "@/middleware/tenant";
 
 export const partnerSyncRouter = Router();
 
@@ -139,6 +139,7 @@ partnerSyncRouter.post(
 
     const result = await service.upsertExternalMissingBatch(rows, {
       cache: requestProcessCache(req),
+      scope: requireTenantScope(req),
     });
 
     await writeAudit(req, {

@@ -1,7 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
-import { invalidate, type ProcessCache } from "@/lib/cache";
-import { COLOMBIA_PROCESS_CACHE } from "@/lib/colombia-tenant";
+import { invalidate, tenantProcessCache, type ProcessCache } from "@/lib/cache";
 import { persistPhotoDataUrl } from "@/lib/r2";
 import { isAllowedImageDataUrl } from "@/lib/image";
 import {
@@ -12,6 +11,8 @@ import {
   type UpdateReportInput,
 } from "@/services/report-types";
 import { getReportById } from "@/services/reports-read";
+import { incidentOwnership } from "@/tenant/ownership";
+import type { TenantScope } from "@/tenant/scope";
 
 const { reports } = schema;
 
@@ -47,7 +48,8 @@ function createReport(input: CreateReportInput): {
 
 export async function addReport(
   input: CreateReportInput,
-  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
+  scope: TenantScope,
+  cache: ProcessCache = tenantProcessCache(scope),
 ): Promise<ReportDTO> {
   const { report, photo } = createReport(input);
   let stored = photo;
@@ -72,6 +74,7 @@ export async function addReport(
     photoMigratedAt: migratedAt,
     volunteerId: input.volunteerId ?? null,
     createdAt: report.createdAt,
+    ...incidentOwnership(scope),
   });
   invalidate(cache);
   return report;
@@ -80,19 +83,21 @@ export async function addReport(
 export async function confirmReport(
   id: string,
   ipKey: string,
-  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
+  scope: TenantScope,
+  cache: ProcessCache = tenantProcessCache(scope),
 ): Promise<
   | { status: "confirmed"; confirmations: number }
   | { status: "duplicate" }
   | { status: "not-found" }
 > {
   const db = await getDb();
+  const ownership = incidentOwnership(scope);
   const res = (await db.execute(sql`
     WITH target AS (
       SELECT id FROM reports WHERE id = ${id}
     ), ins AS (
-      INSERT INTO report_confirmations (report_id, ip_hash, created_at)
-      SELECT id, ${ipKey}, ${Date.now()} FROM target
+      INSERT INTO report_confirmations (report_id, ip_hash, created_at, organization_id, incident_id)
+      SELECT id, ${ipKey}, ${Date.now()}, ${ownership.organizationId}, ${ownership.incidentId} FROM target
       ON CONFLICT DO NOTHING
       RETURNING report_id
     ), updated AS (
@@ -116,7 +121,8 @@ export async function confirmReport(
 export async function updateReport(
   id: string,
   input: UpdateReportInput,
-  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
+  scope: TenantScope,
+  cache: ProcessCache = tenantProcessCache(scope),
 ): Promise<ReportDTO | null> {
   const db = await getDb();
   const patch: Record<string, unknown> = {};
@@ -138,7 +144,8 @@ export async function updateReport(
 
 export async function removeReport(
   id: string,
-  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
+  scope: TenantScope,
+  cache: ProcessCache = tenantProcessCache(scope),
 ): Promise<boolean> {
   const db = await getDb();
   const res = (await db.execute(

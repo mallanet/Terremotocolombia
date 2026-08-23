@@ -24,7 +24,7 @@ import { z } from "zod";
 import { asyncHandler, rateLimit, requireHuman, requireAdmin, setPublicPhotoHeaders, validate } from "@/middleware";
 import { jsonWithEtag } from "@/lib/http";
 import { cached, cacheParamDigest } from "@/lib/cache";
-import { requestProcessCache } from "@/middleware/tenant";
+import { requestProcessCache, requireTenantScope } from "@/middleware/tenant";
 import { badRequest, payloadTooLarge, notFound, serviceUnavailable } from "@/lib/errors";
 import { HttpError } from "@/lib/errors";
 import { writeAudit } from "@/auth/audit";
@@ -174,7 +174,7 @@ petsRouter.post(
         reportType: body.reportType,
         lat: body.lat,
         lng: body.lng,
-      }, requestProcessCache(req));
+      }, requireTenantScope(req), requestProcessCache(req));
       res.status(201).json({ pet });
     } catch (err) {
       if (err instanceof HttpError) throw err;
