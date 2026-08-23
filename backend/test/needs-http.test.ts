@@ -29,8 +29,13 @@ let app: express.Express;
 beforeAll(async () => {
   const { createNeedsRouter } = await import("@/modules/needs/interface/http/needs-router");
   const { errorHandler } = await import("@/middleware");
+  const { colombiaTenantScope } = await import("@/lib/colombia-tenant");
   app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    req.tenantScope = colombiaTenantScope();
+    next();
+  });
   app.use("/api/needs", createNeedsRouter());
   app.use(errorHandler);
 });
@@ -52,7 +57,14 @@ describe("needs publication HTTP", () => {
       queued: true,
       jobId: "need-job-1",
     });
-    expect(queueMocks.enqueue).toHaveBeenCalledWith(expect.any(Object), "request-1");
+    expect(queueMocks.enqueue).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        organizationId: "org_mallanet",
+        incidentId: "inc_terremoto_colombia_2026",
+      }),
+      "request-1",
+    );
   });
 
   it("expone el estado observable sin cache compartida", async () => {

@@ -6,10 +6,11 @@ import { logDbFailure } from "@/lib/db-error";
 import { captureFailedSubmission } from "@/lib/failed-submission";
 import { badRequest, payloadTooLarge, serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/reports";
-import { requestProcessCache } from "@/middleware/tenant";
+import { requestProcessCache, requireTenantScope } from "@/middleware/tenant";
 import { issueReportEditToken } from "@/lib/report-edit-token";
 import { getVolunteerByCode } from "@/services/volunteers";
 import { publishNeedAtLocation } from "@/modules/needs";
+import type { TenantScope } from "@/tenant/scope";
 
 const createBody = z.object({
   type: z.enum(service.REPORT_TYPE_KEYS, {
@@ -25,7 +26,10 @@ const createBody = z.object({
   turnstileToken: z.string().optional(),
 });
 
-function mirrorNeedReport(body: z.infer<typeof createBody>): void {
+function mirrorNeedReport(
+  body: z.infer<typeof createBody>,
+  scope: TenantScope,
+): void {
   const needsText = (typeof body.needs === "string" ? body.needs : "").trim();
   const affected = Number(body.affected) || 0;
   void publishNeedAtLocation({
@@ -46,7 +50,7 @@ function mirrorNeedReport(body: z.infer<typeof createBody>): void {
       affected > 0
         ? `Pedido ciudadano del mapa. Personas (estimado): ${affected}.`
         : "Pedido ciudadano del mapa.",
-  });
+  }, scope);
 }
 
 export function registerReportCreate(router: Router): void {
@@ -77,6 +81,7 @@ export function registerReportCreate(router: Router): void {
         volunteerId = volunteer.id;
       }
       try {
+        const scope = requireTenantScope(req);
         const report = await service.addReport({
           type: body.type as service.ReportType,
           lat: body.lat,
@@ -86,15 +91,15 @@ export function registerReportCreate(router: Router): void {
           needs: typeof body.needs === "string" ? body.needs : "",
           photo: body.photo ?? null,
           volunteerId,
-        }, requestProcessCache(req));
+        }, scope, requestProcessCache(req));
         res.status(201).json({
           report,
           editToken: issueReportEditToken(report.id),
         });
-        if (body.type === "need") mirrorNeedReport(body);
+        if (body.type === "need") mirrorNeedReport(body, scope);
       } catch (err) {
         logDbFailure("reports.create", err);
-        await captureFailedSubmission("reports", body, err);
+        await captureFailedSubmission("reports", body, err, req.tenantScope);
         throw serviceUnavailable(
           "No se pudo guardar el reporte. Revisa tu conexión e inténtalo de nuevo.",
         );

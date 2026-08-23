@@ -5,7 +5,7 @@ import { jsonWithEtag } from "@/lib/http";
 import { hashIp } from "@/lib/client-ip";
 import { HttpError, notFound, serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/reports";
-import { requestProcessCache } from "@/middleware/tenant";
+import { requestProcessCache, requireTenantScope } from "@/middleware/tenant";
 import { registerReportCreate } from "@/routes/reports-create";
 import { registerReportEdit } from "@/routes/reports-edit";
 
@@ -59,7 +59,11 @@ reportsRouter.delete(
   validate({ params: idParam }),
   asyncHandler(async (req, res) => {
     const { id } = req.params as z.infer<typeof idParam>;
-    const removed = await service.removeReport(id, requestProcessCache(req));
+    const removed = await service.removeReport(
+      id,
+      requireTenantScope(req),
+      requestProcessCache(req),
+    );
     if (!removed) throw notFound("No encontrado");
     res.json({ ok: true });
   }),
@@ -73,7 +77,12 @@ reportsRouter.post(
   asyncHandler(async (req, res) => {
     const { id } = req.params as z.infer<typeof idParam>;
     try {
-      const result = await service.confirmReport(id, hashIp(req), requestProcessCache(req));
+      const result = await service.confirmReport(
+        id,
+        hashIp(req),
+        requireTenantScope(req),
+        requestProcessCache(req),
+      );
       if (result.status === "not-found") throw notFound("No encontrado");
       if (result.status === "duplicate") {
         res.status(409).json({ ok: false, error: "Ya confirmaste este reporte." });

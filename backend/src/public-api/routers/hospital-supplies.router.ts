@@ -32,7 +32,7 @@ import { requireCapability } from "@/middleware/auth";
 import { writeAudit } from "@/auth/audit";
 import { badRequest, notFound } from "@/lib/errors";
 import { invalidate } from "@/lib/cache";
-import { requestProcessCache } from "@/middleware/tenant";
+import { requestProcessCache, requireTenantScope } from "@/middleware/tenant";
 import * as service from "@/services/hospitals";
 import type { Hospital, RestrictedHospitalSupplySnapshot } from "@/services/hospitals";
 
@@ -178,7 +178,11 @@ hospitalSuppliesRouter.post(
     const { hospitalId } = req.params as { hospitalId: string };
     await requireHospital(hospitalId);
     const input = stampActor(req.body as Record<string, unknown>, req.user!.email);
-    const result = await service.upsertHospitalSupplyStatus(hospitalId, input);
+    const result = await service.upsertHospitalSupplyStatus(
+      hospitalId,
+      input,
+      requireTenantScope(req),
+    );
     if (!result.ok) throw badRequest(result.error);
     invalidate(requestProcessCache(req));
     await writeAudit(req, {
@@ -203,7 +207,11 @@ hospitalSuppliesRouter.post(
     const { hospitalId } = req.params as { hospitalId: string };
     await requireHospital(hospitalId);
     const input = stampActor(req.body as Record<string, unknown>, req.user!.email);
-    const result = await service.createHospitalSupplyNeed(hospitalId, input);
+    const result = await service.createHospitalSupplyNeed(
+      hospitalId,
+      input,
+      requireTenantScope(req),
+    );
     if (!result.ok) throw badRequest(result.error);
     invalidate(requestProcessCache(req));
     await writeAudit(req, {
@@ -231,7 +239,12 @@ hospitalSuppliesRouter.patch(
     const { hospitalId, needId } = req.params as { hospitalId: string; needId: string };
     await requireHospital(hospitalId);
     const input = stampActor(req.body as Record<string, unknown>, req.user!.email);
-    const result = await service.updateHospitalSupplyNeed(hospitalId, needId, input);
+    const result = await service.updateHospitalSupplyNeed(
+      hospitalId,
+      needId,
+      input,
+      requireTenantScope(req),
+    );
     if (!result.ok) throw badRequest(result.error);
     if (!result.value) throw notFound("Necesidad no encontrada.");
     invalidate(requestProcessCache(req));
@@ -275,6 +288,7 @@ hospitalSuppliesRouter.patch(
       hospitalId,
       requestId,
       input,
+      requireTenantScope(req),
     );
     if (!result.ok) throw badRequest(result.error);
     if (!result.value) throw notFound("Solicitud no encontrada.");
