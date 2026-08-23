@@ -1,47 +1,66 @@
 /**
- * Micro-caché en proceso para colapsar el polling masivo sin depender de un CDN.
+ * In-process cache for hot public GETs. Each isolate keeps its own Map.
  *
- * Cada instancia del servidor cachea el resultado ya construido de los GET
- * calientes durante `ttlMs`. Bajo carga (millones de pollers) esto convierte
- * "una query por request" en "una query por ventana de TTL por instancia".
+ * U20 / KTD12: every tenant-derived entry is stored under an explicit
+ * partition (organization + incident + cache epoch). Global catalogs
+ * (earthquakes) use GLOBAL_PROCESS_CACHE. Callers pass ProcessCache;
+ * AsyncLocalStorage is not used (KTD13).
  *
- * Dos garantías importantes bajo carga:
- *  - **single-flight**: si la entrada expira mientras llegan miles de requests a
- *    la vez, solo UNA dispara la recomputación; el resto no genera estampida.
- *  - **stale-while-revalidate**: si ya hay un valor viejo, se sirve al instante
- *    y la recomputación ocurre en segundo plano.
- *
- * Portado tal cual desde lib/cache.ts del app Next previo (mismo comportamiento).
+ * Search/filter values must go through cacheParamDigest before they enter
+ * a key. invalidate() without a key clears one partition, never the whole Map.
  */
+
+import { createHash } from "node:crypto";
+import type { TenantScope } from "@/tenant/scope";
+import { tenantCachePartition } from "@/tenant/scope";
 
 type Entry<T> = { at: number; value: T };
 
-/** Tope de claves para acotar memoria con endpoints parametrizados (LRU simple). */
+/** Cap keys to bound memory on parameterized endpoints (simple LRU). */
 const MAX_ENTRIES = 500;
 
 const store = new Map<string, Entry<unknown>>();
 const inflight = new Map<string, Promise<unknown>>();
 
+export type ProcessCache = {
+  readonly partition: string;
+};
+
+export const GLOBAL_PROCESS_CACHE: ProcessCache = Object.freeze({
+  partition: "g",
+});
+
+export function tenantProcessCache(scope: TenantScope): ProcessCache {
+  return Object.freeze({ partition: `t:${tenantCachePartition(scope)}` });
+}
+
+export function cacheParamDigest(value: string): string {
+  return createHash("sha256").update(value).digest("hex").slice(0, 16);
+}
+
+function fullKey(cache: ProcessCache, key: string): string {
+  return `${cache.partition}:${key}`;
+}
+
 /**
- * Devuelve el valor cacheado para `key` si está fresco; si no, recomputa con
- * `fn`. Sirve valor viejo (si lo hay) mientras refresca en segundo plano.
+ * Return the cached value for `key` if it is fresh; otherwise recompute with
+ * `fn`. Serve a stale value (when present) while refresh runs in the background.
  */
 export async function cached<T>(
+  cache: ProcessCache,
   key: string,
   ttlMs: number,
   fn: () => Promise<T>,
 ): Promise<T> {
-  const hit = store.get(key) as Entry<T> | undefined;
+  const storeKey = fullKey(cache, key);
+  const hit = store.get(storeKey) as Entry<T> | undefined;
   if (hit && Date.now() - hit.at < ttlMs) return hit.value;
 
-  // Entrada vieja o ausente: una sola recomputación concurrente por clave.
-  let p = inflight.get(key) as Promise<T> | undefined;
+  let p = inflight.get(storeKey) as Promise<T> | undefined;
   if (!p) {
     p = fn()
       .then((value) => {
-        store.set(key, { at: Date.now(), value });
-        // Reinsertar mueve la clave al final (orden de inserción de Map), así la
-        // poda elimina la menos usada recientemente.
+        store.set(storeKey, { at: Date.now(), value });
         if (store.size > MAX_ENTRIES) {
           const oldest = store.keys().next().value;
           if (oldest !== undefined) store.delete(oldest);
@@ -49,23 +68,26 @@ export async function cached<T>(
         return value;
       })
       .finally(() => {
-        inflight.delete(key);
+        inflight.delete(storeKey);
       });
-    inflight.set(key, p);
+    inflight.set(storeKey, p);
   }
 
   if (hit) {
-    // SWR: servimos el valor viejo ya. Registramos un catch en el refresco de
-    // fondo para no dejar una promesa rechazada sin manejar.
     p.catch(() => {});
     return hit.value;
   }
-  // Primera vez (sin valor previo): hay que esperar la recomputación.
   return p;
 }
 
-/** Invalida una clave (o todo el caché) — útil tras una escritura. */
-export function invalidate(key?: string): void {
-  if (key === undefined) store.clear();
-  else store.delete(key);
+/** Invalidate one key, or every key in this partition. */
+export function invalidate(cache: ProcessCache, key?: string): void {
+  if (key !== undefined) {
+    store.delete(fullKey(cache, key));
+    return;
+  }
+  const prefix = `${cache.partition}:`;
+  for (const storeKey of store.keys()) {
+    if (storeKey.startsWith(prefix)) store.delete(storeKey);
+  }
 }

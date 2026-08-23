@@ -7,6 +7,7 @@ import {
   canonicalizeHostname,
   isTenantExemptPath,
 } from "@/tenant/hostname";
+import { tenantProcessCache, type ProcessCache } from "@/lib/cache";
 import { loadDeploymentByHostname } from "@/tenant/resolve";
 import type { TenantScope } from "@/tenant/scope";
 
@@ -66,4 +67,8 @@ export function requireTenantScope(req: Request): TenantScope {
 export function publicApiOrigin(req: Request): string {
   const scope = requireTenantScope(req);
   return `https://${scope.hostname}`;
+}
+
+export function requestProcessCache(req: Request): ProcessCache {
+  return tenantProcessCache(requireTenantScope(req));
 }

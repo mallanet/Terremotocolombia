@@ -1,6 +1,6 @@
 import { desc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
-import { cached } from "@/lib/cache";
+import { cached, type ProcessCache } from "@/lib/cache";
 import {
   DEFAULT_REPORT_PAGE_SIZE,
   MAX_REPORT_PAGE_SIZE,
@@ -84,8 +84,8 @@ async function selectReportPageRows(limit: number, offset: number) {
     .offset(offset);
 }
 
-export async function listReports(): Promise<ReportDTO[]> {
-  const rows = await cached("reports:all", REPORT_LIST_CACHE_MS, () =>
+export async function listReports(cache: ProcessCache): Promise<ReportDTO[]> {
+  const rows = await cached(cache, "reports:all", REPORT_LIST_CACHE_MS, () =>
     selectReportRows(),
   );
   return rows
@@ -94,6 +94,7 @@ export async function listReports(): Promise<ReportDTO[]> {
 }
 
 export async function listReportsPage(
+  cache: ProcessCache,
   page = 1,
   pageSize = DEFAULT_REPORT_PAGE_SIZE,
 ): Promise<ReportPage> {
@@ -103,6 +104,7 @@ export async function listReportsPage(
     Math.max(1, Math.trunc(pageSize)),
   );
   return cached(
+    cache,
     `reports:page:${safePage}:${safePageSize}`,
     REPORT_LIST_CACHE_MS,
     async () => {

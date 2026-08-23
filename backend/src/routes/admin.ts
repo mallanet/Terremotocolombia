@@ -21,6 +21,7 @@ import * as missingSvc from "@/services/missing";
 import * as petsSvc from "@/services/pets";
 import * as syncSvc from "@/services/sync";
 import * as hospitalsSvc from "@/services/hospitals";
+import { requestProcessCache } from "@/middleware/tenant";
 import type {
   Hospital,
   RestrictedHospitalSupplySnapshot,
@@ -196,9 +197,9 @@ adminRouter.get(
   "/data",
   rateLimit({ scope: "admin:data", limit: 120 }),
   requireAdmin,
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
     const [reports, messages, people, pets, syncRuns, syncState] = await Promise.all([
-      reportsSvc.listReports(),
+      reportsSvc.listReports(requestProcessCache(req)),
       chatSvc.listMessages(),
       missingSvc.listMissing({ includeFound: true }),
       // Mascotas: lista APARTE. No se mezcla con `people` ni se suma a

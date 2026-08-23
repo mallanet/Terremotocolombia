@@ -1,4 +1,5 @@
 import { listReports } from "@/services/reports-read";
+import { COLOMBIA_PROCESS_CACHE } from "@/lib/colombia-tenant";
 import type { CollectionCenter } from "../../domain/collection-center";
 import type { CollectionCenterProvider } from "../../domain/collection-center-provider";
 import {
@@ -12,7 +13,7 @@ export class ReportsCollectionCenterProvider implements CollectionCenterProvider
   constructor(private readonly country: string) {}
 
   async list(): Promise<readonly CollectionCenter[]> {
-    const reports = await listReports();
+    const reports = await listReports(COLOMBIA_PROCESS_CACHE);
     return reports
       .filter(isShelterReport)
       .map((report) => toCollectionCenterFromReport(report, this.country));

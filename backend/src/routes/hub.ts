@@ -8,6 +8,7 @@ import { z } from "zod";
 import { asyncHandler, rateLimit, validate } from "@/middleware";
 import { jsonWithEtag } from "@/lib/http";
 import * as service from "@/services/hub";
+import { requestProcessCache } from "@/middleware/tenant";
 
 export const hubRouter = Router();
 
@@ -66,7 +67,7 @@ hubRouter.get(
   validate({ query: reportsQuery }),
   asyncHandler(async (req, res) => {
     const { type, limit } = req.query as unknown as z.infer<typeof reportsQuery>;
-    const reports = await service.listHubReports(type, limit);
+    const reports = await service.listHubReports(requestProcessCache(req), type, limit);
     jsonWithEtag(req, res, { type, count: reports.length, reports }, REPORTS_CACHE);
   }),
 );
@@ -101,7 +102,7 @@ hubRouter.get(
   "/stats",
   rateLimit({ scope: "hub:stats", limit: 120 }),
   asyncHandler(async (req, res) => {
-    const result = await service.getHubStats();
+    const result = await service.getHubStats(requestProcessCache(req));
     jsonWithEtag(req, res, result, STATS_CACHE);
   }),
 );

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
+import { COLOMBIA_PROCESS_CACHE } from "@/lib/colombia-tenant";
 import { invalidate } from "@/lib/cache";
 import type { DedupCandidate } from "@/services/patient-import-logic";
 import type { PatientCondition, PatientStatus } from "@/services/patients";
@@ -301,7 +302,7 @@ export async function applyImport(
 		.where(eq(patientImports.id, importId));
 
 	void actorId;
-	invalidate();
+	invalidate(COLOMBIA_PROCESS_CACHE);
 	const summary = await getImport(importId);
 	if (!summary) throw new Error(`patient_import ${importId} no existe`);
 	return summary;

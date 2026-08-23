@@ -6,6 +6,7 @@ import { logDbFailure } from "@/lib/db-error";
 import { captureFailedSubmission } from "@/lib/failed-submission";
 import { badRequest, payloadTooLarge, serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/reports";
+import { requestProcessCache } from "@/middleware/tenant";
 import { issueReportEditToken } from "@/lib/report-edit-token";
 import { getVolunteerByCode } from "@/services/volunteers";
 import { publishNeedAtLocation } from "@/modules/needs";
@@ -85,7 +86,7 @@ export function registerReportCreate(router: Router): void {
           needs: typeof body.needs === "string" ? body.needs : "",
           photo: body.photo ?? null,
           volunteerId,
-        });
+        }, requestProcessCache(req));
         res.status(201).json({
           report,
           editToken: issueReportEditToken(report.id),

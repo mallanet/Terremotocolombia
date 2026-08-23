@@ -23,7 +23,8 @@ import { z } from "zod";
 import { asyncHandler, rateLimit, requireAdmin, requireHuman, validate } from "@/middleware";
 import { requireSupplyWrite } from "@/middleware/supply-auth";
 import { jsonWithEtag } from "@/lib/http";
-import { cached, invalidate } from "@/lib/cache";
+import { cached, cacheParamDigest, invalidate } from "@/lib/cache";
+import { requestProcessCache } from "@/middleware/tenant";
 import { badRequest, notFound, serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/hospitals";
 import type {
@@ -120,9 +121,9 @@ hospitalsRouter.get(
     const { include, zone, state, q, limit } = req.query as unknown as z.infer<typeof listQuery>;
     const wantsStates = include === "states";
     const effLimit = Number.isFinite(limit) ? (limit as number) : 50;
-    const key = `hospitals:${state ?? ""}:${zone ?? ""}:${q ?? ""}:${effLimit}:${wantsStates ? 1 : 0}`;
+    const key = `hospitals:${state ?? ""}:${zone ?? ""}:${cacheParamDigest(q ?? "")}:${effLimit}:${wantsStates ? 1 : 0}`;
 
-    const { hospitals, states } = await cached(key, 10_000, async () => {
+    const { hospitals, states } = await cached(requestProcessCache(req), key, 10_000, async () => {
       const [hospitals, states] = await Promise.all([
         service.listHospitals({
           state,
@@ -160,7 +161,7 @@ hospitalsRouter.post(
         level: body.level ?? null,
         priorityZone: body.priorityZone,
       });
-      invalidate();
+      invalidate(requestProcessCache(req));
       res.status(201).json({ hospital });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error desconocido";
@@ -178,7 +179,7 @@ hospitalsRouter.get(
   validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const { id } = req.params as { id: string };
-    const hospital = await cached(`hospital:${id}`, 30_000, () =>
+    const hospital = await cached(requestProcessCache(req), `hospital:${id}`, 30_000, () =>
       service.getHospital(id, { includeSupplySummary: true }),
     );
     if (!hospital) {
@@ -201,7 +202,7 @@ hospitalsRouter.get(
     const { id } = req.params as { id: string };
     const hospital = await service.getHospital(id);
     if (!hospital) throw notFound("Hospital no encontrado.");
-    const patients = await cached(`hospital:${hospital.id}:patients`, 5_000, async () =>
+    const patients = await cached(requestProcessCache(req), `hospital:${hospital.id}:patients`, 5_000, async () =>
       (await service.listPatients(hospital.id)).map(service.toPublicPatient),
     );
     jsonWithEtag(req, res, { patients, hospital }, PATIENT_CACHE);
@@ -231,7 +232,7 @@ hospitalsRouter.post(
         notes: body.notes,
         contact: body.contact,
       });
-      invalidate();
+      invalidate(requestProcessCache(req));
       res.status(201).json({ patient: service.toPublicPatient(patient) });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error desconocido";
@@ -254,7 +255,7 @@ hospitalsRouter.delete(
     if (!hospital) throw notFound("Hospital no encontrado.");
     const ok = await service.deletePatient(hospital.id, patientId);
     if (!ok) throw notFound("Paciente no encontrado.");
-    invalidate();
+    invalidate(requestProcessCache(req));
     res.json({ ok: true });
   }),
 );
@@ -274,7 +275,7 @@ hospitalsRouter.get(
       res.status(404).json({ error: "Hospital no encontrado." });
       return;
     }
-    const supply = await cached(`hsupply:${hospital.id}`, 10_000, () =>
+    const supply = await cached(requestProcessCache(req), `hsupply:${hospital.id}`, 10_000, () =>
       service.getPublicHospitalSupplySummary(hospital.id),
     );
     jsonWithEtag(req, res, { hospital, supply }, SUPPLY_CACHE);
@@ -349,7 +350,7 @@ hospitalsRouter.post(
     try {
       const result = await service.upsertHospitalSupplyStatus(hospital.id, req.body);
       if (!result.ok) throw badRequest(result.error);
-      invalidate();
+      invalidate(requestProcessCache(req));
       const supply = await service.getPublicHospitalSupplySummary(hospital.id);
       res.json({ status: result.value, supply });
     } catch (err) {
@@ -373,7 +374,7 @@ hospitalsRouter.post(
     try {
       const result = await service.createHospitalSupplyNeed(hospital.id, req.body);
       if (!result.ok) throw badRequest(result.error);
-      invalidate();
+      invalidate(requestProcessCache(req));
       const supply = await service.getPublicHospitalSupplySummary(hospital.id);
       res.status(201).json({ need: result.value, supply });
       // Espejo fire-and-forget a ResponseGrid (no afecta la respuesta del hospital).
@@ -404,7 +405,7 @@ hospitalsRouter.patch(
       const result = await service.updateHospitalSupplyNeed(hospital.id, needId, req.body);
       if (!result.ok) throw badRequest(result.error);
       if (!result.value) throw notFound("Necesidad no encontrada.");
-      invalidate();
+      invalidate(requestProcessCache(req));
       res.json({ need: result.value });
     } catch (err) {
       if (err instanceof Error && "status" in err) throw err;
@@ -427,7 +428,7 @@ hospitalsRouter.post(
     try {
       const result = await service.createHospitalSupplyHelpRequest(hospital.id, req.body);
       if (!result.ok) throw badRequest(result.error);
-      invalidate();
+      invalidate(requestProcessCache(req));
       res.status(201).json({ request: result.value });
     } catch (err) {
       if (err instanceof Error && "status" in err) throw err;
@@ -459,7 +460,7 @@ hospitalsRouter.patch(
       );
       if (!result.ok) throw badRequest(result.error);
       if (!result.value) throw notFound("Solicitud no encontrada.");
-      invalidate();
+      invalidate(requestProcessCache(req));
       res.json({ request: result.value });
     } catch (err) {
       if (err instanceof Error && "status" in err) throw err;

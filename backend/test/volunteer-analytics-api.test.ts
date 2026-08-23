@@ -6,6 +6,7 @@ import "./helpers";
 import request from "supertest";
 import { ensureSeed, makeAdmin, makeUserWithCaps } from "./helpers";
 import { invalidate } from "@/lib/cache";
+import { COLOMBIA_PROCESS_CACHE } from "@/lib/colombia-tenant";
 
 let app: import("express").Express;
 
@@ -84,7 +85,7 @@ describe("GET /api/public/volunteer-analytics", () => {
   });
 
   beforeEach(() => {
-    invalidate();
+    invalidate(COLOMBIA_PROCESS_CACHE);
   });
 
   afterAll(async () => {

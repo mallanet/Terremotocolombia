@@ -23,8 +23,13 @@ beforeAll(async () => {
   const { voluntariadoRouter } = await import("@/routes/voluntariado");
   const { reportsRouter } = await import("@/routes/reports");
   const { errorHandler } = await import("@/middleware");
+  const { colombiaTenantScope } = await import("@/lib/colombia-tenant");
   app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    req.tenantScope = colombiaTenantScope();
+    next();
+  });
   app.use("/api/voluntariado", voluntariadoRouter);
   app.use("/api/reports", reportsRouter);
   app.use(errorHandler);

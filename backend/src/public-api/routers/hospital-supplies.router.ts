@@ -32,6 +32,7 @@ import { requireCapability } from "@/middleware/auth";
 import { writeAudit } from "@/auth/audit";
 import { badRequest, notFound } from "@/lib/errors";
 import { invalidate } from "@/lib/cache";
+import { requestProcessCache } from "@/middleware/tenant";
 import * as service from "@/services/hospitals";
 import type { Hospital, RestrictedHospitalSupplySnapshot } from "@/services/hospitals";
 
@@ -179,7 +180,7 @@ hospitalSuppliesRouter.post(
     const input = stampActor(req.body as Record<string, unknown>, req.user!.email);
     const result = await service.upsertHospitalSupplyStatus(hospitalId, input);
     if (!result.ok) throw badRequest(result.error);
-    invalidate();
+    invalidate(requestProcessCache(req));
     await writeAudit(req, {
       action: "hospital.supply.status",
       targetType: "hospital",
@@ -204,7 +205,7 @@ hospitalSuppliesRouter.post(
     const input = stampActor(req.body as Record<string, unknown>, req.user!.email);
     const result = await service.createHospitalSupplyNeed(hospitalId, input);
     if (!result.ok) throw badRequest(result.error);
-    invalidate();
+    invalidate(requestProcessCache(req));
     await writeAudit(req, {
       action: "hospital.supply.need.create",
       targetType: "hospital",
@@ -233,7 +234,7 @@ hospitalSuppliesRouter.patch(
     const result = await service.updateHospitalSupplyNeed(hospitalId, needId, input);
     if (!result.ok) throw badRequest(result.error);
     if (!result.value) throw notFound("Necesidad no encontrada.");
-    invalidate();
+    invalidate(requestProcessCache(req));
     await writeAudit(req, {
       action: "hospital.supply.need.edit",
       targetType: "hospital",
@@ -277,7 +278,7 @@ hospitalSuppliesRouter.patch(
     );
     if (!result.ok) throw badRequest(result.error);
     if (!result.value) throw notFound("Solicitud no encontrada.");
-    invalidate();
+    invalidate(requestProcessCache(req));
     await writeAudit(req, {
       action: "hospital.supply.help.edit",
       targetType: "hospital",

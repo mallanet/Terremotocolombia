@@ -62,6 +62,7 @@ import { writeAudit } from "@/auth/audit";
 import { allowedPartnerMediaUrl } from "@/config/partner-media-allowlist";
 import * as service from "@/services/missing";
 import type { ExternalMissingInput } from "@/services/missing";
+import { requestProcessCache } from "@/middleware/tenant";
 
 export const partnerSyncRouter = Router();
 
@@ -136,7 +137,9 @@ partnerSyncRouter.post(
       };
     });
 
-    const result = await service.upsertExternalMissingBatch(rows);
+    const result = await service.upsertExternalMissingBatch(rows, {
+      cache: requestProcessCache(req),
+    });
 
     await writeAudit(req, {
       action: "partner_sync.missing.upsert",

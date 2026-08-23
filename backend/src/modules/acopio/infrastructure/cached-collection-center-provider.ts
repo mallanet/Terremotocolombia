@@ -1,4 +1,4 @@
-import { cached } from "@/lib/cache";
+import { cached, GLOBAL_PROCESS_CACHE } from "@/lib/cache";
 import type { CollectionCenter } from "../domain/collection-center";
 import type { CollectionCenterProvider } from "../domain/collection-center-provider";
 
@@ -14,7 +14,7 @@ export class CachedCollectionCenterProvider implements CollectionCenterProvider 
   }
 
   list(): Promise<readonly CollectionCenter[]> {
-    return cached(`acopio:centers:${this.source.sourceName}`, this.ttlMs, () =>
+    return cached(GLOBAL_PROCESS_CACHE, `acopio:centers:${this.source.sourceName}`, this.ttlMs, () =>
       this.source.list(),
     );
   }

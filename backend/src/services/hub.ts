@@ -9,7 +9,7 @@
  */
 import { desc, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
-import { cached } from "@/lib/cache";
+import { cached, type ProcessCache } from "@/lib/cache";
 
 // type del hub -> tabla Drizzle. Catálogo cerrado de 5 (docs/rfcs/0002).
 const TABLE_BY_TYPE = {
@@ -32,10 +32,11 @@ function photo(row: Record<string, unknown>): string | null {
 
 /** Lista los reportes federados de un tipo (allowlist, cacheado 15s). */
 export async function listHubReports(
+  cache: ProcessCache,
   type: HubType,
   limit: number,
 ): Promise<Record<string, unknown>[]> {
-  return cached(`hub:${type}:${limit}`, 15_000, async () => {
+  return cached(cache, `hub:${type}:${limit}`, 15_000, async () => {
     const db = await getDb();
     const table = TABLE_BY_TYPE[type];
     const rows = await db
@@ -102,8 +103,8 @@ export interface HubStats {
 }
 
 /** Conteos del espejo federado por tipo + total (cacheado 30s). */
-export async function getHubStats(): Promise<HubStats> {
-  return cached("hub:stats", 30_000, async () => {
+export async function getHubStats(cache: ProcessCache): Promise<HubStats> {
+  return cached(cache, "hub:stats", 30_000, async () => {
     const db = await getDb();
     // Los 5 counts son independientes → en paralelo (audit M-3).
     const byType: HubTypeStat[] = await Promise.all(

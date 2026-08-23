@@ -5,6 +5,7 @@ import { jsonWithEtag } from "@/lib/http";
 import { hashIp } from "@/lib/client-ip";
 import { HttpError, notFound, serviceUnavailable } from "@/lib/errors";
 import * as service from "@/services/reports";
+import { requestProcessCache } from "@/middleware/tenant";
 import { registerReportCreate } from "@/routes/reports-create";
 import { registerReportEdit } from "@/routes/reports-edit";
 
@@ -31,7 +32,7 @@ reportsRouter.get(
   validate({ query: listQuery }),
   asyncHandler(async (req, res) => {
     const { page, pageSize } = req.query as unknown as z.infer<typeof listQuery>;
-    const result = await service.listReportsPage(page, pageSize);
+    const result = await service.listReportsPage(requestProcessCache(req), page, pageSize);
     jsonWithEtag(req, res, { ...result, persistent: service.isPersistent() }, LIST_CACHE);
   }),
 );
@@ -58,7 +59,7 @@ reportsRouter.delete(
   validate({ params: idParam }),
   asyncHandler(async (req, res) => {
     const { id } = req.params as z.infer<typeof idParam>;
-    const removed = await service.removeReport(id);
+    const removed = await service.removeReport(id, requestProcessCache(req));
     if (!removed) throw notFound("No encontrado");
     res.json({ ok: true });
   }),
@@ -72,7 +73,7 @@ reportsRouter.post(
   asyncHandler(async (req, res) => {
     const { id } = req.params as z.infer<typeof idParam>;
     try {
-      const result = await service.confirmReport(id, hashIp(req));
+      const result = await service.confirmReport(id, hashIp(req), requestProcessCache(req));
       if (result.status === "not-found") throw notFound("No encontrado");
       if (result.status === "duplicate") {
         res.status(409).json({ ok: false, error: "Ya confirmaste este reporte." });
