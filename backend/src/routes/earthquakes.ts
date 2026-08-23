@@ -12,7 +12,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, rateLimit, validate } from "@/middleware";
 import { jsonWithEtag } from "@/lib/http";
-import { cached } from "@/lib/cache";
+import { cached, GLOBAL_PROCESS_CACHE } from "@/lib/cache";
 import * as service from "@/services/earthquakes";
 
 export const earthquakesRouter = Router();
@@ -54,7 +54,7 @@ earthquakesRouter.get(
     const key = `earthquakes:${effLimit}`;
 
     // 30s: the worker upserts at most every ~5 min in prod; avoid DB per poll.
-    const body = await cached(key, 30_000, () => service.listEarthquakes(effLimit));
+    const body = await cached(GLOBAL_PROCESS_CACHE, key, 30_000, () => service.listEarthquakes(effLimit));
 
     jsonWithEtag(req, res, body, LIST_CACHE);
   }),

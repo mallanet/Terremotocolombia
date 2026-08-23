@@ -7,7 +7,6 @@
  */
 import { z } from "zod";
 import { createCrudRouter, type CrudResource } from "@/public-api/crud-factory";
-import { invalidate } from "@/lib/cache";
 import * as service from "@/services/hospitals";
 
 const facilityType = z.enum([
@@ -75,7 +74,7 @@ export const hospitalsResource: CrudResource<
     list: () => service.listHospitals(),
     get: (id) => service.getHospital(id),
     create: async (input) => {
-      const hospital = await service.addHospital({
+      return service.addHospital({
         name: input.name,
         facilityType: input.facilityType,
         state: input.state,
@@ -84,19 +83,9 @@ export const hospitalsResource: CrudResource<
         level: input.level,
         priorityZone: input.priorityZone,
       });
-      invalidate();
-      return hospital;
     },
-    update: async (id, input) => {
-      const hospital = await service.updateHospital(id, input);
-      if (hospital) invalidate();
-      return hospital;
-    },
-    remove: async (id) => {
-      const removed = await service.removeHospital(id);
-      if (removed) invalidate();
-      return removed;
-    },
+    update: async (id, input) => service.updateHospital(id, input),
+    remove: async (id) => service.removeHospital(id),
   },
 };
 

@@ -3,9 +3,25 @@
  * Seed SQL in the U7 core migration must use the same values.
  * Hostnames come from config/deployment.config.json, not from this file.
  */
+import { tenantProcessCache, type ProcessCache } from "@/lib/cache";
+import { createTenantScope, type TenantScope } from "@/tenant/scope";
+
 export const COLOMBIA_ORGANIZATION_ID = "org_mallanet";
 export const COLOMBIA_ORGANIZATION_NAME = "Mallanet.org";
 export const COLOMBIA_INCIDENT_ID = "inc_terremoto_colombia_2026";
 export const COLOMBIA_INCIDENT_NAME = "Terremoto Colombia 2026";
 /** 2026-08-10T00:00:00.000Z — admin panel launch day. */
 export const COLOMBIA_TENANT_SEEDED_AT_MS = 1_786_320_000_000;
+
+export function colombiaTenantScope(hostname = "localhost"): TenantScope {
+  return createTenantScope({
+    organizationId: COLOMBIA_ORGANIZATION_ID,
+    incidentId: COLOMBIA_INCIDENT_ID,
+    hostname,
+  });
+}
+
+/** Process-cache partition for Colombia-compat jobs (sync, imports, tests). */
+export const COLOMBIA_PROCESS_CACHE: ProcessCache = tenantProcessCache(
+  colombiaTenantScope(),
+);

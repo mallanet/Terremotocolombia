@@ -23,7 +23,8 @@ import { Router, json } from "express";
 import { z } from "zod";
 import { asyncHandler, rateLimit, requireHuman, requireAdmin, setPublicPhotoHeaders, validate } from "@/middleware";
 import { jsonWithEtag } from "@/lib/http";
-import { cached } from "@/lib/cache";
+import { cached, cacheParamDigest } from "@/lib/cache";
+import { requestProcessCache } from "@/middleware/tenant";
 import { badRequest, payloadTooLarge, notFound, serviceUnavailable } from "@/lib/errors";
 import { HttpError } from "@/lib/errors";
 import { writeAudit } from "@/auth/audit";
@@ -112,8 +113,8 @@ petsRouter.get(
     >;
     const search = q;
     const hasSearch = (search ?? "").trim().length >= MIN_SEARCH_LEN;
-    const key = `pets:${status}:${page}:${pageSize}:${search ?? ""}:${species ?? ""}`;
-    const result = await cached(key, hasSearch ? 30_000 : 2_000, () =>
+    const key = `pets:${status}:${page}:${pageSize}:${cacheParamDigest(search ?? "")}:${species ?? ""}`;
+    const result = await cached(requestProcessCache(req), key, hasSearch ? 30_000 : 2_000, () =>
       service.listPetsPage({ status, page, pageSize, search, species }),
     );
     jsonWithEtag(
@@ -173,7 +174,7 @@ petsRouter.post(
         reportType: body.reportType,
         lat: body.lat,
         lng: body.lng,
-      });
+      }, requestProcessCache(req));
       res.status(201).json({ pet });
     } catch (err) {
       if (err instanceof HttpError) throw err;
@@ -195,7 +196,7 @@ petsRouter.get(
     >;
     const limit = limitRaw ?? 500;
     const key = `pets-map:${north ?? ""}:${south ?? ""}:${east ?? ""}:${west ?? ""}:${limit}`;
-    const markers = await cached(key, 3_000, () =>
+    const markers = await cached(requestProcessCache(req), key, 3_000, () =>
       service.listPetsMapMarkers({ north, south, east, west, limit }),
     );
     jsonWithEtag(req, res, { markers }, MAP_CACHE);
@@ -207,7 +208,7 @@ petsRouter.get(
   "/stats",
   rateLimit({ scope: "pets:stats", limit: 120 }),
   asyncHandler(async (req, res) => {
-    const stats = await cached("pets:stats", 5_000, () => service.countPetStats());
+    const stats = await cached(requestProcessCache(req), "pets:stats", 5_000, () => service.countPetStats());
     jsonWithEtag(req, res, { stats }, STATS_CACHE);
   }),
 );
@@ -282,7 +283,7 @@ petsRouter.post(
     }
 
     try {
-      const pet = await service.markPetFound(id, note, photo);
+      const pet = await service.markPetFound(id, note, photo, requestProcessCache(req));
       if (!pet) throw notFound("El reporte no existe o ya fue resuelto.");
       res.status(200).json({ pet });
     } catch (err) {
@@ -302,7 +303,7 @@ petsRouter.post(
   validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const { id } = req.params as z.infer<typeof idParams>;
-    const ok = await service.restorePet(id);
+    const ok = await service.restorePet(id, requestProcessCache(req));
     if (!ok) throw notFound("No se pudo restaurar (no existe o no estaba marcada).");
     res.status(200).json({ ok: true });
   }),
@@ -316,7 +317,7 @@ petsRouter.delete(
   validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const { id } = req.params as z.infer<typeof idParams>;
-    const removed = await service.removePet(id);
+    const removed = await service.removePet(id, requestProcessCache(req));
     if (!removed) throw notFound("No encontrado");
     await writeAudit(req, {
       action: "pet.delete",

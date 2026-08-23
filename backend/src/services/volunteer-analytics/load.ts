@@ -3,6 +3,7 @@
  */
 import { count, gte } from "drizzle-orm";
 import { getDb, schema } from "@/db";
+import { cacheParamDigest } from "@/lib/cache";
 import { computeVolunteerAnalytics } from "./compute";
 import type { VolunteerAnalyticsResponse } from "./types";
 
@@ -56,5 +57,5 @@ export async function loadVolunteerAnalytics(
 
 /** Cache key helpers — kept pure for tests. */
 export function volunteerAnalyticsCacheKey(sinceIso?: string): string {
-  return sinceIso ? `vol:analytics:inc:${sinceIso}` : "vol:analytics:full";
+  return sinceIso ? `vol:analytics:inc:${cacheParamDigest(sinceIso)}` : "vol:analytics:full";
 }

@@ -8,7 +8,6 @@
 import { z } from "zod";
 import { createCrudRouter, type CrudResource } from "@/public-api/crud-factory";
 import { env } from "@/config/env";
-import { invalidate } from "@/lib/cache";
 import { badRequest, conflict, serviceUnavailable } from "@/lib/errors";
 import { getHospital } from "@/services/hospitals";
 import {
@@ -131,7 +130,6 @@ export const patientsResource: CrudResource<
         documentId === undefined ? undefined : toDocumentHash(documentId);
       try {
         const patient = await service.createPatient({ ...rest, documentHash });
-        invalidate();
         return patient;
       } catch (err) {
         if (isUniqueViolation(err)) throw conflict(DOCUMENT_CONFLICT_MESSAGE);
@@ -150,7 +148,6 @@ export const patientsResource: CrudResource<
         documentId === undefined ? undefined : toDocumentHash(documentId);
       try {
         const patient = await service.updatePatient(id, { ...rest, documentHash });
-        if (patient) invalidate();
         return patient;
       } catch (err) {
         if (isUniqueViolation(err)) throw conflict(DOCUMENT_CONFLICT_MESSAGE);
@@ -159,7 +156,6 @@ export const patientsResource: CrudResource<
     },
     remove: async (id) => {
       const removed = await service.removePatient(id);
-      if (removed) invalidate();
       return removed;
     },
     // U10 (R21/AE3): tombstone de identidad ANTES del borrado físico — mismo

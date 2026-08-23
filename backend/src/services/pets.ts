@@ -34,7 +34,8 @@ import {
   persistPhotoDataUrl,
 } from "@/lib/r2";
 import { isAllowedImageDataUrl, parseImageDataUri } from "@/lib/image";
-import { invalidate } from "@/lib/cache";
+import { invalidate, type ProcessCache } from "@/lib/cache";
+import { COLOMBIA_PROCESS_CACHE } from "@/lib/colombia-tenant";
 
 const { missingPets } = schema;
 
@@ -403,7 +404,10 @@ export async function listPets(
   return execRows<Row>(res).map(rowToPet);
 }
 
-export async function addPet(input: CreatePetInput): Promise<PetDTO> {
+export async function addPet(
+  input: CreatePetInput,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
+): Promise<PetDTO> {
   const id = crypto.randomUUID();
   const name = (input.name ?? "").trim().slice(0, MAX_NAME);
   const species = (input.species ?? "").trim().toLowerCase().slice(0, MAX_SPECIES);
@@ -458,7 +462,7 @@ export async function addPet(input: CreatePetInput): Promise<PetDTO> {
     resolutionNote,
     resolvedAt,
   });
-  invalidate();
+  invalidate(cache);
 
   return {
     id,
@@ -491,6 +495,7 @@ export async function markPetFound(
   id: string,
   note: string,
   resolutionPhoto: string | null,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
 ): Promise<PetDTO | null> {
   const cleanNote = note.trim().slice(0, MAX_RESOLUTION_NOTE);
   if (!cleanNote) throw new Error("Falta la descripción de cómo apareció.");
@@ -513,11 +518,14 @@ export async function markPetFound(
         RETURNING ${SELECT_COLS}`,
   );
   const rows = execRows<Row>(result);
-  if (rows.length > 0) invalidate();
+  if (rows.length > 0) invalidate(cache);
   return rows.length > 0 ? rowToPet(rows[0]!) : null;
 }
 
-export async function restorePet(id: string): Promise<boolean> {
+export async function restorePet(
+  id: string,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
+): Promise<boolean> {
   const db = await getDb();
   const result = await db.execute(
     sql`UPDATE missing_pets
@@ -529,7 +537,7 @@ export async function restorePet(id: string): Promise<boolean> {
         RETURNING id`,
   );
   const restored = execRows<{ id: string }>(result).length > 0;
-  if (restored) invalidate();
+  if (restored) invalidate(cache);
   return restored;
 }
 
@@ -605,7 +613,10 @@ export async function getPetResolutionPhoto(
  * que el motor de fuentes externas no vuelva a importar lo que un admin borró, y
  * aquí no hay fuentes externas — lo borrado no puede volver.
  */
-export async function removePet(id: string): Promise<boolean> {
+export async function removePet(
+  id: string,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
+): Promise<boolean> {
   const db = await getDb();
   const rows = await db
     .select({
@@ -625,7 +636,7 @@ export async function removePet(id: string): Promise<boolean> {
     sql`DELETE FROM missing_pets WHERE id = ${id} RETURNING id`,
   );
   const removed = execRows<{ id: string }>(result).length > 0;
-  if (removed) invalidate();
+  if (removed) invalidate(cache);
   return removed;
 }
 
@@ -660,6 +671,7 @@ export interface UpdatePetInput {
 export async function updatePet(
   id: string,
   input: UpdatePetInput,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
 ): Promise<PetDTO | null> {
   const sets: ReturnType<typeof sql>[] = [];
   if (input.name !== undefined)
@@ -691,7 +703,7 @@ export async function updatePet(
         RETURNING ${SELECT_COLS}`,
   );
   const rows = execRows<Row>(result);
-  if (rows.length > 0) invalidate();
+  if (rows.length > 0) invalidate(cache);
   return rows.length > 0 ? rowToPet(rows[0]!) : null;
 }
 

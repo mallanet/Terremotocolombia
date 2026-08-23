@@ -1,7 +1,9 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { jsonWithEtag } from "@/lib/http";
+import { cached, cacheParamDigest } from "@/lib/cache";
 import { badGateway } from "@/lib/errors";
+import { requestProcessCache } from "@/middleware/tenant";
 import { createCriteria } from "../../domain/criteria";
 import { CollectionCenterProviderError } from "../../domain/collection-center-provider";
 import type { ListCollectionCenters } from "../../application/list-collection-centers";
@@ -26,7 +28,12 @@ export function makeListCollectionCentersHandler(
     >;
     const criteria = createCriteria({ country, category, text: q });
     try {
-      const result = await listCollectionCenters.execute(criteria);
+      const cacheKey = `acopio:list:${cacheParamDigest(
+        JSON.stringify({ country: country ?? "", category: category ?? "", q: q ?? "" }),
+      )}`;
+      const result = await cached(requestProcessCache(req), cacheKey, 30_000, () =>
+        listCollectionCenters.execute(criteria),
+      );
       jsonWithEtag(req, res, toCollectionCenterListView(result), CACHE_HEADERS);
     } catch (error) {
       if (error instanceof CollectionCenterProviderError) {

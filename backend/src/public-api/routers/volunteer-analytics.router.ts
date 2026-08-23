@@ -9,6 +9,7 @@ import { asyncHandler, rateLimit, validate } from "@/middleware";
 import { requireCapability } from "@/middleware/auth";
 import { badRequest } from "@/lib/errors";
 import { cached, invalidate } from "@/lib/cache";
+import { requestProcessCache } from "@/middleware/tenant";
 import {
   loadVolunteerAnalytics,
   volunteerAnalyticsCacheKey,
@@ -67,11 +68,12 @@ volunteerAnalyticsRouter.get(
     }
 
     const cacheKey = volunteerAnalyticsCacheKey(sinceIso);
+    const cache = requestProcessCache(req);
     if (refreshRaw === "1" || refreshRaw === "true") {
-      invalidate(cacheKey);
+      invalidate(cache, cacheKey);
     }
 
-    const payload = await cached(cacheKey, CACHE_TTL_MS, () =>
+    const payload = await cached(cache, cacheKey, CACHE_TTL_MS, () =>
       loadVolunteerAnalytics({ sinceMs, sinceIso, now: Date.now() }),
     );
     res.json(payload);

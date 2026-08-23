@@ -87,7 +87,8 @@ describe("POST /api/reports", () => {
 describe("GET /api/reports", () => {
   it("conserva el total cuando se solicita una página fuera de rango", async () => {
     const { invalidate } = await import("@/lib/cache");
-    invalidate();
+    const { COLOMBIA_PROCESS_CACHE } = await import("@/lib/colombia-tenant");
+    invalidate(COLOMBIA_PROCESS_CACHE);
 
     const res = await request(app)
       .get("/api/reports")
@@ -104,6 +105,7 @@ describe("GET /api/reports", () => {
   it("pagina sin truncar el acceso después de 500 reportes", async () => {
     const { getDb, schema } = await import("@/db");
     const { invalidate } = await import("@/lib/cache");
+    const { COLOMBIA_PROCESS_CACHE } = await import("@/lib/colombia-tenant");
     const prefix = `page-${crypto.randomUUID()}`;
     await getDb().insert(schema.reports).values(
       Array.from({ length: 501 }, (_, index) => ({
@@ -117,7 +119,7 @@ describe("GET /api/reports", () => {
         createdAt: Date.now() + index,
       })),
     );
-    invalidate();
+    invalidate(COLOMBIA_PROCESS_CACHE);
 
     const res = await request(app).get("/api/reports").query({ page: 2, pageSize: 500 });
     expect(res.status).toBe(200);

@@ -11,7 +11,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, rateLimit, validate } from "@/middleware";
 import { jsonWithEtag } from "@/lib/http";
-import { cached } from "@/lib/cache";
+import { cached, cacheParamDigest } from "@/lib/cache";
+import { requestProcessCache } from "@/middleware/tenant";
 import * as service from "@/services/patients";
 
 export const patientsRouter = Router();
@@ -69,8 +70,11 @@ patientsRouter.get(
   validate({ query: searchQuery }),
   asyncHandler(async (req, res) => {
     const { q, limit } = req.query as unknown as z.infer<typeof searchQuery>;
-    const rows = await cached(`patients:search:${q}:${limit}`, 5_000, () =>
-      service.searchPatients(q, limit + 1, { publicSafe: true }),
+    const rows = await cached(
+      requestProcessCache(req),
+      `patients:search:${cacheParamDigest(q)}:${limit}`,
+      5_000,
+      () => service.searchPatients(q, limit + 1, { publicSafe: true }),
     );
     const hasMore = limit < 500 && rows.length > limit;
     const results = rows.slice(0, limit);

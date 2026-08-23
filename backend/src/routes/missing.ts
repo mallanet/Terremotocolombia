@@ -21,7 +21,8 @@ import { Router, json } from "express";
 import { z } from "zod";
 import { asyncHandler, rateLimit, requireHuman, requireAdmin, setPublicPhotoHeaders, validate } from "@/middleware";
 import { jsonWithEtag } from "@/lib/http";
-import { cached } from "@/lib/cache";
+import { cached, cacheParamDigest } from "@/lib/cache";
+import { requestProcessCache } from "@/middleware/tenant";
 import { logDbFailure } from "@/lib/db-error";
 import { captureFailedSubmission } from "@/lib/failed-submission";
 import { badRequest, payloadTooLarge, notFound, serviceUnavailable } from "@/lib/errors";
@@ -124,8 +125,8 @@ missingRouter.get(
     // Una búsqueda efectiva necesita >= MIN_SEARCH_LEN caracteres; por debajo se
     // trata como listado normal (TTL corto). Mismo criterio que el Next previo.
     const hasSearch = (search ?? "").trim().length >= MIN_SEARCH_LEN;
-    const key = `missing:${status}:${page}:${pageSize}:${search ?? ""}`;
-    const result = await cached(key, hasSearch ? 30_000 : POLLED_CACHE_MS, () =>
+    const key = `missing:${status}:${page}:${pageSize}:${cacheParamDigest(search ?? "")}`;
+    const result = await cached(requestProcessCache(req), key, hasSearch ? 30_000 : POLLED_CACHE_MS, () =>
       service.listMissingPage({ status, page, pageSize, search }),
     );
     jsonWithEtag(
@@ -176,7 +177,7 @@ missingRouter.post(
         photo: body.photo,
         reportType: body.reportType,
         ipHash: hashIp(req),
-      });
+      }, requestProcessCache(req));
     } catch (err) {
       logDbFailure("missing.create", err);
       // Red de durabilidad: el 503 sigue igual, pero el envio de la
@@ -209,7 +210,7 @@ missingRouter.get(
     const limit = limitRaw ?? 500;
     // Clave por viewport: el caso sin viewport (vista completa) cachea perfecto.
     const key = `missing-map:${north ?? ""}:${south ?? ""}:${east ?? ""}:${west ?? ""}:${limit}`;
-    const markers = await cached(key, POLLED_CACHE_MS, () =>
+    const markers = await cached(requestProcessCache(req), key, POLLED_CACHE_MS, () =>
       service.listMissingMapMarkers({ north, south, east, west, limit }),
     );
     jsonWithEtag(req, res, { markers }, MAP_CACHE);
@@ -221,7 +222,7 @@ missingRouter.get(
   "/stats",
   rateLimit({ scope: "missing:stats", limit: 120 }),
   asyncHandler(async (req, res) => {
-    const stats = await cached("missing:stats", STATS_CACHE_MS, () => service.countMissingStats());
+    const stats = await cached(requestProcessCache(req), "missing:stats", STATS_CACHE_MS, () => service.countMissingStats());
     jsonWithEtag(req, res, { stats }, STATS_CACHE);
   }),
 );
@@ -296,7 +297,7 @@ missingRouter.post(
     }
 
     try {
-      const person = await service.markMissingFound(id, note, photo);
+      const person = await service.markMissingFound(id, note, photo, requestProcessCache(req));
       if (!person) throw notFound("El reporte no existe o ya fue resuelto.");
       res.status(200).json({ person });
     } catch (err) {
@@ -316,7 +317,7 @@ missingRouter.post(
   validate({ params: idParams }),
   asyncHandler(async (req, res) => {
     const { id } = req.params as z.infer<typeof idParams>;
-    const ok = await service.restoreMissing(id);
+    const ok = await service.restoreMissing(id, requestProcessCache(req));
     if (!ok) throw notFound("No se pudo restaurar (no existe o no estaba marcada).");
     res.status(200).json({ ok: true });
   }),
@@ -337,7 +338,7 @@ missingRouter.delete(
     // req.user NO existe en esta superficie legacy (requireAdmin = token
     // compartido x-admin-token, no sesión JWT) — 'admin' es la atribución.
     const tombstone = await tombstonePersonRecord("missing_report", id, req.user?.id ?? "admin");
-    const removed = await service.removeMissing(id);
+    const removed = await service.removeMissing(id, requestProcessCache(req));
     if (!removed) throw notFound("No encontrado");
     await writeAudit(req, {
       action: "missing.delete",

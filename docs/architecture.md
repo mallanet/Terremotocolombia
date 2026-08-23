@@ -180,7 +180,9 @@ require human review before any deployment.
   > code:** assume Turnstile enforces on every guarded mutation, in both
   > staging and production. A missing or invalid token gets a real `403`.
 - Polled reads use an in-process cache and an ETag, when the contract allows
-  it. On Cloudflare Workers, a strict public-path allowlist also uses
+  it. Tenant-derived entries use `t:{org}:{incident}:{epoch}` partitions
+  (`docs/platform/cache-registry.md`). Earthquakes stay on the global
+  partition. On Cloudflare Workers, a strict public-path allowlist also uses
   `caches.default`. Only anonymous `200` responses with an explicit public
   `s-maxage` enter this edge cache. Authenticated requests and photo routes do
   not share these JSON entries. Cache keys include the tenant partition

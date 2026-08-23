@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
-import { invalidate } from "@/lib/cache";
+import { invalidate, type ProcessCache } from "@/lib/cache";
+import { COLOMBIA_PROCESS_CACHE } from "@/lib/colombia-tenant";
 import { persistPhotoDataUrl } from "@/lib/r2";
 import { isAllowedImageDataUrl } from "@/lib/image";
 import {
@@ -44,7 +45,10 @@ function createReport(input: CreateReportInput): {
   };
 }
 
-export async function addReport(input: CreateReportInput): Promise<ReportDTO> {
+export async function addReport(
+  input: CreateReportInput,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
+): Promise<ReportDTO> {
   const { report, photo } = createReport(input);
   let stored = photo;
   let migratedAt: number | null = null;
@@ -69,13 +73,14 @@ export async function addReport(input: CreateReportInput): Promise<ReportDTO> {
     volunteerId: input.volunteerId ?? null,
     createdAt: report.createdAt,
   });
-  invalidate();
+  invalidate(cache);
   return report;
 }
 
 export async function confirmReport(
   id: string,
   ipKey: string,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
 ): Promise<
   | { status: "confirmed"; confirmations: number }
   | { status: "duplicate" }
@@ -104,13 +109,14 @@ export async function confirmReport(
   const row = rows?.[0];
   if (!row?.exists) return { status: "not-found" };
   if (row.confirmations === null) return { status: "duplicate" };
-  invalidate();
+  invalidate(cache);
   return { status: "confirmed", confirmations: Number(row.confirmations) };
 }
 
 export async function updateReport(
   id: string,
   input: UpdateReportInput,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
 ): Promise<ReportDTO | null> {
   const db = await getDb();
   const patch: Record<string, unknown> = {};
@@ -126,16 +132,19 @@ export async function updateReport(
   if (input.needs !== undefined) patch.needs = input.needs.trim().slice(0, 1000);
   if (Object.keys(patch).length === 0) return getReportById(id);
   await db.update(reports).set(patch).where(eq(reports.id, id));
-  invalidate();
+  invalidate(cache);
   return getReportById(id);
 }
 
-export async function removeReport(id: string): Promise<boolean> {
+export async function removeReport(
+  id: string,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
+): Promise<boolean> {
   const db = await getDb();
   const res = (await db.execute(
     sql`DELETE FROM ${reports} WHERE ${reports.id} = ${id} RETURNING id`,
   )) as unknown;
   const rows = (Array.isArray(res) ? res : (res as { rows: unknown[] }).rows) as unknown[];
-  if (rows.length > 0) invalidate();
+  if (rows.length > 0) invalidate(cache);
   return rows.length > 0;
 }

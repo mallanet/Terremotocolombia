@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createCrudRouter, type CrudResource } from "@/public-api/crud-factory";
+import { requestProcessCache } from "@/middleware/tenant";
 import * as service from "@/services/reports";
 
 const reportType = z.enum(service.REPORT_TYPE_KEYS);
@@ -46,7 +47,7 @@ export const reportsResource: CrudResource<
   capability: "report",
   schemas: { create: createSchema, update: updateSchema, response: responseSchema },
   ops: {
-    list: () => service.listReports(),
+    list: (req) => service.listReports(requestProcessCache(req)),
     get: (id) => service.getReportById(id),
     create: (input) =>
       service.addReport({

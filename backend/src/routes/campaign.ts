@@ -9,6 +9,7 @@
 import { Router } from "express";
 import { asyncHandler, rateLimit } from "@/middleware";
 import { cached } from "@/lib/cache";
+import { requestProcessCache } from "@/middleware/tenant";
 import { jsonWithEtag } from "@/lib/http";
 import { notFound } from "@/lib/errors";
 import { CAMPAIGN_MATERIALS } from "@/lib/campaign-materials";
@@ -51,7 +52,7 @@ campaignRouter.get(
   "/puntos",
   rateLimit({ scope: "campaign-read", limit: 120 }),
   asyncHandler(async (req, res) => {
-    const list = await cached("campaign:sites", 30_000, () => sites.listSites(DEFAULT_CAMPAIGN));
+    const list = await cached(requestProcessCache(req), "campaign:sites", 30_000, () => sites.listSites(DEFAULT_CAMPAIGN));
     jsonWithEtag(req, res, { sites: list }, SITES_CACHE);
   }),
 );
@@ -69,7 +70,7 @@ campaignRouter.get(
   "/balance",
   rateLimit({ scope: "campaign-read", limit: 120 }),
   asyncHandler(async (req, res) => {
-    const balance = await cached("campaign:stats", 10_000, () =>
+    const balance = await cached(requestProcessCache(req), "campaign:stats", 10_000, () =>
       stats.getCampaignStats(DEFAULT_CAMPAIGN),
     );
     jsonWithEtag(req, res, balance, STATS_CACHE);

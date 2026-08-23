@@ -19,7 +19,8 @@ import {
   persistPhotoDataUrl,
 } from "@/lib/r2";
 import { isAllowedImageDataUrl, parseImageDataUri } from "@/lib/image";
-import { invalidate } from "@/lib/cache";
+import { invalidate, type ProcessCache } from "@/lib/cache";
+import { COLOMBIA_PROCESS_CACHE } from "@/lib/colombia-tenant";
 import { ensurePrn, ensurePrns, enqueueMatcherSweep } from "@/services/person-records";
 import { createStatusSignal } from "@/services/record-signals";
 
@@ -344,7 +345,10 @@ export async function listMissing(
   return execRows<Row>(res).map(rowToPerson);
 }
 
-export async function addMissing(input: CreateInput): Promise<MissingDTO> {
+export async function addMissing(
+  input: CreateInput,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
+): Promise<MissingDTO> {
   const id = crypto.randomUUID();
   const name = (input.name ?? "").trim().slice(0, MAX_NAME);
   const age = normalizeAge(input.age);
@@ -388,7 +392,7 @@ export async function addMissing(input: CreateInput): Promise<MissingDTO> {
     resolutionNote,
     resolvedAt,
   });
-  invalidate();
+  invalidate(cache);
 
   // Best-effort (U7/R8): nunca debe tumbar esta creación ya confirmada —
   // ensurePrn loguea y devuelve null ante cualquier fallo, nunca lanza. Si
@@ -426,6 +430,7 @@ export async function markMissingFound(
   id: string,
   note: string,
   resolutionPhoto: string | null,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
 ): Promise<MissingDTO | null> {
   const cleanNote = note.trim().slice(0, MAX_RESOLUTION_NOTE);
   if (!cleanNote) throw new Error("Falta la descripción de cómo se comunicaron.");
@@ -458,11 +463,14 @@ export async function markMissingFound(
                   created_at`,
   );
   const rows = execRows<Row>(result);
-  if (rows.length > 0) invalidate();
+  if (rows.length > 0) invalidate(cache);
   return rows.length > 0 ? rowToPerson(rows[0]!) : null;
 }
 
-export async function restoreMissing(id: string): Promise<boolean> {
+export async function restoreMissing(
+  id: string,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
+): Promise<boolean> {
   // Escape `sql` por el tipo unión de drivers. Misma semántica que el UPDATE ...
   // RETURNING id previo.
   const db = await getDb();
@@ -476,7 +484,7 @@ export async function restoreMissing(id: string): Promise<boolean> {
         RETURNING id`,
   );
   const restored = execRows<{ id: string }>(result).length > 0;
-  if (restored) invalidate();
+  if (restored) invalidate(cache);
   return restored;
 }
 
@@ -591,7 +599,10 @@ export async function getMissingResolutionPhoto(
   return dataUrlToPhoto(dataUrl);
 }
 
-export async function removeMissing(id: string): Promise<boolean> {
+export async function removeMissing(
+  id: string,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
+): Promise<boolean> {
   const db = await getDb();
   const rows = await db
     .select({
@@ -632,7 +643,7 @@ export async function removeMissing(id: string): Promise<boolean> {
     sql`DELETE FROM missing_persons WHERE id = ${id} RETURNING id`,
   );
   const removed = execRows<{ id: string }>(result).length > 0;
-  if (removed) invalidate();
+  if (removed) invalidate(cache);
   return removed;
 }
 
@@ -766,6 +777,7 @@ export interface UpdateMissingInput {
 export async function updateMissing(
   id: string,
   input: UpdateMissingInput,
+  cache: ProcessCache = COLOMBIA_PROCESS_CACHE,
 ): Promise<MissingAdminDTO | null> {
   const sets: ReturnType<typeof sql>[] = [];
   if (input.name !== undefined)
@@ -793,7 +805,7 @@ export async function updateMissing(
   );
   const rows = execRows<AdminRow>(result);
   if (rows.length === 0) return null;
-  invalidate();
+  invalidate(cache);
 
   // Cualquier cambio de document_hash (fijado o borrado) es candidato a
   // re-evaluación del matcher — ver comentario de UpdateMissingInput.
@@ -1075,7 +1087,7 @@ function buildExternalRow(
  */
 export async function upsertExternalMissingBatch(
   people: ExternalMissingInput[],
-  opts: { batchSize?: number } = {},
+  opts: { batchSize?: number; cache?: ProcessCache } = {},
 ): Promise<BatchUpsertResult> {
   const result: BatchUpsertResult = { inserted: 0, updated: 0, skipped: 0, errors: 0 };
   const batchSize = Math.min(
@@ -1187,6 +1199,8 @@ export async function upsertExternalMissingBatch(
     }
   }
 
-  if (result.inserted > 0 || result.updated > 0) invalidate();
+  if (result.inserted > 0 || result.updated > 0) {
+    invalidate(opts.cache ?? COLOMBIA_PROCESS_CACHE);
+  }
   return result;
 }

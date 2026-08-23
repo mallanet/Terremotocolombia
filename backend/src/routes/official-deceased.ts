@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, rateLimit, validate } from "@/middleware";
-import { cached } from "@/lib/cache";
+import { cached, cacheParamDigest } from "@/lib/cache";
 import { jsonWithEtag } from "@/lib/http";
+import { requestProcessCache } from "@/middleware/tenant";
 import * as service from "@/services/official-deceased";
 
 export const officialDeceasedRouter = Router();
@@ -34,8 +35,8 @@ officialDeceasedRouter.get(
 		const { page, pageSize, q } = req.query as unknown as z.infer<
 			typeof querySchema
 		>;
-		const key = `official-deceased:${page}:${pageSize}:${q ?? ""}`;
-		const result = await cached(key, 30_000, () =>
+		const key = `official-deceased:${page}:${pageSize}:${cacheParamDigest(q ?? "")}`;
+		const result = await cached(requestProcessCache(req), key, 30_000, () =>
 			service.listOfficialDeceased({ page, pageSize, search: q }),
 		);
 		jsonWithEtag(req, res, result, CACHE_HEADERS);
