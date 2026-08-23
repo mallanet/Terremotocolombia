@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-b-u9-complete
+status: phase-b-u20-in-progress
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -30,7 +30,7 @@ status. Complete means acceptance evidence, not the existence of files.
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
 | Plans on origin/main | absent before this unit; copied into the worktree in Phase 0 |
 | Do not absorb | `8f12eaa` Access-doc edits and pptx |
-| origin/staging | `7841910` Merge PR #65 (U9 staging-deploy ledger). Recorded 2026-08-23 |
+| origin/staging | `db71fb5` Merge PR #67 (U20 process-cache). Recorded 2026-08-23 |
 | Local `main` | stale (`3dacec2`, 242 behind). Ignore. |
 | Plan original review SHA | `89089da` (ancestor of main) |
 | Cache addendum SHA | `d106977` (ancestor of main) |
@@ -74,11 +74,12 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** U20 (background, offline-state, and cache protocol)
-on Colombia `staging`. Do not merge Colombia `staging` to `main`. U19 imports
+**Next executable unit:** finish U20 on Colombia `staging` (Queue/Cron
+consumer-first in flight; browser IndexedDB, `sw.js`, TanStack keys, and Next
+cache tags remain). Do not merge Colombia `staging` to `main`. U19 imports
 from Colombia `origin/main` after Phase A lands there. Do not copy Colombia
 Doppler tokens onto the platform repo. Do not deploy the platform clone onto
-terremotocolombia.co Workers.
+terremotocolombia.co Workers. Do not enable Queue v2 producers.
 
 ## Unit ledger
 
@@ -374,8 +375,56 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 
 **Not claimed:**
 
-- Dual-write (U18), cache protocol (U20), backfill/tighten (U8)
+- Dual-write (U18), remaining U20 browser/SW/query-key slices, backfill/tighten (U8)
 - Apply on Colombia production Neon
+- Merge Colombia `staging` to `main`
+
+### U20 — Background, offline-state, and cache protocol migration
+
+| Field | Value |
+|---|---|
+| Requirements | R9, R18, R21 |
+| KTDs | KTD18, KTD57 (registry feed for U34; no Upstash in U20) |
+| Depends on | U7, U9 |
+| Status | in progress on Colombia staging. Process-cache complete. Queue/Cron consumer-first in this slice. Browser/SW/query keys remain. |
+| Rollback | revert the staging PR. Process-cache and queue consumers are expand-only; producers still emit v1. |
+| PR/commit | Process-cache: Colombia [PR #67](https://github.com/mallanet/Terremotocolombia/pull/67) `db71fb5`. Queue/Cron: this PR. Platform port follows after Colombia merge. |
+
+**Evidence (2026-08-23, process-cache, Colombia staging):**
+
+- [PR #67](https://github.com/mallanet/Terremotocolombia/pull/67) merged as
+  `db71fb5`. Public JSON shapes unchanged. `cached()` takes a `ProcessCache`.
+  Tenant partition `t:{org}:{incident}:{epoch}`; earthquakes and ResponseGrid
+  use `GLOBAL_PROCESS_CACHE`. `invalidate(cache)` clears one partition.
+  Registry: `docs/platform/cache-registry.md`.
+
+**Evidence (2026-08-23, Queue/Cron consumer-first, worktree):**
+
+- Exact queue registry (`backend/src/lib/queue-registry.ts`) matches
+  `wrangler.jsonc` producer, consumer, and DLQ names. Substring hits are
+  `unknown`. Compose names: `needs-publication`, `patient-imports`. Matcher
+  is Cloudflare-only (no BullMQ matcher queue today).
+- Dual decoder in `packages/contracts` + `backend/src/lib/queue-protocol.ts`.
+  v1 bodies map to Colombia tenant ids. v2 envelopes keep the declared
+  tenant. Producers still emit v1. Poison / unsupported version / wrong
+  family → `retry()`.
+- Unknown queue → `queue.quarantine` in `audit_log`. Ack only after the
+  receipt persists (3 in-process attempts, then `retry()`).
+- DLQ receipts redact citizen fields and keep import `errorSummary`,
+  including nested v2 `payload.errorSummary`. Ack only after persist.
+- Cron unknown expression returns `unhandled` and persists `cron.unhandled`.
+  Idempotency key is tenant + job-kind + 5-minute window. Incident
+  enumeration is Colombia-only. Earthquake `sync.fetchedAt` is unchanged.
+- Tests: `packages/contracts/test/queue-protocol.test.ts`,
+  `backend/test/lib/queue-protocol.test.ts`,
+  `backend/test/lib/queue-registry.test.ts`, updated
+  `backend/test/queue-consumer.test.ts` and `backend/test/cron-jobs.test.ts`.
+
+**Not claimed:**
+
+- v2 producer flag (plan step 6)
+- IndexedDB drafts, `sw.js` cache names, TanStack query keys, Next cache tags
+- Platform repo port of this slice
 - Merge Colombia `staging` to `main`
 
 ## Blocker packets (open)

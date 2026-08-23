@@ -55,3 +55,19 @@ export type {
   ContractValidationOptions,
   ContractValidationResult,
 } from "./validate";
+export {
+  QUEUE_PROTOCOL_FIXTURES,
+  QUEUE_PROTOCOL_VERSION,
+  importJobV1Schema,
+  matcherJobV1Schema,
+  needsJobV1Schema,
+  queueEnvelopeV2Schema,
+  queueJobFamilySchema,
+} from "./queue-protocol";
+export type {
+  ImportJobV1,
+  MatcherJobV1,
+  NeedsJobV1,
+  QueueEnvelopeV2,
+  QueueJobFamily,
+} from "./queue-protocol";
