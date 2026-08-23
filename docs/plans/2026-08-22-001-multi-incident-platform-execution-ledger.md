@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-b-u18-next
+status: phase-b-u8-next
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -24,13 +24,13 @@ status. Complete means acceptance evidence, not the existence of files.
 | Item | Value |
 |---|---|
 | Implementation worktree | `/Users/eduardomuthmartinez/Mallanet/Colombia/platform-impl` |
-| Branch | `feat/platform-u20-browser-ledger` (U20 browser staging evidence) |
+| Branch | `feat/platform-u18-ledger` (U18 dual-write staging evidence) |
 | Immutable bootstrap SHA | `83b7c1669fda091f092edcb3f470a1e81f5669ba` (origin/main, PR #53) |
 | User checkout (do not touch) | `/Users/eduardomuthmartinez/Mallanet/Colombia/repo` on `fix/frontend-backend-contracts` (`89089da`) |
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
 | Plans on origin/main | absent before this unit; copied into the worktree in Phase 0 |
 | Do not absorb | `8f12eaa` Access-doc edits and pptx |
-| origin/staging | `4ff92db` Merge PR #70 (U20 browser/SW/query). Recorded 2026-08-23 |
+| origin/staging | `22340434` Merge PR #72 (U18 dual-write). Recorded 2026-08-23 |
 | Local `main` | stale (`3dacec2`, 242 behind). Ignore. |
 | Plan original review SHA | `89089da` (ancestor of main) |
 | Cache addendum SHA | `d106977` (ancestor of main) |
@@ -74,12 +74,13 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** U18 (HTTP writes and queue/cron entry points still
-leave `organization_id` / `incident_id` null). U20 consumer-first is on
-Colombia staging. Do not merge Colombia `staging` to `main`. U19 imports from
-Colombia `origin/main` after Phase A lands there. Do not copy Colombia
-Doppler tokens onto the platform repo. Do not deploy the platform clone onto
-terremotocolombia.co Workers. Do not enable Queue v2 producers.
+**Next executable unit:** U8 (backfill existing rows, then tighten
+nullability). U18 dual-write is on Colombia staging. Do not merge Colombia
+`staging` to `main`. Do not start U8 until a human applies the backfill
+against staging Neon. U19 imports from Colombia `origin/main` after Phase A
+lands there. Do not copy Colombia Doppler tokens onto the platform repo. Do
+not deploy the platform clone onto terremotocolombia.co Workers. Do not
+enable Queue v2 producers.
 
 ## Unit ledger
 
@@ -316,7 +317,7 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 
 **Not claimed:**
 
-- Dual-write (U18), backfill/tighten (U8)
+- Backfill/tighten (U8)
 - Apply on Colombia production Neon
 
 ### U9 — Tenant resolution middleware
@@ -375,7 +376,7 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 
 **Not claimed:**
 
-- Dual-write (U18), remaining U20 browser/SW/query-key slices, backfill/tighten (U8)
+- Backfill/tighten (U8)
 - Apply on Colombia production Neon
 - Merge Colombia `staging` to `main`
 
@@ -467,6 +468,56 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 **Not claimed:**
 
 - v2 producer flag (plan step 6)
+- Merge Colombia `staging` to `main`
+
+### U18 — Dual-write organization and incident on every write
+
+| Field | Value |
+|---|---|
+| Requirements | R6, R7, R9 |
+| KTDs | KTD6, KTD13 |
+| Depends on | U7, U9, U20 consumer-first (queue decoder already maps v1 to Colombia) |
+| Status | complete on Colombia staging; platform PR open |
+| Rollback | revert the Worker version or the staging PR. Columns stay nullable. Producers still emit v1. Do not point Colombia DNS at the platform clone. |
+| PR/commit | Colombia [PR #72](https://github.com/mallanet/Terremotocolombia/pull/72) merged as `22340434`. Platform [PR #5](https://github.com/Emuthmartinez/platform/pull/5). |
+
+**Evidence (2026-08-23, Colombia staging deploy):**
+
+- `deploy-staging.yml` run `32649421183` on merge of #72: schema-capability
+  gate, API/admin/frontend deploys, domain smoke including served SHA.
+  Conclusion: **success**.
+- Live `api-staging` `/api/readyz` `200` with SHA
+  `223404340dd3f74d30140f2deab80b3a73f66834`. `/api/healthz` `200`.
+- Production `/api/healthz` `200` with body `{"ok":true}` and no new SHA.
+  Production traffic was not changed. Do not merge `staging` to `main`.
+
+**Evidence (2026-08-23, worktree):**
+
+- Helper `backend/src/tenant/ownership.ts`: `incidentOwnership`,
+  `tenantJobFields` (extra fields on a still-v1 body),
+  `includesUnscopedLegacyRows` for Colombia NULL pre-U18 rows.
+- HTTP writers call `requireTenantScope(req)`. Queue and cron pass an
+  explicit `TenantScope`. AsyncLocalStorage is not authorization (KTD13).
+- Inventory and rollback: `docs/platform/execution-boundaries.md`.
+- Tests: `backend/test/tenant-ownership.test.ts`,
+  `backend/test/tenant-write.test.ts` (report/chat/import stamp; needs
+  status does not cross incidents). Isolated routers pin
+  `req.tenantScope = colombiaTenantScope()`.
+- Backend: lint, typecheck, worker tsc, `npm test` 92 files / 834 tests
+  on the U18 PR.
+
+**Evidence (2026-08-23, `Emuthmartinez/platform`):**
+
+- [PR #5](https://github.com/Emuthmartinez/platform/pull/5) ports the same
+  stamps. The clone still uses the unpartitioned `cached(key, ttl, fn)`
+  API (U20 process-cache partition is not on this clone). `crud-factory`
+  passes `req` so resources can stamp. Isolation: `ENABLE_PLATFORM_DEPLOYS`
+  unset; merge must run CI only.
+
+**Not claimed:**
+
+- Backfill/tighten (U8)
+- Queue v2 producers
 - Merge Colombia `staging` to `main`
 
 ## Blocker packets (open)
