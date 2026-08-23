@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-b-u9-on-colombia-staging
+status: phase-b-u9-complete
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -24,13 +24,13 @@ status. Complete means acceptance evidence, not the existence of files.
 | Item | Value |
 |---|---|
 | Implementation worktree | `/Users/eduardomuthmartinez/Mallanet/Colombia/platform-impl` |
-| Branch | `feat/platform-u9-ledger` (U9 staging evidence) |
+| Branch | `feat/platform-u9-complete-ledger` (U9 platform merge evidence) |
 | Immutable bootstrap SHA | `83b7c1669fda091f092edcb3f470a1e81f5669ba` (origin/main, PR #53) |
 | User checkout (do not touch) | `/Users/eduardomuthmartinez/Mallanet/Colombia/repo` on `fix/frontend-backend-contracts` (`89089da`) |
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
 | Plans on origin/main | absent before this unit; copied into the worktree in Phase 0 |
 | Do not absorb | `8f12eaa` Access-doc edits and pptx |
-| origin/staging | `e1a8d0b` Merge PR #62 (U7 isolated-Neon ledger). Recorded 2026-08-23 |
+| origin/staging | `7841910` Merge PR #65 (U9 staging-deploy ledger). Recorded 2026-08-23 |
 | Local `main` | stale (`3dacec2`, 242 behind). Ignore. |
 | Plan original review SHA | `89089da` (ancestor of main) |
 | Cache addendum SHA | `d106977` (ancestor of main) |
@@ -74,9 +74,9 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** port U9 onto `Emuthmartinez/platform` (merge when
-CI is green). Do not merge Colombia `staging` to `main`. U19 imports from
-Colombia `origin/main` after Phase A lands there. Do not copy Colombia
+**Next executable unit:** U20 (background, offline-state, and cache protocol)
+on Colombia `staging`. Do not merge Colombia `staging` to `main`. U19 imports
+from Colombia `origin/main` after Phase A lands there. Do not copy Colombia
 Doppler tokens onto the platform repo. Do not deploy the platform clone onto
 terremotocolombia.co Workers.
 
@@ -325,9 +325,9 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 | Requirements | R8 |
 | KTDs | KTD7, KTD12, KTD21 |
 | Depends on | U7 |
-| Status | complete on Colombia staging; platform port pending |
+| Status | complete on Colombia staging and platform `main` |
 | Rollback | revert the Colombia staging PR; `workers_dev: false` reverts with it. Do not drop `0023` rows while unknown-host 404 is live. |
-| PR/commit | [PR #64](https://github.com/mallanet/Terremotocolombia/pull/64) merged to `staging` as `78c5167` |
+| PR/commit | Colombia [PR #64](https://github.com/mallanet/Terremotocolombia/pull/64) `78c5167`; platform [PR #2](https://github.com/Emuthmartinez/platform/pull/2) `4921cc75` |
 
 **Evidence (2026-08-23, staging Neon `br-shy-king-ax96do57`):**
 
@@ -361,10 +361,20 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 - Tests: `backend/test/tenant-hostname.test.ts`,
   `backend/test/tenant-resolution.test.ts`, updated JSON/photo cache tests.
 
+**Evidence (2026-08-23, `Emuthmartinez/platform`):**
+
+- [PR #2](https://github.com/Emuthmartinez/platform/pull/2) merged to `main`
+  as `4921cc75`. CI green. Isolation held: `ENABLE_PLATFORM_DEPLOYS` unset;
+  merge ran CI only. No Worker deploy onto terremotocolombia.co.
+- Isolated Neon `hidden-cell-49890973` `deployments` includes staging,
+  localhost, and the production hostname rows from U7. `0023` is idempotent.
+- `json-edge-cache.ts` reads `APP_BUILD_SHA` locally (clone has no U0
+  `build-identity.ts`). Admin HTTP client kept its Result helper and only
+  merged the trusted-hostname header.
+
 **Not claimed:**
 
 - Dual-write (U18), cache protocol (U20), backfill/tighten (U8)
-- Same change merged on `Emuthmartinez/platform`
 - Apply on Colombia production Neon
 - Merge Colombia `staging` to `main`
 
