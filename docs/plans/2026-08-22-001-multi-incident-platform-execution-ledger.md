@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-b-u20-in-progress
+status: phase-b-u18-next
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -24,13 +24,13 @@ status. Complete means acceptance evidence, not the existence of files.
 | Item | Value |
 |---|---|
 | Implementation worktree | `/Users/eduardomuthmartinez/Mallanet/Colombia/platform-impl` |
-| Branch | `feat/platform-u9-complete-ledger` (U9 platform merge evidence) |
+| Branch | `feat/platform-u20-browser-ledger` (U20 browser staging evidence) |
 | Immutable bootstrap SHA | `83b7c1669fda091f092edcb3f470a1e81f5669ba` (origin/main, PR #53) |
 | User checkout (do not touch) | `/Users/eduardomuthmartinez/Mallanet/Colombia/repo` on `fix/frontend-backend-contracts` (`89089da`) |
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
 | Plans on origin/main | absent before this unit; copied into the worktree in Phase 0 |
 | Do not absorb | `8f12eaa` Access-doc edits and pptx |
-| origin/staging | `0aab9b9` Merge PR #68 (U20 Queue/Cron consumer-first). Recorded 2026-08-23 |
+| origin/staging | `4ff92db` Merge PR #70 (U20 browser/SW/query). Recorded 2026-08-23 |
 | Local `main` | stale (`3dacec2`, 242 behind). Ignore. |
 | Plan original review SHA | `89089da` (ancestor of main) |
 | Cache addendum SHA | `d106977` (ancestor of main) |
@@ -74,12 +74,12 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** finish U20 on Colombia `staging` (IndexedDB
-drafts, `sw.js` cache names, TanStack query keys, Next cache tags). Queue/Cron
-consumer-first is on staging. Do not merge Colombia `staging` to `main`. U19
-imports from Colombia `origin/main` after Phase A lands there. Do not copy
-Colombia Doppler tokens onto the platform repo. Do not deploy the platform
-clone onto terremotocolombia.co Workers. Do not enable Queue v2 producers.
+**Next executable unit:** U18 (HTTP writes and queue/cron entry points still
+leave `organization_id` / `incident_id` null). U20 consumer-first is on
+Colombia staging. Do not merge Colombia `staging` to `main`. U19 imports from
+Colombia `origin/main` after Phase A lands there. Do not copy Colombia
+Doppler tokens onto the platform repo. Do not deploy the platform clone onto
+terremotocolombia.co Workers. Do not enable Queue v2 producers.
 
 ## Unit ledger
 
@@ -386,9 +386,9 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 | Requirements | R9, R18, R21 |
 | KTDs | KTD18, KTD57 (registry feed for U34; no Upstash in U20) |
 | Depends on | U7, U9 |
-| Status | in progress on Colombia staging. Process-cache and Queue/Cron consumer-first complete. Browser/SW/query keys remain. |
-| Rollback | revert the staging PR. Process-cache and queue consumers are expand-only; producers still emit v1. |
-| PR/commit | Process-cache: Colombia [PR #67](https://github.com/mallanet/Terremotocolombia/pull/67) `db71fb5`. Queue/Cron: Colombia [PR #68](https://github.com/mallanet/Terremotocolombia/pull/68) `0aab9b9`. Platform: [PR #3](https://github.com/Emuthmartinez/platform/pull/3). |
+| Status | consumer-first complete on Colombia staging (process-cache, Queue/Cron, browser/SW/query). v2 producers remain off. |
+| Rollback | revert the staging PR. Process-cache, queue consumers, and browser protocol are expand-only; producers still emit v1. |
+| PR/commit | Process-cache: Colombia [PR #67](https://github.com/mallanet/Terremotocolombia/pull/67) `db71fb5`. Queue/Cron: Colombia [PR #68](https://github.com/mallanet/Terremotocolombia/pull/68) `0aab9b9`. Browser/SW/query: Colombia [PR #70](https://github.com/mallanet/Terremotocolombia/pull/70) `4ff92db`. Platform queues: [PR #3](https://github.com/Emuthmartinez/platform/pull/3). Platform browser: [PR #4](https://github.com/Emuthmartinez/platform/pull/4). |
 
 **Evidence (2026-08-23, process-cache, Colombia staging):**
 
@@ -428,18 +428,45 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
   `backend/test/lib/queue-registry.test.ts`, updated
   `backend/test/queue-consumer.test.ts` and `backend/test/cron-jobs.test.ts`.
 
+**Evidence (2026-08-23, browser/SW/query, Colombia staging):**
+
+- [PR #70](https://github.com/mallanet/Terremotocolombia/pull/70) merged as
+  `4ff92db`. `deploy-staging.yml` run `32639844662`: schema-capability
+  gate, API/admin/frontend deploys, domain smoke. Conclusion: **success**.
+- Live `api-staging` `/api/readyz` `200` with SHA `4ff92db`. `/api/healthz`
+  `200`. Production traffic was not changed. Producers still emit v1.
+
+**Evidence (2026-08-23, browser/SW/query, worktree):**
+
+- IndexedDB `emergency-offline` stays. Dual-read v1; write v2 with tenant
+  ids, `idempotencyKey`, `producerBuildSha`, and status. Migrated v1 rows
+  are `verification_required` and are not auto-flushed. Auto-delete only
+  after a confirmed durable POST. Never delete on 403, validation, or
+  migrate failure.
+- TanStack keys: `[org, incident, epoch, …]`. Earthquakes stay
+  `["g", "earthquakes", …]` (KTD10). Admin `scopedQueryKey` does not prefix
+  `["auth","me"]` or invite tokens. Scope change clears the client cache.
+- Next ISR tags: `incident:{org}:{incident}:{epoch}`.
+- Service-worker cache names: `mallanet-e0-{org}-{incident}-{kind}`. Keep
+  `*-v9`. Activate deletes only owned `mallanet-` names not in KEEP.
+  Anonymous public JSON allowlist; chat, patients, photo JSON, and
+  credentialed requests bypass.
+- Registry: `docs/platform/browser-storage-registry.md`.
+
 **Evidence (2026-08-23, `Emuthmartinez/platform`):**
 
-- [PR #3](https://github.com/Emuthmartinez/platform/pull/3) ports the same
+- [PR #3](https://github.com/Emuthmartinez/platform/pull/3) ports the Queue
   consumer-first decoder. Schemas live in
   `backend/src/lib/queue-protocol-schema.ts` because this clone has no
-  `packages/contracts` yet. Isolation: `ENABLE_PLATFORM_DEPLOYS` unset;
+  `packages/contracts` yet.
+- [PR #4](https://github.com/Emuthmartinez/platform/pull/4) ports the
+  browser/SW/query slice. `frontend/lib/build-identity.ts` is the small U0
+  helper this slice needs. Isolation: `ENABLE_PLATFORM_DEPLOYS` unset;
   merge must run CI only.
 
 **Not claimed:**
 
 - v2 producer flag (plan step 6)
-- IndexedDB drafts, `sw.js` cache names, TanStack query keys, Next cache tags
 - Merge Colombia `staging` to `main`
 
 ## Blocker packets (open)
