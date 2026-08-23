@@ -17,6 +17,7 @@
 
 import { errorEnvelopeSchema } from "@mallanet/contracts";
 import type { z } from "zod";
+import { trustedHostnameHeaders } from "../../config/trusted-hostname";
 import type { ApiError, Result } from "../result";
 import { err, ok } from "../result";
 import { readAdminResult } from "./contract-validation";
@@ -49,6 +50,7 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
     opts: RequestOptions<T> & { body?: unknown },
   ): Promise<Result<T>> {
     const headers: Record<string, string> = {
+      ...trustedHostnameHeaders(),
       ...defaultHeaders,
       ...opts.headers,
     };
