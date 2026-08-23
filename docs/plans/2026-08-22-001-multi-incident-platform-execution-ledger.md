@@ -30,7 +30,7 @@ status. Complete means acceptance evidence, not the existence of files.
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
 | Plans on origin/main | absent before this unit; copied into the worktree in Phase 0 |
 | Do not absorb | `8f12eaa` Access-doc edits and pptx |
-| origin/staging | `db71fb5` Merge PR #67 (U20 process-cache). Recorded 2026-08-23 |
+| origin/staging | `0aab9b9` Merge PR #68 (U20 Queue/Cron consumer-first). Recorded 2026-08-23 |
 | Local `main` | stale (`3dacec2`, 242 behind). Ignore. |
 | Plan original review SHA | `89089da` (ancestor of main) |
 | Cache addendum SHA | `d106977` (ancestor of main) |
@@ -74,12 +74,12 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** finish U20 on Colombia `staging` (Queue/Cron
-consumer-first in flight; browser IndexedDB, `sw.js`, TanStack keys, and Next
-cache tags remain). Do not merge Colombia `staging` to `main`. U19 imports
-from Colombia `origin/main` after Phase A lands there. Do not copy Colombia
-Doppler tokens onto the platform repo. Do not deploy the platform clone onto
-terremotocolombia.co Workers. Do not enable Queue v2 producers.
+**Next executable unit:** finish U20 on Colombia `staging` (IndexedDB
+drafts, `sw.js` cache names, TanStack query keys, Next cache tags). Queue/Cron
+consumer-first is on staging. Do not merge Colombia `staging` to `main`. U19
+imports from Colombia `origin/main` after Phase A lands there. Do not copy
+Colombia Doppler tokens onto the platform repo. Do not deploy the platform
+clone onto terremotocolombia.co Workers. Do not enable Queue v2 producers.
 
 ## Unit ledger
 
@@ -386,9 +386,9 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 | Requirements | R9, R18, R21 |
 | KTDs | KTD18, KTD57 (registry feed for U34; no Upstash in U20) |
 | Depends on | U7, U9 |
-| Status | in progress on Colombia staging. Process-cache complete. Queue/Cron consumer-first in this slice. Browser/SW/query keys remain. |
+| Status | in progress on Colombia staging. Process-cache and Queue/Cron consumer-first complete. Browser/SW/query keys remain. |
 | Rollback | revert the staging PR. Process-cache and queue consumers are expand-only; producers still emit v1. |
-| PR/commit | Process-cache: Colombia [PR #67](https://github.com/mallanet/Terremotocolombia/pull/67) `db71fb5`. Queue/Cron: Colombia [PR #68](https://github.com/mallanet/Terremotocolombia/pull/68). Platform port follows after Colombia merge. |
+| PR/commit | Process-cache: Colombia [PR #67](https://github.com/mallanet/Terremotocolombia/pull/67) `db71fb5`. Queue/Cron: Colombia [PR #68](https://github.com/mallanet/Terremotocolombia/pull/68) `0aab9b9`. Platform: [PR #3](https://github.com/Emuthmartinez/platform/pull/3). |
 
 **Evidence (2026-08-23, process-cache, Colombia staging):**
 
@@ -397,6 +397,14 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
   Tenant partition `t:{org}:{incident}:{epoch}`; earthquakes and ResponseGrid
   use `GLOBAL_PROCESS_CACHE`. `invalidate(cache)` clears one partition.
   Registry: `docs/platform/cache-registry.md`.
+
+**Evidence (2026-08-23, Queue/Cron consumer-first, Colombia staging):**
+
+- [PR #68](https://github.com/mallanet/Terremotocolombia/pull/68) merged as
+  `0aab9b9`. `deploy-staging.yml` run `32618498054`: schema-capability gate,
+  API/admin/frontend deploys, domain smoke. Conclusion: **success**.
+- Live `api-staging` `/api/readyz` `200` with SHA `0aab9b9`. `/api/healthz`
+  `200`. Production traffic was not changed. Producers still emit v1.
 
 **Evidence (2026-08-23, Queue/Cron consumer-first, worktree):**
 
@@ -420,11 +428,18 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
   `backend/test/lib/queue-registry.test.ts`, updated
   `backend/test/queue-consumer.test.ts` and `backend/test/cron-jobs.test.ts`.
 
+**Evidence (2026-08-23, `Emuthmartinez/platform`):**
+
+- [PR #3](https://github.com/Emuthmartinez/platform/pull/3) ports the same
+  consumer-first decoder. Schemas live in
+  `backend/src/lib/queue-protocol-schema.ts` because this clone has no
+  `packages/contracts` yet. Isolation: `ENABLE_PLATFORM_DEPLOYS` unset;
+  merge must run CI only.
+
 **Not claimed:**
 
 - v2 producer flag (plan step 6)
 - IndexedDB drafts, `sw.js` cache names, TanStack query keys, Next cache tags
-- Platform repo port of this slice
 - Merge Colombia `staging` to `main`
 
 ## Blocker packets (open)
