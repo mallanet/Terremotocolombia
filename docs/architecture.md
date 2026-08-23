@@ -346,10 +346,26 @@ with a service-account **API key** (`x-api-key`,
 requester's contact, with `verified: false` set by the server) to credit
 the need without requiring the person to register on ResponseGrid. With no
 API key configured, the system wires a disabled publisher, and the
-endpoint returns `503`. Unlike other routes, this endpoint carries **no**
-`@swagger` block, on purpose: it is a write proxy backed by a service
-credential, and we do not publish its contract on `/api/docs` as an abuse
-surface. Turnstile and rate limiting remain the real protection.
+endpoint returns `503`. The committed OpenAPI baseline
+(`docs/api/openapi.json`) registers the async-job envelope from
+`@mallanet/contracts`. Production still keeps `/api/docs` closed unless
+`ENABLE_API_DOCS=1`. Turnstile and rate limiting remain the real
+protection.
+
+## OpenAPI baseline
+
+CI generates the spec from three sources (`backend/src/lib/swagger.ts`):
+
+1. `@swagger` JSDoc on hand-written routes.
+2. crud-factory paths from `PUBLIC_RESOURCES`.
+3. A contract overlay for migrated public routes (health, reports, needs).
+
+`docs/api/openapi.json` must match a fresh generation. On a pull request,
+CI extracts the base SHA's committed spec with `git show` (it does not
+run base code) and runs `oasdiff breaking --fail-on WARN`.
+`docs/api/contract-coverage.json` lists every documented path and whether
+its source is `contracts`, `legacy-jsdoc`, or `legacy-crud`. A migrated
+route cannot keep a legacy source.
 
 ## Data and migrations
 

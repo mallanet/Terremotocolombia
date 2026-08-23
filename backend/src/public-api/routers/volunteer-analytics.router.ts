@@ -16,6 +16,29 @@ import {
 
 export const volunteerAnalyticsRouter = Router();
 
+/**
+ * @swagger
+ * /api/public/volunteer-analytics:
+ *   get:
+ *     summary: Volunteer aggregates with no PII (capability volunteer:read)
+ *     tags: [Public:VolunteerAnalytics]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: since
+ *         schema: { type: string }
+ *         description: Optional ISO-8601 cohort start.
+ *       - in: query
+ *         name: refresh
+ *         schema: { type: string }
+ *         description: Set 1 or true to drop the process cache for this key.
+ *     responses:
+ *       200:
+ *         description: KPIs, buckets, and callouts. No names or contact.
+ *       401: { description: No autenticado }
+ *       403: { description: Sin capacidad }
+ */
+
 const CACHE_TTL_MS = 120_000;
 
 const querySchema = z.object({

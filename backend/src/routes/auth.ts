@@ -108,9 +108,11 @@ authRouter.post(
  *   get:
  *     summary: Validar una invitación (público)
  *     tags: [Auth]
+ *     parameters:
+ *       - { name: token, in: path, required: true, schema: { type: string } }
  *     responses:
- *       200: { description: Invitación válida }
- *       404: { description: No existe / expiró / ya usada }
+ *       200: { description: "Invitación válida" }
+ *       404: { description: "No existe / expiró / ya usada" }
  */
 authRouter.get(
   "/invite/:token",
@@ -189,7 +191,7 @@ authRouter.post(
  *     summary: Solicitar OTP de recuperación (rate-limit estricto)
  *     tags: [Auth]
  *     responses:
- *       200: { description: Si el email existe, se envió un código (respuesta uniforme) }
+ *       200: { description: "Si el email existe, se envió un código (respuesta uniforme)" }
  */
 authRouter.post(
   "/forgot-password",

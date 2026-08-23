@@ -1,0 +1,5 @@
+# Contract-compatibility overrides for oasdiff.
+# The fail threshold stays on the CLI:
+#   oasdiff breaking --fail-on WARN -- <base-spec> <generated-head-spec>
+# Add named check overrides here only after review. Do not use this file to
+# hide a break.

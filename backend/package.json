@@ -18,6 +18,8 @@
     "seed:volunteers-demo": "tsx src/seed/volunteers-demo.ts",
     "worker": "tsx worker/index.ts",
     "db:generate": "drizzle-kit generate --config ../infra/db/drizzle.config.ts",
+    "openapi:generate": "tsx src/lib/generate-openapi.ts write",
+    "openapi:check": "tsx src/lib/generate-openapi.ts check",
     "check:schema-drift": "tsx worker/check-schema-drift.ts",
     "check:platform-schema": "tsx worker/check-platform-schema.ts",
     "check:migration-journal": "tsx worker/check-migration-journal.ts",
