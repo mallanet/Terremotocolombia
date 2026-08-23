@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-a-complete-u6-bootstrapped
+status: phase-b-u7-expand-applied-isolated
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -24,13 +24,13 @@ status. Complete means acceptance evidence, not the existence of files.
 | Item | Value |
 |---|---|
 | Implementation worktree | `/Users/eduardomuthmartinez/Mallanet/Colombia/platform-impl` |
-| Branch | `feat/platform-u6-ledger` (U0–U16 on `origin/staging` at `33ef83e`) |
+| Branch | `feat/platform-u7-ledger` (U0–U16 + U6 ledger on `origin/staging` at `36f4d22`) |
 | Immutable bootstrap SHA | `83b7c1669fda091f092edcb3f470a1e81f5669ba` (origin/main, PR #53) |
 | User checkout (do not touch) | `/Users/eduardomuthmartinez/Mallanet/Colombia/repo` on `fix/frontend-backend-contracts` (`89089da`) |
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
 | Plans on origin/main | absent before this unit; copied into the worktree in Phase 0 |
 | Do not absorb | `8f12eaa` Access-doc edits and pptx |
-| origin/staging | `33ef83e` Merge PR #60 (U16). Recorded 2026-08-23 |
+| origin/staging | `36f4d22` Merge PR #61 (U6 ledger). Recorded 2026-08-23 |
 | Local `main` | stale (`3dacec2`, 242 behind). Ignore. |
 | Plan original review SHA | `89089da` (ancestor of main) |
 | Cache addendum SHA | `d106977` (ancestor of main) |
@@ -74,7 +74,8 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** U7 in `Emuthmartinez/platform`. Do not merge
+**Next executable unit:** U9 in `Emuthmartinez/platform` after U7 PR
+https://github.com/Emuthmartinez/platform/pull/1 merges. Do not merge
 Colombia `staging` to `main` to copy Phase A. U19 imports from Colombia
 `origin/main` after those commits land there. Do not copy Colombia Doppler
 tokens onto the platform repo. Do not deploy the platform clone to
@@ -259,12 +260,51 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
   batch can isolate tenants.
 - Probe table and role dropped after the record. Branch still expires.
 - Platform HEAD after U6 commits: `1e7f019`
+- Isolated Neon project `mallanet-platform` (`hidden-cell-49890973`), empty
+  of crisis data. Doppler project `mallanet-platform` in the Furbo workplace:
+  `stg`/`dev` hold `DATABASE_URL`; `prd` has no database URL. Clone migrations
+  applied on that branch. Read-only `DOPPLER_TOKEN` / `DOPPLER_TOKEN_STAGING`
+  set on `Emuthmartinez/platform` for CI. `ENABLE_PLATFORM_DEPLOYS` unset.
 
 **Not claimed (plan verification, deferred):**
 
 - OpenAPI oasdiff CI on the platform clone (not on bootstrap SHA)
 - Staging deploy of three apps from the platform repo (would hit Colombia
   staging Workers; forbidden until isolated platform staging exists)
+
+### U7 — Platform core schema (expand)
+
+| Field | Value |
+|---|---|
+| Requirements | R6, R7, R10 |
+| KTDs | KTD6, KTD7, KTD10, KTD14 |
+| Depends on | U6 |
+| Status | expand applied on isolated platform Neon; PR open; Colombia production untouched |
+| Rollback | revert platform PR #1; drop isolated Neon project if abandoning the clone |
+| PR/commit | [platform PR #1](https://github.com/Emuthmartinez/platform/pull/1) |
+
+**Evidence (2026-08-23, isolated Neon `hidden-cell-49890973`):**
+
+- Classification artifact `docs/platform/table-classification.json`: 65
+  Drizzle tables (including campaign). CI step
+  `npm run check:table-classification`.
+- `0014_platform_core`: `organizations`, `incidents` unique
+  `(organization_id, id)`, `deployments` hostname PK + composite FK. Seed
+  hostnames match `config/deployment.config.json`. Mixed org/incident pair
+  rejected (`platform-core-tenants.test.ts`).
+- Domain-group expands `0015`–`0022`: nullable `organization_id` /
+  `incident_id`, composite FKs `NOT VALID`. `audit_log` mixed-scope CHECK.
+  Campaign expand is handwritten SQL (tables stay out of drizzle-kit
+  generate).
+- Drift after apply: 65 tables, 764 columns, OK.
+- `drizzle-kit generate` empty after the sequence.
+- Journal: 23 migrations, unique increasing `when`.
+
+**Not claimed:**
+
+- U7 PR not yet merged to `Emuthmartinez/platform` `main`
+- Dual-write (U18), backfill/tighten (U8), tenant resolver (U9)
+- Apply on Colombia Neon `cool-sea-70146941` (forbidden)
 
 ## Blocker packets (open)
 
