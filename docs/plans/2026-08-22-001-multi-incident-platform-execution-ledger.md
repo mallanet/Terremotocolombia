@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-b-u7-on-colombia-staging
+status: phase-b-u9-in-progress
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -24,7 +24,7 @@ status. Complete means acceptance evidence, not the existence of files.
 | Item | Value |
 |---|---|
 | Implementation worktree | `/Users/eduardomuthmartinez/Mallanet/Colombia/platform-impl` |
-| Branch | `feat/platform-u7-staging-expand` (U7 schema onto Colombia `staging`) |
+| Branch | `feat/platform-u9-tenant` (U9 tenant resolution onto Colombia `staging`) |
 | Immutable bootstrap SHA | `83b7c1669fda091f092edcb3f470a1e81f5669ba` (origin/main, PR #53) |
 | User checkout (do not touch) | `/Users/eduardomuthmartinez/Mallanet/Colombia/repo` on `fix/frontend-backend-contracts` (`89089da`) |
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
@@ -74,11 +74,11 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** U9 in `Emuthmartinez/platform` (trusted hostname
-→ `deployments`, `workers_dev: false`). Do not merge Colombia `staging` to
-`main` to copy Phase A. U19 imports from Colombia `origin/main` after those
-commits land there. Do not copy Colombia Doppler tokens onto the platform
-repo. Do not deploy the platform clone onto terremotocolombia.co Workers.
+**Next executable unit:** U9 on Colombia `staging` (this branch), then the
+same change on `Emuthmartinez/platform`. Do not merge Colombia `staging` to
+`main`. U19 imports from Colombia `origin/main` after Phase A lands there.
+Do not copy Colombia Doppler tokens onto the platform repo. Do not deploy
+the platform clone onto terremotocolombia.co Workers.
 
 ## Unit ledger
 
@@ -305,20 +305,58 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 **Evidence (2026-08-23, Colombia staging Neon `br-shy-king-ax96do57`):**
 
 - Same expand SQL applied **before** schema code merge (migrate-first).
-- `__drizzle_migrations` count: 23. Seed: `org_mallanet` /
-  `inc_terremoto_colombia_2026` plus the three production hostnames from
-  `config/deployment.config.json`.
+- `__drizzle_migrations` count after U7: 23. After U9 seed `0023`: 24.
+  Seed: `org_mallanet` / `inc_terremoto_colombia_2026` plus production
+  hostnames from `config/deployment.config.json`. Staging hostnames landed
+  in `0023`.
 - Production branch `br-nameless-dew-axx1c59w`: `organizations` absent.
-- Current staging Workers still run pre-U7 code. Extra nullable columns do
-  not change those SELECTs. Merge of this PR deploys schema-aware code
-  against columns that already exist. Capability gate must pass.
+- Colombia staging PR #63 merged as `03187b11`. Workers on staging run
+  U7 schema-aware code. Extra nullable columns do not change those SELECTs.
 
 **Not claimed:**
 
-- Dual-write (U18), backfill/tighten (U8), tenant resolver (U9)
+- Dual-write (U18), backfill/tighten (U8)
 - Apply on Colombia production Neon
-- Staging hostnames in `deployments` (`staging.terremotocolombia.co` and
-  api/admin staging). Add them before U9 is tested on Colombia staging.
+
+### U9 — Tenant resolution middleware
+
+| Field | Value |
+|---|---|
+| Requirements | R8 |
+| KTDs | KTD7, KTD12, KTD21 |
+| Depends on | U7 |
+| Status | implementation on `feat/platform-u9-tenant`; staging hostname seed already applied; Colombia PR and platform port pending |
+| Rollback | revert the Colombia staging PR; `workers_dev: false` reverts with it. Do not drop `0023` rows while unknown-host 404 is live. |
+| PR/commit | pending |
+
+**Evidence (2026-08-23, staging Neon `br-shy-king-ax96do57`):**
+
+- `0023_staging_deployments` applied before Worker code that 404s unknown
+  hosts. Rows: `staging.terremotocolombia.co`,
+  `api-staging.terremotocolombia.co`, `admin-staging.terremotocolombia.co`,
+  `localhost`. Production Neon untouched.
+
+**Evidence (2026-08-23, worktree):**
+
+- Trusted authority: `new URL(request.url).hostname` in the Worker Fetch
+  handler; Express uses `x-mallanet-trusted-hostname` only.
+  `PINNED_DEPLOYMENT_HOSTNAME` for development/test without that header.
+- Unknown host: generic `{ error: "Ruta no encontrada." }` before JSON/photo
+  cache and before tenant-scoped handlers. `/api/healthz` and `/api/readyz`
+  skip tenant lookup.
+- `workers_dev: false` in backend, frontend, and admin wrangler configs,
+  top-level and `env.staging`. No `routes`.
+- Edge cache keys include tenant partition and allowlisted Origin.
+  Hits issue a fresh `X-Request-Id`. Rate-limit Valkey keys include
+  org+incident; `EDGE_RATE_LIMITER` stays `flood:<ip>`.
+- Tests: `backend/test/tenant-hostname.test.ts`,
+  `backend/test/tenant-resolution.test.ts`, updated JSON/photo cache tests.
+
+**Not claimed until staging deploy:**
+
+- `deploy-staging.yml` capability gate and domain smoke
+- Live `api-staging` `/api/readyz` and `/api/reports` after merge
+- Same change merged on `Emuthmartinez/platform`
 
 ## Blocker packets (open)
 
