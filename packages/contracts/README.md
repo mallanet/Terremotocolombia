@@ -26,6 +26,12 @@ The async-job envelope is `asyncJobAcceptedSchema` (`202 { queued: true, jobId }
 and `asyncJobStatusSchema` (`queued \| completed \| failed`). The error
 envelope is `{ error: string }` with optional `code`.
 
+Queue/BullMQ job bodies live in `queue-protocol.ts`. They are not HTTP
+responses. Consumers accept legacy v1 bodies and v2 envelopes
+(`schemaVersion`, tenant ids, `idempotencyKey`, `producerBuildSha`,
+`createdAt`, `family`, `payload`). Producers still emit v1 until a later
+release. Fixtures are synthetic and must not carry citizen contact data.
+
 These live lists are **not** one of the three shapes yet. Keep their wire
 keys until that surface migrates:
 
