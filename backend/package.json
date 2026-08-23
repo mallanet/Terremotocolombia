@@ -22,6 +22,7 @@
     "openapi:check": "tsx src/lib/generate-openapi.ts check",
     "check:schema-drift": "tsx worker/check-schema-drift.ts",
     "check:platform-schema": "tsx worker/check-platform-schema.ts",
+    "check:table-classification": "tsx worker/check-table-classification.ts",
     "check:migration-journal": "tsx worker/check-migration-journal.ts",
     "observe:db": "tsx worker/observe-db.ts"
   },

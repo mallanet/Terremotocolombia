@@ -10,6 +10,9 @@ import {
 describe("schema capability inventory", () => {
   it("includes core and reconstruction-campaign tables", () => {
     const tables = expectedFromSchema().map((entry) => entry.table);
+    expect(tables).toContain("organizations");
+    expect(tables).toContain("incidents");
+    expect(tables).toContain("deployments");
     expect(tables).toContain("volunteers");
     expect(tables).toContain("reports");
     expect(tables).toContain("campaign_sites");

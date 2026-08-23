@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-b-u7-expand-applied-isolated
+status: phase-b-u7-on-colombia-staging
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -24,13 +24,13 @@ status. Complete means acceptance evidence, not the existence of files.
 | Item | Value |
 |---|---|
 | Implementation worktree | `/Users/eduardomuthmartinez/Mallanet/Colombia/platform-impl` |
-| Branch | `feat/platform-u7-ledger` (U0–U16 + U6 ledger on `origin/staging` at `36f4d22`) |
+| Branch | `feat/platform-u7-staging-expand` (U7 schema onto Colombia `staging`) |
 | Immutable bootstrap SHA | `83b7c1669fda091f092edcb3f470a1e81f5669ba` (origin/main, PR #53) |
 | User checkout (do not touch) | `/Users/eduardomuthmartinez/Mallanet/Colombia/repo` on `fix/frontend-backend-contracts` (`89089da`) |
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
 | Plans on origin/main | absent before this unit; copied into the worktree in Phase 0 |
 | Do not absorb | `8f12eaa` Access-doc edits and pptx |
-| origin/staging | `36f4d22` Merge PR #61 (U6 ledger). Recorded 2026-08-23 |
+| origin/staging | `e1a8d0b` Merge PR #62 (U7 isolated-Neon ledger). Recorded 2026-08-23 |
 | Local `main` | stale (`3dacec2`, 242 behind). Ignore. |
 | Plan original review SHA | `89089da` (ancestor of main) |
 | Cache addendum SHA | `d106977` (ancestor of main) |
@@ -74,12 +74,11 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** U9 in `Emuthmartinez/platform` after U7 PR
-https://github.com/Emuthmartinez/platform/pull/1 merges. Do not merge
-Colombia `staging` to `main` to copy Phase A. U19 imports from Colombia
-`origin/main` after those commits land there. Do not copy Colombia Doppler
-tokens onto the platform repo. Do not deploy the platform clone to
-terremotocolombia.co.
+**Next executable unit:** U9 in `Emuthmartinez/platform` (trusted hostname
+→ `deployments`, `workers_dev: false`). Do not merge Colombia `staging` to
+`main` to copy Phase A. U19 imports from Colombia `origin/main` after those
+commits land there. Do not copy Colombia Doppler tokens onto the platform
+repo. Do not deploy the platform clone onto terremotocolombia.co Workers.
 
 ## Unit ledger
 
@@ -269,8 +268,9 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 **Not claimed (plan verification, deferred):**
 
 - OpenAPI oasdiff CI on the platform clone (not on bootstrap SHA)
-- Staging deploy of three apps from the platform repo (would hit Colombia
-  staging Workers; forbidden until isolated platform staging exists)
+- Staging deploy of three apps **from the platform repo** (would overwrite
+  Colombia staging Workers). Colombia staging stays on this repo. U7 schema
+  on Colombia staging is a copy of the expand SQL, not a Worker cutover.
 
 ### U7 — Platform core schema (expand)
 
@@ -279,9 +279,9 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 | Requirements | R6, R7, R10 |
 | KTDs | KTD6, KTD7, KTD10, KTD14 |
 | Depends on | U6 |
-| Status | expand applied on isolated platform Neon; PR open; Colombia production untouched |
-| Rollback | revert platform PR #1; drop isolated Neon project if abandoning the clone |
-| PR/commit | [platform PR #1](https://github.com/Emuthmartinez/platform/pull/1) |
+| Status | expand merged on platform `main`; applied on Colombia staging Neon; production Neon untouched |
+| Rollback | revert the Colombia staging PR; drop isolated Neon project if abandoning the clone. Do not roll back staging SQL without a matching code revert. |
+| PR/commit | [platform PR #1](https://github.com/Emuthmartinez/platform/pull/1) merged `93188d4`; Colombia staging PR follows |
 
 **Evidence (2026-08-23, isolated Neon `hidden-cell-49890973`):**
 
@@ -299,12 +299,26 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 - Drift after apply: 65 tables, 764 columns, OK.
 - `drizzle-kit generate` empty after the sequence.
 - Journal: 23 migrations, unique increasing `when`.
+- Platform PR #1 merged to `Emuthmartinez/platform` `main` as `93188d4`
+  (merge commit, expand history kept).
+
+**Evidence (2026-08-23, Colombia staging Neon `br-shy-king-ax96do57`):**
+
+- Same expand SQL applied **before** schema code merge (migrate-first).
+- `__drizzle_migrations` count: 23. Seed: `org_mallanet` /
+  `inc_terremoto_colombia_2026` plus the three production hostnames from
+  `config/deployment.config.json`.
+- Production branch `br-nameless-dew-axx1c59w`: `organizations` absent.
+- Current staging Workers still run pre-U7 code. Extra nullable columns do
+  not change those SELECTs. Merge of this PR deploys schema-aware code
+  against columns that already exist. Capability gate must pass.
 
 **Not claimed:**
 
-- U7 PR not yet merged to `Emuthmartinez/platform` `main`
 - Dual-write (U18), backfill/tighten (U8), tenant resolver (U9)
-- Apply on Colombia Neon `cool-sea-70146941` (forbidden)
+- Apply on Colombia production Neon
+- Staging hostnames in `deployments` (`staging.terremotocolombia.co` and
+  api/admin staging). Add them before U9 is tested on Colombia staging.
 
 ## Blocker packets (open)
 
