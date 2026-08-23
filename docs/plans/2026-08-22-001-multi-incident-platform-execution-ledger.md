@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-b-u9-in-progress
+status: phase-b-u9-on-colombia-staging
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -24,7 +24,7 @@ status. Complete means acceptance evidence, not the existence of files.
 | Item | Value |
 |---|---|
 | Implementation worktree | `/Users/eduardomuthmartinez/Mallanet/Colombia/platform-impl` |
-| Branch | `feat/platform-u9-tenant` (U9 tenant resolution onto Colombia `staging`) |
+| Branch | `feat/platform-u9-ledger` (U9 staging evidence) |
 | Immutable bootstrap SHA | `83b7c1669fda091f092edcb3f470a1e81f5669ba` (origin/main, PR #53) |
 | User checkout (do not touch) | `/Users/eduardomuthmartinez/Mallanet/Colombia/repo` on `fix/frontend-backend-contracts` (`89089da`) |
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
@@ -74,11 +74,11 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** U9 on Colombia `staging` (this branch), then the
-same change on `Emuthmartinez/platform`. Do not merge Colombia `staging` to
-`main`. U19 imports from Colombia `origin/main` after Phase A lands there.
-Do not copy Colombia Doppler tokens onto the platform repo. Do not deploy
-the platform clone onto terremotocolombia.co Workers.
+**Next executable unit:** port U9 onto `Emuthmartinez/platform` (merge when
+CI is green). Do not merge Colombia `staging` to `main`. U19 imports from
+Colombia `origin/main` after Phase A lands there. Do not copy Colombia
+Doppler tokens onto the platform repo. Do not deploy the platform clone onto
+terremotocolombia.co Workers.
 
 ## Unit ledger
 
@@ -325,9 +325,9 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 | Requirements | R8 |
 | KTDs | KTD7, KTD12, KTD21 |
 | Depends on | U7 |
-| Status | implementation on `feat/platform-u9-tenant`; staging hostname seed already applied; Colombia PR and platform port pending |
+| Status | complete on Colombia staging; platform port pending |
 | Rollback | revert the Colombia staging PR; `workers_dev: false` reverts with it. Do not drop `0023` rows while unknown-host 404 is live. |
-| PR/commit | pending |
+| PR/commit | [PR #64](https://github.com/mallanet/Terremotocolombia/pull/64) merged to `staging` as `78c5167` |
 
 **Evidence (2026-08-23, staging Neon `br-shy-king-ax96do57`):**
 
@@ -335,6 +335,15 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
   hosts. Rows: `staging.terremotocolombia.co`,
   `api-staging.terremotocolombia.co`, `admin-staging.terremotocolombia.co`,
   `localhost`. Production Neon untouched.
+
+**Evidence (2026-08-23, Colombia staging deploy):**
+
+- `deploy-staging.yml` run `32615653782` on merge of #64: schema-capability
+  gate, API/admin/frontend deploys, domain smoke. Conclusion: **success**.
+- Live `api-staging` `/api/readyz` `200` with SHA `78c5167`. `/api/healthz`
+  `200`. `/api/reports` `200` (`x-json-edge-cache: miss`). Staging web `200`.
+- Production traffic was not changed. `workers_dev: false` is now on the
+  staging Workers. Do not merge `staging` to `main`.
 
 **Evidence (2026-08-23, worktree):**
 
@@ -352,11 +361,12 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 - Tests: `backend/test/tenant-hostname.test.ts`,
   `backend/test/tenant-resolution.test.ts`, updated JSON/photo cache tests.
 
-**Not claimed until staging deploy:**
+**Not claimed:**
 
-- `deploy-staging.yml` capability gate and domain smoke
-- Live `api-staging` `/api/readyz` and `/api/reports` after merge
+- Dual-write (U18), cache protocol (U20), backfill/tighten (U8)
 - Same change merged on `Emuthmartinez/platform`
+- Apply on Colombia production Neon
+- Merge Colombia `staging` to `main`
 
 ## Blocker packets (open)
 
