@@ -305,6 +305,7 @@ authRouter.get(
         roleId: user.roleId,
         orgId: user.orgId,
         isAdmin: user.isSystemAdmin,
+        isSuperAdmin: user.isSuperAdmin,
       },
       capabilities,
     });
