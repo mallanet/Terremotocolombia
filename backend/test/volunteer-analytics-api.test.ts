@@ -4,7 +4,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import "./helpers";
 import request from "supertest";
-import { ensureSeed, makeAdmin, makeUserWithCaps } from "./helpers";
+import { ensureSeed, makeAdmin, makeUserWithCaps, testTenantOwnership} from "./helpers";
 import { invalidate } from "@/lib/cache";
 import { COLOMBIA_PROCESS_CACHE } from "@/lib/colombia-tenant";
 
@@ -65,7 +65,8 @@ async function insertDemoVolunteers(opts: {
         availability: "parcial",
         source: "demo-seed",
         code: `DEMO-${id}`,
-      })
+      ...testTenantOwnership(),
+    })
       .onConflictDoNothing();
   }
 }

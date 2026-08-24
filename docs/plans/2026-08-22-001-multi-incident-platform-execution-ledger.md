@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-b-u8-tighten-next
+status: phase-b-u8-tighten-applied-pending-merge
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -74,10 +74,12 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** U8 tighten (`SET NOT NULL`, FK `VALIDATE`,
-tenant-leading indexes). Staging incident-domain backfill is applied.
-Do not merge Colombia `staging` to `main`. Do not apply on production Neon.
-Skip mixed-scope `audit_log` until its fail-closed classifier ships.
+**Next executable unit:** merge U8 tighten to Colombia `staging` (schema
+already applied), port the same commits to isolated `platform` `main`,
+then U34 (Upstash behind the provider-neutral cache port) and U10 scoped
+repositories. Do not merge Colombia `staging` to `main`. Do not apply on
+production Neon. Skip mixed-scope `audit_log` until its fail-closed
+classifier ships.
 U19 imports from Colombia `origin/main` after Phase A lands there. Do not
 copy Colombia Doppler tokens onto the platform repo. Do not deploy the
 platform clone onto terremotocolombia.co Workers. Do not enable Queue v2
@@ -527,7 +529,7 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 | Requirements | R6, R7 |
 | KTDs | KTD6 |
 | Depends on | U7, U18 |
-| Status | staging incident-domain backfill applied; tighten not started |
+| Status | staging incident-domain backfill applied; tighten on `feat/platform-u8-tighten`
 | Rollback | columns stay nullable. Dual-write keeps stamping new rows. Progress table `ops_backfill_progress` is operational, not a Drizzle migration. |
 | PR/commit | runner expansion on `feat/platform-u8-domains` (this PR). First reports slice: [PR #74](https://github.com/mallanet/Terremotocolombia/pull/74) `733ff79` |
 
@@ -567,8 +569,54 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 
 **Not claimed:**
 
-- `SET NOT NULL` / FK `VALIDATE` / tenant-leading indexes
-- `audit_log` mixed-scope backfill
+- Apply on Colombia production Neon
+- Merge Colombia `staging` to `main`
+
+### U8 — Colombia tighten (KTD6 steps 4-6)
+
+| Field | Value |
+|---|---|
+| Requirements | R6, R7 |
+| KTDs | KTD6 |
+| Depends on | U8 backfill |
+| Status | applied on Colombia staging Neon and isolated platform Neon; code PR next |
+| Rollback | columns stay NOT NULL. Revert Worker/code. Do not drop NOT NULL in the compatibility window. |
+| PR/commit | `feat/platform-u8-tighten` (this branch). Sub-plan: `docs/plans/2026-08-24-001-impl-u8-tighten.md` |
+
+**Evidence (2026-08-24, local Postgres `localhost:5432/app`):**
+
+- `0024_tenant_tighten.sql` applied. `verify-tighten.sql`: 50/50 tables
+  `org_not_null=true` and `incident_not_null=true`.
+- `npm run check:platform-schema` OK (TCP `pg`). Journal SHA256
+  `454474225141a6a4e9410b9ac108e4f6638f404a7ec65635ab6453b55a9cdb87`.
+- Backend vitest: 94 files, 865 passed. Lint and typecheck clean.
+- Unscoped insert into `reports` without tenant columns fails not-null.
+- `audit_log` stays nullable (mixed-scope).
+- Schema declares `{table}_tenant_scope_idx` next to ownership FKs except
+  `audit_log`.
+
+**Evidence (2026-08-24, Colombia staging Neon `br-shy-king-ax96do57`):**
+
+- Direct host `ep-spring-credit-ax8bptqt.c-4.us-east-2.aws.neon.tech`.
+  Production branch `br-nameless-dew-axx1c59w` was not opened.
+- Operator `Emuthmartinez`. Confirm token `colombia-u8-tighten`.
+- Manifest checksum
+  `8db8c7f959ca54ada60a0c039e47fb50863d6375eb7ac0f2131b9a8e6f8db60f`.
+- Count-only then apply, one domain at a time: reports, volunteers,
+  hospitals, family-search, hub, ops, campaign. Every `unscoped` value
+  was 0. Runner left columns nullable, FKs validated, tenant indexes
+  `indisvalid=true`.
+- Then `scripts/migrate-direct.sh` applied `0024_tenant_tighten.sql`.
+- `check:platform-schema` OK: NOT NULL + validated FKs + tenant indexes.
+
+**Evidence (2026-08-24, isolated Neon `hidden-cell-49890973` / `br-sparkling-unit-ay5figxy`):**
+
+- Direct host `ep-fancy-hill-ayed6nze.c-5.us-east-2.aws.neon.tech`.
+- Same count-only / apply / migrate sequence. `check:platform-schema` OK.
+
+**Not claimed:**
+
+- `audit_log` mixed-scope classifier
 - Apply on Colombia production Neon
 - Merge Colombia `staging` to `main`
 
