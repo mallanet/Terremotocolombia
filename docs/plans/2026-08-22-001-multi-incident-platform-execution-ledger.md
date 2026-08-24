@@ -4,7 +4,7 @@ date: 2026-08-22
 bootstrap_sha: 83b7c1669fda091f092edcb3f470a1e81f5669ba
 plan_review_sha: 89089da
 cache_review_sha: d106977
-status: phase-b-u8-next
+status: phase-b-u8-tighten-next
 supersedes: docs/plans/2026-08-21-001-multi-incident-platform-execution-ledger.md
 ---
 
@@ -74,13 +74,14 @@ U23–U33 PARKED until U21+U22 and a named second-incident driver
 U35 starts deterministic shadow; not a U21 gate
 ```
 
-**Next executable unit:** U8 (backfill existing rows, then tighten
-nullability). U18 dual-write is on Colombia staging. Do not merge Colombia
-`staging` to `main`. Do not start U8 until a human applies the backfill
-against staging Neon. U19 imports from Colombia `origin/main` after Phase A
-lands there. Do not copy Colombia Doppler tokens onto the platform repo. Do
-not deploy the platform clone onto terremotocolombia.co Workers. Do not
-enable Queue v2 producers.
+**Next executable unit:** U8 tighten (`SET NOT NULL`, FK `VALIDATE`,
+tenant-leading indexes). Staging incident-domain backfill is applied.
+Do not merge Colombia `staging` to `main`. Do not apply on production Neon.
+Skip mixed-scope `audit_log` until its fail-closed classifier ships.
+U19 imports from Colombia `origin/main` after Phase A lands there. Do not
+copy Colombia Doppler tokens onto the platform repo. Do not deploy the
+platform clone onto terremotocolombia.co Workers. Do not enable Queue v2
+producers.
 
 ## Unit ledger
 
@@ -317,7 +318,7 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 
 **Not claimed:**
 
-- Backfill/tighten (U8)
+- U8 tighten / `audit_log` mixed-scope backfill
 - Apply on Colombia production Neon
 
 ### U9 — Tenant resolution middleware
@@ -376,7 +377,7 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 
 **Not claimed:**
 
-- Backfill/tighten (U8)
+- U8 tighten / `audit_log` mixed-scope backfill
 - Apply on Colombia production Neon
 - Merge Colombia `staging` to `main`
 
@@ -516,8 +517,59 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 
 **Not claimed:**
 
-- Backfill/tighten (U8)
 - Queue v2 producers
+- Merge Colombia `staging` to `main`
+
+### U8 — Colombia backfill (KTD6 step 3)
+
+| Field | Value |
+|---|---|
+| Requirements | R6, R7 |
+| KTDs | KTD6 |
+| Depends on | U7, U18 |
+| Status | staging incident-domain backfill applied; tighten not started |
+| Rollback | columns stay nullable. Dual-write keeps stamping new rows. Progress table `ops_backfill_progress` is operational, not a Drizzle migration. |
+| PR/commit | runner expansion on `feat/platform-u8-domains` (this PR). First reports slice: [PR #74](https://github.com/mallanet/Terremotocolombia/pull/74) `733ff79` |
+
+**Evidence (2026-08-23, Colombia staging Neon `br-shy-king-ax96do57`):**
+
+- Direct host `ep-spring-credit-ax8bptqt.c-4.us-east-2.aws.neon.tech`
+  (pooler suffix stripped). Production branch
+  `br-nameless-dew-axx1c59w` was not opened.
+- Operator `Emuthmartinez`. Confirm token `colombia-u8-backfill`.
+- Expanded manifest checksum
+  `8db8c7f959ca54ada60a0c039e47fb50863d6375eb7ac0f2131b9a8e6f8db60f`.
+- Count-only then apply, one domain at a time. `ops_backfill_progress`:
+  50 rows, all `complete` (reports 6 + remaining 44).
+- Rows stamped on apply: `volunteers` 3; `missing_person_suppressions` 11;
+  `missing_persons` 1; `missing_pets` 1; `person_cluster_members` 6;
+  `person_clusters` 3; `person_link_decisions` 6; `person_links` 3;
+  `person_records` 12; `record_status_signals` 2; `api_keys` 1;
+  `click_counters` 1; `click_counter_dedup` 1. Other listed tables were
+  already empty or already scoped (`unscopedAfter=0`).
+- Post-apply verification: zero NULL `organization_id`/`incident_id` on
+  reports, volunteers, hospitals, family-search, hub, ops, and campaign
+  tables. `audit_log` still has 113 unscoped rows (mixed-scope; out of
+  this runner).
+
+**Evidence (2026-08-23, worktree):**
+
+- Manifest domains: `reports`, `volunteers`, `hospitals`,
+  `family-search`, `hub`, `ops`, `campaign`. Catalog tables and
+  `audit_log` are absent.
+- Non-`id` PKs: `report_confirmations (report_id, ip_hash)`,
+  `missing_person_suppressions.legacy_id`, `person_records.prn`,
+  `hub_sync_state.type`, `click_counters.key`,
+  `click_counter_dedup (counter_key, ip_hash)`.
+- Direct-endpoint wrapper: `scripts/ops-backfill-direct.sh`.
+- Tests: `backend/test/ops-backfill.test.ts` 17 passed against local
+  Postgres.
+
+**Not claimed:**
+
+- `SET NOT NULL` / FK `VALIDATE` / tenant-leading indexes
+- `audit_log` mixed-scope backfill
+- Apply on Colombia production Neon
 - Merge Colombia `staging` to `main`
 
 ## Blocker packets (open)
