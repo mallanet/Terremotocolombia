@@ -30,7 +30,7 @@ status. Complete means acceptance evidence, not the existence of files.
 | Untracked on user checkout | `.agents/skills/disaster-*`, `.agents/skills/geo/**`, `.agents/skills/neon*` — preserve, do not absorb |
 | Plans on origin/main | absent before this unit; copied into the worktree in Phase 0 |
 | Do not absorb | `8f12eaa` Access-doc edits and pptx |
-| origin/staging | `410ed8f` Merge PR #76 (U8 tighten). Recorded 2026-08-24 |
+| origin/staging | `f653086` Merge PR #77 (operator bootstrap). Recorded 2026-08-24 |
 | Local `main` | stale (`3dacec2`, 242 behind). Ignore. |
 | Plan original review SHA | `89089da` (ancestor of main) |
 | Cache addendum SHA | `d106977` (ancestor of main) |
@@ -75,12 +75,11 @@ U35 starts deterministic shadow; not a U21 gate
 ```
 
 **Next executable unit:** U34 (Upstash behind the provider-neutral cache
-port) then U10 scoped repositories. Operator bootstrap (superadmin +
-deployment catalog) is on `feat/platform-operator-bootstrap`. Isolated
-platform Workers still use non-Colombia names before
-`ENABLE_PLATFORM_DEPLOYS`. Do not merge Colombia `staging` to `main`. Do
-not apply on production Neon. Skip mixed-scope `audit_log` until its
-fail-closed classifier ships.
+port) then U10 scoped repositories. Operator bootstrap is live on Colombia
+staging (`f653086`) and on isolated `mallanet-platform-*-staging` Workers.
+Do not merge Colombia `staging` to `main`. Do not apply on production Neon.
+Skip mixed-scope `audit_log` until its fail-closed classifier ships.
+Do not set `ENABLE_PLATFORM_DEPLOYS`.
 U19 imports from Colombia `origin/main` after Phase A lands there. Do not
 copy Colombia Doppler tokens onto the platform repo. Do not deploy the
 platform clone onto terremotocolombia.co Workers. Do not enable Queue v2
@@ -630,7 +629,7 @@ platform clone only through U19 after Phase A commits land on Colombia `main`.
 | Requirements | operator can manage hostnames and add superusers on staging |
 | KTDs | KTD7 (catalog writes); does **not** retire NULL-org / `is_system` (U30 stays parked) |
 | Depends on | U8 tighten, U9 hostname resolution |
-| Status | code on `feat/platform-operator-bootstrap` |
+| Status | live on Colombia staging SHA `f653086` |
 | Rollback | revert the staging PR; superadmin rows stay until an operator disables them |
 | Confirm token | `platform-operator-bootstrap` |
 
@@ -649,12 +648,21 @@ This is the current `is_super_admin` model, not organization memberships.
 - Colombia staging Neon: same operator created as an additional superadmin.
   `info@mallanet.org` stays. Production Neon was not written.
 
+- Colombia staging live (2026-08-24): API and admin
+  `https://api-staging.terremotocolombia.co` /
+  `https://admin-staging.terremotocolombia.co` serve
+  `x-app-build-sha: f653086a26b1aae868bf08013bd39b2edf2e3e7f`.
+  Superadmin login has `deployment:manage`. Hostname catalog GET 200.
+- Isolated Workers live on `Emuthmartinez/platform` (not this repo):
+  `mallanet-platform-api-staging` and `mallanet-platform-admin-staging`
+  at `*.e-muth-martinez.workers.dev`. Public frontend Worker not deployed.
+
 **Not claimed:**
 
 - U30 global identities / independent org memberships
-- Isolated Cloudflare Workers (`mallanet-platform-*`) until wrangler names
-  on `Emuthmartinez/platform` no longer say `terremotocolombia-*`
 - `ENABLE_PLATFORM_DEPLOYS`
+- Merge Colombia `staging` to `main`
+- Apply on Colombia production Neon
 
 ## Blocker packets (open)
 
@@ -685,4 +693,5 @@ This is the current `is_super_admin` model, not organization memberships.
 - **Interim:** https://github.com/Emuthmartinez/platform exists and is isolated.
 - **Missing:** an org owner creates or transfers `mallanet/platform`.
 - **Do not** copy Colombia `DOPPLER_TOKEN` / Cloudflare tokens onto the clone.
-- **Do not** set `ENABLE_PLATFORM_DEPLOYS` until isolated Workers exist.
+- **Do not** set `ENABLE_PLATFORM_DEPLOYS`. Isolated staging Workers exist;
+  Doppler `mallanet-platform` still has no Cloudflare tokens.
