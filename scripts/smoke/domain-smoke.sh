@@ -22,6 +22,12 @@ case "$ENVIRONMENT" in
     ;;
 esac
 
+# Before U21, Colombia staging can test its web artifact against the isolated
+# platform API. Production callers cannot override their API target.
+if [ "$ENVIRONMENT" = "staging" ] && [ -n "${API_OVERRIDE:-}" ]; then
+  API="$API_OVERRIDE"
+fi
+
 http_code() {
   curl -sS -o /dev/null -w "%{http_code}" --max-time 30 "$@" || echo 000
 }

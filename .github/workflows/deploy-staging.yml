@@ -119,6 +119,7 @@ jobs:
     needs: backend
     env:
       APP_BUILD_SHA: ${{ github.sha }}
+      PLATFORM_STAGING_API_URL: https://mallanet-platform-api-staging.e-muth-martinez.workers.dev
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -137,7 +138,11 @@ jobs:
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN_STAGING }}
           APP_BUILD_SHA: ${{ github.sha }}
-        run: doppler run -- npx opennextjs-cloudflare build
+        run: |
+          doppler run --command '
+            NEXT_PUBLIC_API_URL="$PLATFORM_STAGING_API_URL" \
+            npx opennextjs-cloudflare build
+          '
 
       - name: Deploy
         working-directory: frontend
@@ -172,7 +177,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Domain smoke including served SHA
         env:
-          SHA_TARGETS: all
+          API_OVERRIDE: https://mallanet-platform-api-staging.e-muth-martinez.workers.dev
+          SHA_TARGETS: web,admin
         run: |
           set -euo pipefail
           for i in $(seq 1 10); do

@@ -656,6 +656,14 @@ flowchart TB
 | Admin | `terremotocolombia-admin` | `admin/wrangler.jsonc` |
 | API | `terremotocolombia-api` | `backend/wrangler.jsonc`, `backend/src/worker.ts` |
 
+**Colombia staging bridge (before U21):** the Colombia staging frontend is
+built with `NEXT_PUBLIC_API_URL` set to the isolated platform staging API at
+`mallanet-platform-api-staging.e-muth-martinez.workers.dev`. Production keeps
+the Colombia API. The staging workflow passes `API_OVERRIDE` to its domain and
+job checks, and verifies the frontend/admin SHA independently from the platform
+API release SHA. The platform API allows only the Colombia staging web origin
+for this bridge. This does not change DNS or production traffic.
+
 - The frontend and the admin panel both adapt through
   `@opennextjs/cloudflare`.
 - The API keeps its original Express code: `backend/src/worker.ts` wraps

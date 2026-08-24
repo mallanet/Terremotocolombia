@@ -664,6 +664,40 @@ This is the current `is_super_admin` model, not organization memberships.
 - Merge Colombia `staging` to `main`
 - Apply on Colombia production Neon
 
+### Colombia web staging — isolated platform API bridge
+
+| Field | Value |
+|---|---|
+| Requirement | build and verify Colombia staging web against the isolated platform API |
+| Scope | staging web only; Colombia production, DNS, Venezuela, and net-new deployments remain out of scope |
+| Status | implementation and local/live preflight verified; staging branch rollout pending |
+| Rollback | revert the staging workflow/API override commit and redeploy the preceding staging SHA |
+| Confirm token | `colombia-web-platform-api-staging` |
+
+**Evidence (2026-08-24, pre-rollout):**
+
+- The staging frontend build receives
+  `https://mallanet-platform-api-staging.e-muth-martinez.workers.dev` as its
+  explicit `NEXT_PUBLIC_API_URL`. Production workflow inputs are unchanged.
+- Staging smoke and job verification accept an explicit API override. Durable
+  job ownership is checked with the platform release rather than against the
+  Colombia database.
+- Live preflight passed for reports, earthquakes, web, admin health, empty
+  volunteer validation, API readiness, sync freshness, and the platform job
+  catalog.
+- Frontend lint completed with zero errors and four pre-existing warnings;
+  typecheck, 49 test files / 221 tests, and a production build passed with the
+  platform API override and staging build SHA.
+- The platform API's credentialed CORS preflight for
+  `https://staging.terremotocolombia.co` passed.
+
+**Not claimed:**
+
+- successful GitHub staging deployment or post-deploy browser QA (record after
+  the staging branch merge)
+- Colombia production, Venezuela staging, or a net-new deployment
+- an absolute absence of bugs
+
 ## Blocker packets (open)
 
 ### B0. Production promotion dry-run (U0 verification)
