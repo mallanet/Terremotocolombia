@@ -670,7 +670,7 @@ This is the current `is_super_admin` model, not organization memberships.
 |---|---|
 | Requirement | build and verify Colombia staging web against the isolated platform API |
 | Scope | staging web only; Colombia production, DNS, Venezuela, and net-new deployments remain out of scope |
-| Status | implementation and local/live preflight verified; staging branch rollout pending |
+| Status | live on Colombia staging SHA `769d457` |
 | Rollback | revert the staging workflow/API override commit and redeploy the preceding staging SHA |
 | Confirm token | `colombia-web-platform-api-staging` |
 
@@ -690,11 +690,21 @@ This is the current `is_super_admin` model, not organization memberships.
   platform API override and staging build SHA.
 - The platform API's credentialed CORS preflight for
   `https://staging.terremotocolombia.co` passed.
+- PR #79 merged to `staging`; deploy run `32731940379` passed API, admin,
+  frontend, service-worker purge, served-SHA, reports, and Turnstile gates.
+- Provider readback returns `x-app-build-sha: 769d4575bb273484f600ba2b2867b6daffd32b22`.
+  The live CSP and HTML name the isolated platform API and contain no legacy
+  Colombia staging API reference.
+- Chrome rendered every non-dynamic public route with its expected primary
+  heading and no application-error page. Fresh-tab attempts could not
+  reproduce two hydration warnings observed during the long sequential audit.
+- Platform durable-state verification passed: earthquake sync/fetch fresh,
+  zero recent dead letters, and zero unresolved failed imports.
 
 **Not claimed:**
 
-- successful GitHub staging deployment or post-deploy browser QA (record after
-  the staging branch merge)
+- authenticated operator login submission (waiting for action-time user
+  confirmation in Chrome)
 - Colombia production, Venezuela staging, or a net-new deployment
 - an absolute absence of bugs
 
