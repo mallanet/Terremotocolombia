@@ -23,14 +23,14 @@
  * - It does not inspect row data.
  *
  * WHERE IT RUNS:
- * - `npm run check:schema-drift` locally against DATABASE_URL.
+ * - `npm run check:schema-drift` locally against DATABASE_URL (TCP `pg`,
+ *   same as `migrate.ts`; not Neon HTTP).
  * - Production backend upload AND staging backend deploy, BEFORE wrangler
  *   deploy/upload. Fail closed.
  *
  * It is deliberately not wired to `/api/readyz`. A pending migration is a
  * legitimate state.
  */
-import { neon } from "@neondatabase/serverless";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
@@ -38,6 +38,7 @@ import {
   expectedFromSchema,
   type ExpectedTable,
 } from "./schema-capability";
+import { querySql } from "./sql-query";
 
 const JOURNAL_PATH =
   process.env.MIGRATIONS_JOURNAL ||
@@ -59,13 +60,13 @@ export async function runSchemaDriftCheck(databaseUrl: string): Promise<{
   missingColumns: string[];
   expectedTableCount: number;
 }> {
-  const sql = neon(databaseUrl);
   const expected = expectedFromSchema();
-  const rows = (await sql.query(
+  const rows = await querySql<{ table_name: string; column_name: string }>(
+    databaseUrl,
     `SELECT table_name, column_name
        FROM information_schema.columns
       WHERE table_schema = 'public'`,
-  )) as { table_name: string; column_name: string }[];
+  );
 
   const actual = new Map<string, Set<string>>();
   for (const row of rows) {
@@ -80,9 +81,10 @@ export async function runSchemaDriftCheck(databaseUrl: string): Promise<{
     const journal = JSON.parse(readFileSync(JOURNAL_PATH, "utf8")) as {
       entries: { idx: number; when: number; tag: string }[];
     };
-    const appliedRows = (await sql.query(
+    const appliedRows = await querySql<{ created_at: string | number }>(
+      databaseUrl,
       "SELECT created_at FROM drizzle.__drizzle_migrations",
-    )) as { created_at: string | number }[];
+    );
     const appliedWhen = new Set(appliedRows.map((row) => String(row.created_at)));
     pending = journal.entries
       .filter((entry) => !appliedWhen.has(String(entry.when)))
