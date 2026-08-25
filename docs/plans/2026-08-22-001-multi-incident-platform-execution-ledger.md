@@ -700,11 +700,13 @@ This is the current `is_super_admin` model, not organization memberships.
   reproduce two hydration warnings observed during the long sequential audit.
 - Platform durable-state verification passed: earthquake sync/fetch fresh,
   zero recent dead letters, and zero unresolved failed imports.
+- With action-time confirmation, the operator credentials from Doppler
+  authenticated successfully in Chrome. The Users screen identifies the
+  operator as active, `admin`, and superadmin; Deployments and its create form
+  load without browser errors.
 
 **Not claimed:**
 
-- authenticated operator login submission (waiting for action-time user
-  confirmation in Chrome)
 - Colombia production, Venezuela staging, or a net-new deployment
 - an absolute absence of bugs
 
